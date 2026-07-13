@@ -51,6 +51,22 @@ return one constrained JSON plan containing the selected measurement tool and a
 normalized basketball point. Geometry and arithmetic remain deterministic. The A100
 launcher is `scripts/run_simple_d4rt_qwen_a100.slurm`.
 
+GPU nodes do not need internet access. Prepare dependencies and weights once on an
+internet-connected login node, then submit the offline job:
+
+```bash
+bash scripts/prepare_qwen3vl_login.sh
+sbatch scripts/run_simple_d4rt_qwen_a100.slurm
+```
+
+The preparation script stores only the Transformers-layer Python packages under
+`.cache/qwen3vl_python` and downloads Qwen into the shared Hugging Face cache. It
+reuses the existing D4RT Torch/CUDA stack. At runtime, the SLURM script copies the
+small Python layer to node-local storage, enables `HF_HUB_OFFLINE` and
+`TRANSFORMERS_OFFLINE`, resolves the cached snapshot to an absolute path, and uses
+`local_files_only=True`. A missing dependency or weight snapshot causes an immediate
+preflight failure instead of a network attempt.
+
 ### Phase 3 results: duplicate-aware grounding
 
 Status: **complete**
