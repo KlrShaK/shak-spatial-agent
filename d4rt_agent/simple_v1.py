@@ -184,12 +184,13 @@ class QwenPlanner:
 
         self.torch = torch
         self.max_new_tokens = max_new_tokens
-        self.processor = AutoProcessor.from_pretrained(model_id)
+        self.processor = AutoProcessor.from_pretrained(model_id, local_files_only=True)
         self.model = AutoModelForImageTextToText.from_pretrained(
             model_id,
             dtype=torch.bfloat16,
             device_map="auto",
             attn_implementation="sdpa",
+            local_files_only=True,
         )
 
     def plan(self, image, question: str) -> tuple[dict[str, Any], str]:
