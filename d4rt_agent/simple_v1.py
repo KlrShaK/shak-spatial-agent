@@ -180,13 +180,21 @@ class QwenPlanner:
 
     def __init__(self, model_id: str, max_new_tokens: int = 128) -> None:
         import torch
+        from huggingface_hub import snapshot_download
         from transformers import AutoModelForImageTextToText, AutoProcessor
 
         self.torch = torch
         self.max_new_tokens = max_new_tokens
-        self.processor = AutoProcessor.from_pretrained(model_id, local_files_only=True)
+        supplied_path = Path(model_id).expanduser()
+        model_path = (
+            supplied_path.resolve()
+            if supplied_path.exists()
+            else Path(snapshot_download(repo_id=model_id, local_files_only=True)).resolve()
+        )
+        self.model_path = str(model_path)
+        self.processor = AutoProcessor.from_pretrained(self.model_path, local_files_only=True)
         self.model = AutoModelForImageTextToText.from_pretrained(
-            model_id,
+            self.model_path,
             dtype=torch.bfloat16,
             device_map="auto",
             attn_implementation="sdpa",
@@ -343,6 +351,7 @@ def run_qwen(
         "created_at": datetime.now(timezone.utc).isoformat(),
         "demo_dir": str(demo_dir),
         "model": model_id,
+        "local_model_path": planner.model_path,
         "gpu": gpu,
         "reference_grounding": [reference_u, reference_v, reference_t],
         "questions": results,
