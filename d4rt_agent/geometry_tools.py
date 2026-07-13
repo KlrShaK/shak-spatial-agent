@@ -93,6 +93,85 @@ class DemoGeometry:
         tid = int(np.argmin(d))
         return TrackHit(track_id=tid, pixel_dist=float(d[tid]), uv=(float(uv_t[tid, 0]), float(uv_t[tid, 1])))
 
+    def nearby_tracks(self, u: float, v: float, t: int, radius_px: float = 12.0) -> list[int]:
+        """Return visible tracks whose projection lies within ``radius_px``."""
+        t = self._check_t(t)
+        distance = np.linalg.norm(self._uv[:, t] - np.array([u, v]), axis=1)
+        keep = (self._vis[:, t] > 0) & (distance <= float(radius_px))
+        return [int(i) for i in np.flatnonzero(keep)]
+
+    def deduplicate_tracks(self, track_ids: list[int], atol: float = 1e-6) -> list[int]:
+        """Collapse repeated query entries that contain the same full trajectory."""
+        unique: list[int] = []
+        for track_id in track_ids:
+            track_id = self._check_id(track_id)
+            duplicate = any(
+                np.array_equal(self._vis[track_id], self._vis[other])
+                and np.allclose(self._xyz[track_id], self._xyz[other], rtol=0.0, atol=atol)
+                for other in unique
+            )
+            if not duplicate:
+                unique.append(track_id)
+        return unique
+
+    def ground_track_group(
+        self, u: float, v: float, t: int, radius_px: float = 12.0
+    ) -> dict:
+        """Ground a point to nearby tracks and explicitly collapse duplicates."""
+        hit = self.nearest_track(u, v, t)
+        candidates = self.nearby_tracks(u, v, t, radius_px=radius_px)
+        if not candidates:
+            candidates = [hit.track_id]
+        unique = self.deduplicate_tracks(candidates)
+        return {
+            "representative_track_id": unique[0],
+            "candidate_track_ids": candidates,
+            "unique_track_ids": unique,
+            "duplicate_tracks_removed": len(candidates) - len(unique),
+            "nearest_pixel_distance": round(hit.pixel_dist, 4),
+            "radius_px": float(radius_px),
+        }
+
+    @staticmethod
+    def _metric_spread(values: list[float]) -> dict:
+        array = np.asarray(values, dtype=np.float64)
+        return {
+            "median": round(float(np.median(array)), 4),
+            "min": round(float(np.min(array)), 4),
+            "max": round(float(np.max(array)), 4),
+            "std": round(float(np.std(array)), 4),
+        }
+
+    def group_endpoint_measurement(self, track_ids: list[int], t0: int, t1: int) -> dict:
+        """Median endpoint measurement across deduplicated nearby tracks."""
+        unique = self.deduplicate_tracks(track_ids)
+        if not unique:
+            raise ValueError("track group is empty")
+        values = [self.displacement(track_id, t0, t1) for track_id in unique]
+        result = self.endpoint_measurement(unique[0], t0, t1)
+        spread = self._metric_spread(values)
+        result.update({
+            "track_ids": unique,
+            "endpoint_displacement_m": spread["median"],
+            "metric_spread_m": spread,
+        })
+        return result
+
+    def group_path_measurement(self, track_ids: list[int], t0: int, t1: int) -> dict:
+        """Median visible path length across deduplicated nearby tracks."""
+        unique = self.deduplicate_tracks(track_ids)
+        if not unique:
+            raise ValueError("track group is empty")
+        values = [self.path_length(track_id, t0, t1) for track_id in unique]
+        result = self.path_measurement(unique[0], t0, t1)
+        spread = self._metric_spread(values)
+        result.update({
+            "track_ids": unique,
+            "path_length_m": spread["median"],
+            "metric_spread_m": spread,
+        })
+        return result
+
     # -- per-track geometry ------------------------------------------------
     def visible(self, track_id: int, t: int) -> bool:
         return bool(self._vis[self._check_id(track_id), self._check_t(t)] > 0)

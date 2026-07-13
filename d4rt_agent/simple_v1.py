@@ -60,6 +60,15 @@ def _measure(geometry: DemoGeometry, track_id: int, tool: str) -> dict[str, Any]
     raise ValueError(f"Unsupported measurement tool: {tool}")
 
 
+def _measure_group(geometry: DemoGeometry, track_ids: list[int], tool: str) -> dict[str, Any]:
+    last = geometry.num_frames - 1
+    if tool == "endpoint_displacement":
+        return geometry.group_endpoint_measurement(track_ids, 0, last)
+    if tool == "path_length":
+        return geometry.group_path_measurement(track_ids, 0, last)
+    raise ValueError(f"Unsupported measurement tool: {tool}")
+
+
 def run_deterministic(demo_dir: Path, seed: tuple[float, float, int]) -> dict[str, Any]:
     """Run known-pixel grounding against predicted and GT geometry."""
     pred = DemoGeometry(demo_dir, source="pred")
@@ -99,6 +108,33 @@ def run_deterministic(demo_dir: Path, seed: tuple[float, float, int]) -> dict[st
             "gt_track_id": gt_hit.track_id,
             "gt_pixel_distance": round(gt_hit.pixel_dist, 4),
         },
+        "questions": results,
+    }
+
+
+def run_robust(demo_dir: Path, seed: tuple[float, float, int], radius_px: float) -> dict[str, Any]:
+    """Run duplicate-aware local track grouping for the same two measurements."""
+    pred = DemoGeometry(demo_dir, source="pred")
+    gt = DemoGeometry(demo_dir, source="gt")
+    u, v, t = seed
+    pred_group = pred.ground_track_group(u, v, t, radius_px=radius_px)
+    gt_group = gt.ground_track_group(u, v, t, radius_px=radius_px)
+    results = []
+    for question in QUESTIONS:
+        predicted = _measure_group(pred, pred_group["unique_track_ids"], question["tool"])
+        reference = _measure_group(gt, gt_group["unique_track_ids"], question["tool"])
+        key = "endpoint_displacement_m" if question["tool"] == "endpoint_displacement" else "path_length_m"
+        results.append({
+            **question,
+            "predicted": predicted,
+            "reference": reference,
+            "absolute_error_m": round(abs(float(predicted[key]) - float(reference[key])), 4),
+        })
+    return {
+        "phase": "robust",
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "demo_dir": str(demo_dir),
+        "grounding": {"requested_uvt": [u, v, t], "predicted": pred_group, "gt": gt_group},
         "questions": results,
     }
 
@@ -317,15 +353,34 @@ def _print_qwen(result: dict[str, Any]) -> None:
     print(f"\nSummary: {json.dumps(result['summary'])}")
 
 
+def _print_robust(result: dict[str, Any]) -> None:
+    pred_group = result["grounding"]["predicted"]
+    print(f"Demo: {result['demo_dir']}")
+    print(
+        f"Local grounding found {len(pred_group['candidate_track_ids'])} track entries, "
+        f"collapsed to {len(pred_group['unique_track_ids'])} unique trajectory."
+    )
+    print("Measurement                 Median (m)  Spread min/max (m)  Abs. error (m)")
+    print("--------------------------  ----------  ------------------  --------------")
+    for item in result["questions"]:
+        key = "endpoint_displacement_m" if item["tool"] == "endpoint_displacement" else "path_length_m"
+        spread = item["predicted"]["metric_spread_m"]
+        print(
+            f"{item['id']:<26}  {item['predicted'][key]:>10.4f}  "
+            f"{spread['min']:.4f}/{spread['max']:.4f}         {item['absolute_error_m']:.4f}"
+        )
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--phase", choices=["deterministic", "qwen"], default="deterministic")
+    parser.add_argument("--phase", choices=["deterministic", "qwen", "robust"], default="deterministic")
     parser.add_argument("--demo-dir", type=Path, default=DEFAULT_DEMO)
     parser.add_argument("--seed-u", type=float, default=DEFAULT_SEED[0])
     parser.add_argument("--seed-v", type=float, default=DEFAULT_SEED[1])
     parser.add_argument("--seed-frame", type=int, default=DEFAULT_SEED[2])
     parser.add_argument("--model", default="Qwen/Qwen3-VL-8B-Instruct")
     parser.add_argument("--max-new-tokens", type=int, default=128)
+    parser.add_argument("--grounding-radius", type=float, default=12.0)
     parser.add_argument("--output", type=Path)
     return parser.parse_args()
 
@@ -337,10 +392,14 @@ def main() -> None:
         result = run_deterministic(args.demo_dir, seed)
         output = args.output or Path("d4rt_agent/results/basketball_6/phase1_deterministic.json")
         printer = _print_deterministic
-    else:
+    elif args.phase == "qwen":
         result = run_qwen(args.demo_dir, seed, args.model, args.max_new_tokens)
         output = args.output or Path("d4rt_agent/results/basketball_6/phase2_qwen.json")
         printer = _print_qwen
+    else:
+        result = run_robust(args.demo_dir, seed, args.grounding_radius)
+        output = args.output or Path("d4rt_agent/results/basketball_6/phase3_robust.json")
+        printer = _print_robust
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(json.dumps(result, indent=2) + "\n")
     printer(result)

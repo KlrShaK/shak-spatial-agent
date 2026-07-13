@@ -4,7 +4,7 @@ from pathlib import Path
 import unittest
 
 from d4rt_agent.geometry_tools import DemoGeometry
-from d4rt_agent.simple_v1 import DEFAULT_DEMO, _parse_planner_json, run_deterministic
+from d4rt_agent.simple_v1 import DEFAULT_DEMO, _parse_planner_json, run_deterministic, run_robust
 
 
 class BasketballDeterministicTest(unittest.TestCase):
@@ -42,6 +42,15 @@ class BasketballDeterministicTest(unittest.TestCase):
     def test_qwen_planner_json_rejects_unknown_tool(self) -> None:
         with self.assertRaises(ValueError):
             _parse_planner_json('{"tool":"distance","point_2d":[500,500],"frame":0}')
+
+    def test_duplicate_ball_tracks_collapse_to_one_trajectory(self) -> None:
+        result = run_robust(DEFAULT_DEMO, (346.0, 166.0, 0), radius_px=12.0)
+        group = result["grounding"]["predicted"]
+        self.assertEqual(group["candidate_track_ids"], [5, 6, 7, 8, 9, 10])
+        self.assertEqual(group["unique_track_ids"], [5])
+        self.assertEqual(group["duplicate_tracks_removed"], 5)
+        for item in result["questions"]:
+            self.assertEqual(item["predicted"]["metric_spread_m"]["std"], 0.0)
 
 
 if __name__ == "__main__":
