@@ -126,6 +126,24 @@ operation and track for both prompts, while the resulting numerical error was al
 present in the deterministic D4RT ceiling. Path length covers only 42/64 visible
 frames and does not bridge the occlusion gap.
 
+### Phase 5 results: forced pure-VLM metric estimates
+
+Status: **complete**
+
+The earlier direct baseline was allowed to abstain. For a more revealing comparison,
+Qwen was shown eight RGB frames and required to provide its best numerical estimate.
+It received no D4RT tracks, depth, camera calibration, or metric geometry.
+
+| Measurement | Pure Qwen | GT | Pure-Qwen error | D4RT error |
+|---|---:|---:|---:|---:|
+| Start-to-end displacement | 1.5000 m | 0.5625 m | 0.9375 m (166.7%) | 0.2382 m (42.3%) |
+| Distance travelled | 2.0000 m | 3.1581 m | 1.1581 m (36.7%) | 0.4468 m (14.1%) |
+
+The pure VLM recognized the qualitative motion but inferred scale poorly. D4RT reduced
+absolute error by about 4x for endpoint displacement and 2.6x for path length on this
+single example. The machine-readable result is
+`results/basketball_6/phase5_direct_vlm.json`.
+
 ## Design
 
 ```

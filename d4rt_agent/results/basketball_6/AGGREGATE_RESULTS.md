@@ -25,6 +25,15 @@ Status: **complete**
 
 Found 6 local track entries, collapsed to 1 unique trajectory; removed 5 duplicates.
 
+## Forced pure-VLM metric estimates
+
+Qwen received sampled RGB frames and the question only. It was required to return a number despite monocular scale ambiguity.
+
+| Task | Pure Qwen | GT | Absolute error | Relative error |
+|---|---:|---:|---:|---:|
+| endpoint_displacement | 1.5000 m | 0.5625 m | 0.9375 m | 166.7% |
+| distance_travelled | 2.0000 m | 3.1581 m | 1.1581 m | 36.7% |
+
 ## Interpretation
 
 The V1 goal is transparent orchestration, not state-of-the-art accuracy. Geometry, grounding, planning, and answer-generation failures are reported separately. Visible-only path length does not interpolate across occlusions.
