@@ -13,6 +13,8 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
+import re
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -34,6 +36,19 @@ QUESTIONS = [
         "tool": "path_length",
     },
 ]
+QWEN_SYSTEM_PROMPT = """You are the semantic planner for a 4D geometry tool.
+You see frame 0 of a video and receive a question about the basketball.
+
+Choose exactly one tool:
+- endpoint_displacement: straight-line separation between the start and end positions.
+- path_length: accumulated distance covered/travelled along intermediate positions.
+
+Ground the center of the basketball in frame 0. Coordinates are normalized integers
+from 0 to 1000, where [0,0] is top-left and [1000,1000] is bottom-right.
+
+Return JSON only, with no markdown or explanation:
+{"tool":"endpoint_displacement or path_length","point_2d":[x,y],"frame":0}
+"""
 
 
 def _measure(geometry: DemoGeometry, track_id: int, tool: str) -> dict[str, Any]:
@@ -88,6 +103,171 @@ def run_deterministic(demo_dir: Path, seed: tuple[float, float, int]) -> dict[st
     }
 
 
+def _parse_planner_json(text: str) -> dict[str, Any]:
+    """Extract and validate Qwen's deliberately small planner response."""
+    match = re.search(r"\{.*\}", text, flags=re.DOTALL)
+    if match is None:
+        raise ValueError(f"Qwen did not return a JSON object: {text!r}")
+    plan = json.loads(match.group(0))
+    tool = plan.get("tool")
+    if tool not in {"endpoint_displacement", "path_length"}:
+        raise ValueError(f"unsupported tool in Qwen plan: {tool!r}")
+    point = plan.get("point_2d")
+    if not isinstance(point, list) or len(point) != 2:
+        raise ValueError(f"point_2d must be [x, y], got {point!r}")
+    x, y = float(point[0]), float(point[1])
+    if not (0 <= x <= 1000 and 0 <= y <= 1000):
+        raise ValueError(f"normalized point is out of range: {point!r}")
+    frame = int(plan.get("frame", 0))
+    if frame != 0:
+        raise ValueError(f"V1 grounding must use frame 0, got frame {frame}")
+    return {"tool": tool, "point_2d": [x, y], "frame": frame}
+
+
+def _read_video_frame(video_path: Path, frame_index: int):
+    """Read one RGB frame lazily so deterministic runs do not require OpenCV."""
+    import cv2
+    from PIL import Image
+
+    capture = cv2.VideoCapture(str(video_path))
+    capture.set(cv2.CAP_PROP_POS_FRAMES, frame_index)
+    ok, frame_bgr = capture.read()
+    capture.release()
+    if not ok:
+        raise RuntimeError(f"could not read frame {frame_index} from {video_path}")
+    frame_rgb = cv2.cvtColor(frame_bgr, cv2.COLOR_BGR2RGB)
+    return Image.fromarray(frame_rgb)
+
+
+class QwenPlanner:
+    """Small constrained Qwen3-VL planner: one image in, one JSON tool call out."""
+
+    def __init__(self, model_id: str, max_new_tokens: int = 128) -> None:
+        import torch
+        from transformers import AutoModelForImageTextToText, AutoProcessor
+
+        self.torch = torch
+        self.max_new_tokens = max_new_tokens
+        self.processor = AutoProcessor.from_pretrained(model_id)
+        self.model = AutoModelForImageTextToText.from_pretrained(
+            model_id,
+            dtype=torch.bfloat16,
+            device_map="auto",
+            attn_implementation="sdpa",
+        )
+
+    def plan(self, image, question: str) -> tuple[dict[str, Any], str]:
+        messages = [
+            {"role": "system", "content": [{"type": "text", "text": QWEN_SYSTEM_PROMPT}]},
+            {
+                "role": "user",
+                "content": [
+                    {"type": "image", "image": image},
+                    {"type": "text", "text": f"Question: {question}"},
+                ],
+            },
+        ]
+        inputs = self.processor.apply_chat_template(
+            messages,
+            tokenize=True,
+            add_generation_prompt=True,
+            return_dict=True,
+            return_tensors="pt",
+        ).to(self.model.device)
+        with self.torch.inference_mode():
+            generated = self.model.generate(
+                **inputs,
+                max_new_tokens=self.max_new_tokens,
+                do_sample=False,
+            )
+        new_tokens = generated[:, inputs.input_ids.shape[1]:]
+        raw = self.processor.batch_decode(
+            new_tokens,
+            skip_special_tokens=True,
+            clean_up_tokenization_spaces=False,
+        )[0].strip()
+        return _parse_planner_json(raw), raw
+
+
+def run_qwen(
+    demo_dir: Path,
+    reference_seed: tuple[float, float, int],
+    model_id: str,
+    max_new_tokens: int,
+) -> dict[str, Any]:
+    """Let Qwen choose the tool and grounding point, then execute D4RT geometry."""
+    pred = DemoGeometry(demo_dir, source="pred")
+    gt = DemoGeometry(demo_dir, source="gt")
+    planner = QwenPlanner(model_id, max_new_tokens=max_new_tokens)
+    image = _read_video_frame(demo_dir / "assets" / "input_video.mp4", 0)
+    reference_u, reference_v, reference_t = reference_seed
+    reference_gt_hit = gt.nearest_track(reference_u, reference_v, reference_t)
+
+    results = []
+    for question in QUESTIONS:
+        item: dict[str, Any] = {**question}
+        try:
+            plan, raw = planner.plan(image, question["question"])
+            u = plan["point_2d"][0] * pred.width / 1000.0
+            v = plan["point_2d"][1] * pred.height / 1000.0
+            hit = pred.nearest_track(u, v, plan["frame"])
+            measurement = _measure(pred, hit.track_id, plan["tool"])
+            reference = _measure(gt, reference_gt_hit.track_id, question["tool"])
+            selected_key = (
+                "endpoint_displacement_m" if plan["tool"] == "endpoint_displacement" else "path_length_m"
+            )
+            expected_key = (
+                "endpoint_displacement_m" if question["tool"] == "endpoint_displacement" else "path_length_m"
+            )
+            point_error = math.hypot(u - reference_u, v - reference_v)
+            item.update({
+                "raw_qwen_response": raw,
+                "plan": plan,
+                "grounding_pixel": [round(u, 2), round(v, 2)],
+                "grounding_pixel_error": round(point_error, 2),
+                "grounded_track_id": hit.track_id,
+                "track_snap_distance": round(hit.pixel_dist, 2),
+                "planning_correct": plan["tool"] == question["tool"],
+                "grounding_within_40px": point_error <= 40.0,
+                "measurement": measurement,
+                "reference": reference,
+                "answer": f"{measurement[selected_key]:.4f} m",
+            })
+            if plan["tool"] == question["tool"]:
+                item["absolute_error_m"] = round(
+                    abs(float(measurement[selected_key]) - float(reference[expected_key])), 4
+                )
+            else:
+                item["absolute_error_m"] = None
+        except Exception as exc:
+            item["error"] = f"{type(exc).__name__}: {exc}"
+            item["planning_correct"] = False
+            item["grounding_within_40px"] = False
+        results.append(item)
+
+    gpu = {}
+    if planner.torch.cuda.is_available():
+        gpu = {
+            "name": planner.torch.cuda.get_device_name(0),
+            "max_memory_allocated_gib": round(planner.torch.cuda.max_memory_allocated(0) / 2**30, 3),
+        }
+    return {
+        "phase": "qwen",
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "demo_dir": str(demo_dir),
+        "model": model_id,
+        "gpu": gpu,
+        "reference_grounding": [reference_u, reference_v, reference_t],
+        "questions": results,
+        "summary": {
+            "questions": len(results),
+            "successful": sum("error" not in item for item in results),
+            "planning_correct": sum(bool(item.get("planning_correct")) for item in results),
+            "grounding_within_40px": sum(bool(item.get("grounding_within_40px")) for item in results),
+        },
+    }
+
+
 def _print_deterministic(result: dict[str, Any]) -> None:
     grounding = result["grounding"]
     print(f"Demo: {result['demo_dir']}")
@@ -112,28 +292,59 @@ def _print_deterministic(result: dict[str, Any]) -> None:
             )
 
 
+def _print_qwen(result: dict[str, Any]) -> None:
+    print(f"Demo: {result['demo_dir']}")
+    print(f"Model: {result['model']}")
+    if result.get("gpu"):
+        print(
+            f"GPU: {result['gpu']['name']}; peak allocated model/process memory "
+            f"{result['gpu']['max_memory_allocated_gib']:.3f} GiB"
+        )
+    for item in result["questions"]:
+        print(f"\n[{item['id']}] {item['question']}")
+        if "error" in item:
+            print(f"  ERROR: {item['error']}")
+            continue
+        print(f"  Qwen: {item['raw_qwen_response']}")
+        print(
+            f"  pixel={item['grounding_pixel']}, track={item['grounded_track_id']}, "
+            f"tool={item['plan']['tool']}, answer={item['answer']}"
+        )
+        print(
+            f"  planning_correct={item['planning_correct']}, "
+            f"grounding_error={item['grounding_pixel_error']:.2f}px"
+        )
+    print(f"\nSummary: {json.dumps(result['summary'])}")
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--phase", choices=["deterministic"], default="deterministic")
+    parser.add_argument("--phase", choices=["deterministic", "qwen"], default="deterministic")
     parser.add_argument("--demo-dir", type=Path, default=DEFAULT_DEMO)
     parser.add_argument("--seed-u", type=float, default=DEFAULT_SEED[0])
     parser.add_argument("--seed-v", type=float, default=DEFAULT_SEED[1])
     parser.add_argument("--seed-frame", type=int, default=DEFAULT_SEED[2])
-    parser.add_argument(
-        "--output",
-        type=Path,
-        default=Path("d4rt_agent/results/basketball_6/phase1_deterministic.json"),
-    )
+    parser.add_argument("--model", default="Qwen/Qwen3-VL-8B-Instruct")
+    parser.add_argument("--max-new-tokens", type=int, default=128)
+    parser.add_argument("--output", type=Path)
     return parser.parse_args()
 
 
 def main() -> None:
     args = parse_args()
-    result = run_deterministic(args.demo_dir, (args.seed_u, args.seed_v, args.seed_frame))
-    args.output.parent.mkdir(parents=True, exist_ok=True)
-    args.output.write_text(json.dumps(result, indent=2) + "\n")
-    _print_deterministic(result)
-    print(f"\nSaved: {args.output}")
+    seed = (args.seed_u, args.seed_v, args.seed_frame)
+    if args.phase == "deterministic":
+        result = run_deterministic(args.demo_dir, seed)
+        output = args.output or Path("d4rt_agent/results/basketball_6/phase1_deterministic.json")
+        printer = _print_deterministic
+    else:
+        result = run_qwen(args.demo_dir, seed, args.model, args.max_new_tokens)
+        output = args.output or Path("d4rt_agent/results/basketball_6/phase2_qwen.json")
+        printer = _print_qwen
+    output.parent.mkdir(parents=True, exist_ok=True)
+    output.write_text(json.dumps(result, indent=2) + "\n")
+    printer(result)
+    print(f"\nSaved: {output}")
 
 
 if __name__ == "__main__":

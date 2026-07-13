@@ -4,7 +4,7 @@ from pathlib import Path
 import unittest
 
 from d4rt_agent.geometry_tools import DemoGeometry
-from d4rt_agent.simple_v1 import DEFAULT_DEMO, run_deterministic
+from d4rt_agent.simple_v1 import DEFAULT_DEMO, _parse_planner_json, run_deterministic
 
 
 class BasketballDeterministicTest(unittest.TestCase):
@@ -31,6 +31,17 @@ class BasketballDeterministicTest(unittest.TestCase):
         measured = geometry.path_measurement(5, 0, 63)
         segment_sum = geometry.path_length(5, 0, 33) + geometry.path_length(5, 56, 63)
         self.assertAlmostEqual(measured["path_length_m"], segment_sum, places=4)
+
+    def test_qwen_planner_json_parser(self) -> None:
+        plan = _parse_planner_json(
+            '```json\n{"tool":"path_length","point_2d":[541,461],"frame":0}\n```'
+        )
+        self.assertEqual(plan["tool"], "path_length")
+        self.assertEqual(plan["point_2d"], [541.0, 461.0])
+
+    def test_qwen_planner_json_rejects_unknown_tool(self) -> None:
+        with self.assertRaises(ValueError):
+            _parse_planner_json('{"tool":"distance","point_2d":[500,500],"frame":0}')
 
 
 if __name__ == "__main__":
