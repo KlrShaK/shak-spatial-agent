@@ -547,6 +547,7 @@ def run_aggregate(results_dir: Path) -> dict[str, Any]:
         "phase1": results_dir / "phase1_deterministic.json",
         "phase2": results_dir / "phase2_qwen.json",
         "phase3": results_dir / "phase3_robust.json",
+        "phase5": results_dir / "phase5_direct_vlm.json",
     }
     phases: dict[str, Any] = {}
     missing = []
@@ -593,6 +594,15 @@ def run_aggregate(results_dir: Path) -> dict[str, Any]:
             "candidate_tracks": len(group["candidate_track_ids"]),
             "unique_tracks": len(group["unique_track_ids"]),
             "duplicates_removed": group["duplicate_tracks_removed"],
+        }
+    if "phase5" in phases:
+        phase5 = phases["phase5"]
+        aggregate["forced_direct_vlm"] = {
+            "model": phase5["model"],
+            "sampled_frames": phase5["sampled_frames"],
+            "information_available_to_model": phase5["information_available_to_model"],
+            "gpu": phase5.get("gpu", {}),
+            "questions": phase5["questions"],
         }
     return aggregate
 
@@ -644,6 +654,26 @@ def _aggregate_markdown(result: dict[str, Any]) -> str:
             f"{robust['unique_tracks']} unique trajectory; removed {robust['duplicates_removed']} duplicates.",
             "",
         ])
+    if "forced_direct_vlm" in result:
+        direct = result["forced_direct_vlm"]
+        lines.extend([
+            "## Forced pure-VLM metric estimates",
+            "",
+            "Qwen received sampled RGB frames and the question only. It was required to return a number "
+            "despite monocular scale ambiguity.",
+            "",
+            "| Task | Pure Qwen | GT | Absolute error | Relative error |",
+            "|---|---:|---:|---:|---:|",
+        ])
+        for item in direct["questions"]:
+            if "error" in item:
+                lines.append(f"| {item['id']} | error | - | - | - |")
+            else:
+                lines.append(
+                    f"| {item['id']} | {item['estimate_m']:.4f} m | {item['gt_m']:.4f} m | "
+                    f"{item['absolute_error_m']:.4f} m | {100 * item['relative_error']:.1f}% |"
+                )
+        lines.append("")
     lines.extend([
         "## Interpretation",
         "",
