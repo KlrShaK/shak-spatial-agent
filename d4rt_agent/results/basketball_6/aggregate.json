@@ -1,0 +1,226 @@
+{
+  "phase": "aggregate",
+  "created_at": "2026-07-13T15:12:45.678628+00:00",
+  "status": "complete",
+  "missing": [],
+  "geometry_baseline": [
+    {
+      "id": "endpoint_displacement",
+      "d4rt_m": 0.3243,
+      "gt_m": 0.5625,
+      "absolute_error_m": 0.2382
+    },
+    {
+      "id": "distance_travelled",
+      "d4rt_m": 3.6049,
+      "gt_m": 3.1581,
+      "absolute_error_m": 0.4468
+    }
+  ],
+  "qwen": {
+    "model": "/cluster/work/igp_psr/spanwar/hf_cache/hub/models--Qwen--Qwen3-VL-8B-Instruct/snapshots/0c351dd01ed87e9c1b53cbc748cba10e6187ff3b",
+    "gpu": {
+      "name": "NVIDIA A100-PCIE-40GB",
+      "max_memory_allocated_gib": 16.63
+    },
+    "planning_accuracy": 1.0,
+    "grounding_within_40px_accuracy": 1.0,
+    "tool_questions": [
+      {
+        "id": "endpoint_displacement",
+        "question": "What is the metric distance between the starting and ending position of the basketball?",
+        "tool": "endpoint_displacement",
+        "raw_qwen_response": "{\"tool\":\"endpoint_displacement\",\"point_2d\":[546,408],\"frame\":0}",
+        "plan": {
+          "tool": "endpoint_displacement",
+          "point_2d": [
+            546.0,
+            408.0
+          ],
+          "frame": 0
+        },
+        "grounding_pixel": [
+          349.44,
+          146.88
+        ],
+        "grounding_pixel_error": 19.43,
+        "grounded_track_id": 5,
+        "track_group": {
+          "representative_track_id": 5,
+          "candidate_track_ids": [
+            5
+          ],
+          "unique_track_ids": [
+            5
+          ],
+          "duplicate_tracks_removed": 0,
+          "nearest_pixel_distance": 18.6247,
+          "radius_px": 12.0
+        },
+        "track_snap_distance": 18.6247,
+        "planning_correct": true,
+        "grounding_within_40px": true,
+        "measurement": {
+          "track_id": 5,
+          "t0": 0,
+          "t1": 63,
+          "position_t0_m": [
+            0.161,
+            -0.0597,
+            2.2893
+          ],
+          "position_t1_m": [
+            0.2267,
+            -0.1941,
+            2.0015
+          ],
+          "endpoint_displacement_m": 0.3243,
+          "endpoint_visible": [
+            true,
+            true
+          ],
+          "track_ids": [
+            5
+          ],
+          "metric_spread_m": {
+            "median": 0.3243,
+            "min": 0.3243,
+            "max": 0.3243,
+            "std": 0.0
+          }
+        },
+        "reference": {
+          "track_id": 5,
+          "t0": 0,
+          "t1": 63,
+          "position_t0_m": [
+            0.1585,
+            -0.087,
+            2.5494
+          ],
+          "position_t1_m": [
+            0.2393,
+            -0.1746,
+            1.9997
+          ],
+          "endpoint_displacement_m": 0.5625,
+          "endpoint_visible": [
+            true,
+            true
+          ]
+        },
+        "answer": "0.3243 m",
+        "absolute_error_m": 0.2382
+      },
+      {
+        "id": "distance_travelled",
+        "question": "How much distance did the basketball cover between the first and last frame of the video?",
+        "tool": "path_length",
+        "raw_qwen_response": "{\"tool\":\"path_length\",\"point_2d\":[546,406],\"frame\":0}",
+        "plan": {
+          "tool": "path_length",
+          "point_2d": [
+            546.0,
+            406.0
+          ],
+          "frame": 0
+        },
+        "grounding_pixel": [
+          349.44,
+          146.16
+        ],
+        "grounding_pixel_error": 20.14,
+        "grounded_track_id": 5,
+        "track_group": {
+          "representative_track_id": 5,
+          "candidate_track_ids": [
+            5
+          ],
+          "unique_track_ids": [
+            5
+          ],
+          "duplicate_tracks_removed": 0,
+          "nearest_pixel_distance": 19.3406,
+          "radius_px": 12.0
+        },
+        "track_snap_distance": 19.3406,
+        "planning_correct": true,
+        "grounding_within_40px": true,
+        "measurement": {
+          "track_id": 5,
+          "t0": 0,
+          "t1": 63,
+          "path_length_m": 3.6049,
+          "visible_frames": 42,
+          "total_frames": 64,
+          "coverage": 0.6562,
+          "visible_segments": [
+            [
+              0,
+              33
+            ],
+            [
+              56,
+              63
+            ]
+          ],
+          "measurement": "visible trajectory only",
+          "track_ids": [
+            5
+          ],
+          "metric_spread_m": {
+            "median": 3.6049,
+            "min": 3.6049,
+            "max": 3.6049,
+            "std": 0.0
+          }
+        },
+        "reference": {
+          "track_id": 5,
+          "t0": 0,
+          "t1": 63,
+          "path_length_m": 3.1581,
+          "visible_frames": 30,
+          "total_frames": 64,
+          "coverage": 0.4688,
+          "visible_segments": [
+            [
+              0,
+              6
+            ],
+            [
+              23,
+              23
+            ],
+            [
+              42,
+              63
+            ]
+          ],
+          "measurement": "visible trajectory only"
+        },
+        "answer": "3.6049 m",
+        "absolute_error_m": 0.4468
+      }
+    ],
+    "direct_vlm_baseline": [
+      {
+        "id": "endpoint_displacement",
+        "question": "What is the metric distance between the starting and ending position of the basketball?",
+        "tool": "endpoint_displacement",
+        "response": "cannot be determined"
+      },
+      {
+        "id": "distance_travelled",
+        "question": "How much distance did the basketball cover between the first and last frame of the video?",
+        "tool": "path_length",
+        "response": "cannot be determined"
+      }
+    ]
+  },
+  "robust_grounding": {
+    "candidate_tracks": 6,
+    "unique_tracks": 1,
+    "duplicates_removed": 5
+  }
+}
