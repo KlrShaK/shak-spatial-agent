@@ -656,22 +656,27 @@ def _aggregate_markdown(result: dict[str, Any]) -> str:
         ])
     if "forced_direct_vlm" in result:
         direct = result["forced_direct_vlm"]
+        geometry_by_id = {item["id"]: item for item in result.get("geometry_baseline", [])}
         lines.extend([
             "## Forced pure-VLM metric estimates",
             "",
             "Qwen received sampled RGB frames and the question only. It was required to return a number "
             "despite monocular scale ambiguity.",
             "",
-            "| Task | Pure Qwen | GT | Absolute error | Relative error |",
-            "|---|---:|---:|---:|---:|",
+            "| Task | Pure Qwen | D4RT tool | GT | Pure-Qwen error | D4RT error |",
+            "|---|---:|---:|---:|---:|---:|",
         ])
         for item in direct["questions"]:
+            geometry = geometry_by_id.get(item["id"], {})
             if "error" in item:
-                lines.append(f"| {item['id']} | error | - | - | - |")
+                lines.append(f"| {item['id']} | error | - | - | - | - |")
             else:
                 lines.append(
-                    f"| {item['id']} | {item['estimate_m']:.4f} m | {item['gt_m']:.4f} m | "
-                    f"{item['absolute_error_m']:.4f} m | {100 * item['relative_error']:.1f}% |"
+                    f"| {item['id']} | {item['estimate_m']:.4f} m | "
+                    f"{geometry.get('d4rt_m', float('nan')):.4f} m | {item['gt_m']:.4f} m | "
+                    f"{item['absolute_error_m']:.4f} m ({100 * item['relative_error']:.1f}%) | "
+                    f"{geometry.get('absolute_error_m', float('nan')):.4f} m "
+                    f"({100 * geometry.get('absolute_error_m', float('nan')) / item['gt_m']:.1f}%) |"
                 )
         lines.append("")
     lines.extend([

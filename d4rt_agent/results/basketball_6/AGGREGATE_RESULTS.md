@@ -29,10 +29,10 @@ Found 6 local track entries, collapsed to 1 unique trajectory; removed 5 duplica
 
 Qwen received sampled RGB frames and the question only. It was required to return a number despite monocular scale ambiguity.
 
-| Task | Pure Qwen | GT | Absolute error | Relative error |
-|---|---:|---:|---:|---:|
-| endpoint_displacement | 1.5000 m | 0.5625 m | 0.9375 m | 166.7% |
-| distance_travelled | 2.0000 m | 3.1581 m | 1.1581 m | 36.7% |
+| Task | Pure Qwen | D4RT tool | GT | Pure-Qwen error | D4RT error |
+|---|---:|---:|---:|---:|---:|
+| endpoint_displacement | 1.5000 m | 0.3243 m | 0.5625 m | 0.9375 m (166.7%) | 0.2382 m (42.3%) |
+| distance_travelled | 2.0000 m | 3.6049 m | 3.1581 m | 1.1581 m (36.7%) | 0.4468 m (14.1%) |
 
 ## Interpretation
 
