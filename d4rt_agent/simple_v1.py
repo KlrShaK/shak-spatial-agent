@@ -265,6 +265,7 @@ def run_qwen(
     reference_seed: tuple[float, float, int],
     model_id: str,
     max_new_tokens: int,
+    grounding_radius: float,
 ) -> dict[str, Any]:
     """Let Qwen choose the tool and grounding point, then execute D4RT geometry."""
     pred = DemoGeometry(demo_dir, source="pred")
@@ -281,8 +282,8 @@ def run_qwen(
             plan, raw = planner.plan(image, question["question"])
             u = plan["point_2d"][0] * pred.width / 1000.0
             v = plan["point_2d"][1] * pred.height / 1000.0
-            hit = pred.nearest_track(u, v, plan["frame"])
-            measurement = _measure(pred, hit.track_id, plan["tool"])
+            group = pred.ground_track_group(u, v, plan["frame"], radius_px=grounding_radius)
+            measurement = _measure_group(pred, group["unique_track_ids"], plan["tool"])
             reference = _measure(gt, reference_gt_hit.track_id, question["tool"])
             selected_key = (
                 "endpoint_displacement_m" if plan["tool"] == "endpoint_displacement" else "path_length_m"
@@ -296,8 +297,9 @@ def run_qwen(
                 "plan": plan,
                 "grounding_pixel": [round(u, 2), round(v, 2)],
                 "grounding_pixel_error": round(point_error, 2),
-                "grounded_track_id": hit.track_id,
-                "track_snap_distance": round(hit.pixel_dist, 2),
+                "grounded_track_id": group["representative_track_id"],
+                "track_group": group,
+                "track_snap_distance": group["nearest_pixel_distance"],
                 "planning_correct": plan["tool"] == question["tool"],
                 "grounding_within_40px": point_error <= 40.0,
                 "measurement": measurement,
@@ -423,9 +425,129 @@ def _print_robust(result: dict[str, Any]) -> None:
         )
 
 
+def run_aggregate(results_dir: Path) -> dict[str, Any]:
+    """Combine the saved phase artifacts without rerunning either model."""
+    paths = {
+        "phase1": results_dir / "phase1_deterministic.json",
+        "phase2": results_dir / "phase2_qwen.json",
+        "phase3": results_dir / "phase3_robust.json",
+    }
+    phases: dict[str, Any] = {}
+    missing = []
+    for name, path in paths.items():
+        if path.exists():
+            phases[name] = json.loads(path.read_text())
+        else:
+            missing.append(str(path))
+
+    aggregate: dict[str, Any] = {
+        "phase": "aggregate",
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "status": "complete" if not missing else "partial",
+        "missing": missing,
+    }
+    if "phase1" in phases:
+        aggregate["geometry_baseline"] = [
+            {
+                "id": item["id"],
+                "d4rt_m": item["predicted"][
+                    "endpoint_displacement_m" if item["tool"] == "endpoint_displacement" else "path_length_m"
+                ],
+                "gt_m": item["reference"][
+                    "endpoint_displacement_m" if item["tool"] == "endpoint_displacement" else "path_length_m"
+                ],
+                "absolute_error_m": item["absolute_error_m"],
+            }
+            for item in phases["phase1"]["questions"]
+        ]
+    if "phase2" in phases:
+        phase2 = phases["phase2"]
+        total = max(int(phase2["summary"]["questions"]), 1)
+        aggregate["qwen"] = {
+            "model": phase2["model"],
+            "gpu": phase2.get("gpu", {}),
+            "planning_accuracy": phase2["summary"]["planning_correct"] / total,
+            "grounding_within_40px_accuracy": phase2["summary"]["grounding_within_40px"] / total,
+            "tool_questions": phase2["questions"],
+            "direct_vlm_baseline": phase2.get("direct_vlm_baseline", []),
+        }
+    if "phase3" in phases:
+        group = phases["phase3"]["grounding"]["predicted"]
+        aggregate["robust_grounding"] = {
+            "candidate_tracks": len(group["candidate_track_ids"]),
+            "unique_tracks": len(group["unique_track_ids"]),
+            "duplicates_removed": group["duplicate_tracks_removed"],
+        }
+    return aggregate
+
+
+def _aggregate_markdown(result: dict[str, Any]) -> str:
+    lines = [
+        "# D4RT Agent V1 Aggregate Results",
+        "",
+        f"Status: **{result['status']}**",
+        "",
+    ]
+    if result.get("missing"):
+        lines.extend(["Missing artifacts:", ""] + [f"- `{path}`" for path in result["missing"]] + [""])
+    if "geometry_baseline" in result:
+        lines.extend([
+            "## Geometry baseline",
+            "",
+            "| Task | D4RT | GT | Absolute error |",
+            "|---|---:|---:|---:|",
+        ])
+        for item in result["geometry_baseline"]:
+            lines.append(
+                f"| {item['id']} | {item['d4rt_m']:.4f} m | {item['gt_m']:.4f} m | "
+                f"{item['absolute_error_m']:.4f} m |"
+            )
+        lines.append("")
+    if "qwen" in result:
+        qwen = result["qwen"]
+        lines.extend([
+            "## Qwen3-VL orchestration",
+            "",
+            f"- Model: `{qwen['model']}`",
+            f"- Planning accuracy: {100 * qwen['planning_accuracy']:.1f}%",
+            f"- Grounding within 40 px: {100 * qwen['grounding_within_40px_accuracy']:.1f}%",
+            f"- GPU: `{qwen.get('gpu', {}).get('name', 'unknown')}`",
+            "",
+            "### Direct VLM baseline",
+            "",
+        ])
+        for item in qwen["direct_vlm_baseline"]:
+            lines.append(f"- **{item['id']}**: {item.get('response', item.get('error', 'missing'))}")
+        lines.append("")
+    if "robust_grounding" in result:
+        robust = result["robust_grounding"]
+        lines.extend([
+            "## Robust grounding",
+            "",
+            f"Found {robust['candidate_tracks']} local track entries, collapsed to "
+            f"{robust['unique_tracks']} unique trajectory; removed {robust['duplicates_removed']} duplicates.",
+            "",
+        ])
+    lines.extend([
+        "## Interpretation",
+        "",
+        "The V1 goal is transparent orchestration, not state-of-the-art accuracy. Geometry, grounding, "
+        "planning, and answer-generation failures are reported separately. Visible-only path length does "
+        "not interpolate across occlusions.",
+        "",
+    ])
+    return "\n".join(lines)
+
+
+def _print_aggregate(result: dict[str, Any]) -> None:
+    print(_aggregate_markdown(result))
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--phase", choices=["deterministic", "qwen", "robust"], default="deterministic")
+    parser.add_argument(
+        "--phase", choices=["deterministic", "qwen", "robust", "aggregate"], default="deterministic"
+    )
     parser.add_argument("--demo-dir", type=Path, default=DEFAULT_DEMO)
     parser.add_argument("--seed-u", type=float, default=DEFAULT_SEED[0])
     parser.add_argument("--seed-v", type=float, default=DEFAULT_SEED[1])
@@ -434,6 +556,10 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--max-new-tokens", type=int, default=128)
     parser.add_argument("--grounding-radius", type=float, default=12.0)
     parser.add_argument("--output", type=Path)
+    parser.add_argument("--results-dir", type=Path, default=Path("d4rt_agent/results/basketball_6"))
+    parser.add_argument(
+        "--report", type=Path, default=Path("d4rt_agent/results/basketball_6/AGGREGATE_RESULTS.md")
+    )
     return parser.parse_args()
 
 
@@ -445,13 +571,25 @@ def main() -> None:
         output = args.output or Path("d4rt_agent/results/basketball_6/phase1_deterministic.json")
         printer = _print_deterministic
     elif args.phase == "qwen":
-        result = run_qwen(args.demo_dir, seed, args.model, args.max_new_tokens)
+        result = run_qwen(
+            args.demo_dir,
+            seed,
+            args.model,
+            args.max_new_tokens,
+            args.grounding_radius,
+        )
         output = args.output or Path("d4rt_agent/results/basketball_6/phase2_qwen.json")
         printer = _print_qwen
-    else:
+    elif args.phase == "robust":
         result = run_robust(args.demo_dir, seed, args.grounding_radius)
         output = args.output or Path("d4rt_agent/results/basketball_6/phase3_robust.json")
         printer = _print_robust
+    else:
+        result = run_aggregate(args.results_dir)
+        output = args.output or args.results_dir / "aggregate.json"
+        args.report.parent.mkdir(parents=True, exist_ok=True)
+        args.report.write_text(_aggregate_markdown(result))
+        printer = _print_aggregate
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(json.dumps(result, indent=2) + "\n")
     printer(result)
