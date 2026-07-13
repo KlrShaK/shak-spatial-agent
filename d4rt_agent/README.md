@@ -42,6 +42,41 @@ Verification:
   -m unittest d4rt_agent.test_simple_v1 -v
 ```
 
+### Phase 2 status: Qwen planner
+
+Status: **GPU validation pending**
+
+The same entry point supports `--phase qwen`. Qwen3-VL receives frame 0 and must
+return one constrained JSON plan containing the selected measurement tool and a
+normalized basketball point. Geometry and arithmetic remain deterministic. The A100
+launcher is `scripts/run_simple_d4rt_qwen_a100.slurm`.
+
+### Phase 3 results: duplicate-aware grounding
+
+Status: **complete**
+
+Run:
+
+```bash
+/cluster/work/igp_psr/spanwar/envs/d4rt/bin/python \
+  -m d4rt_agent.simple_v1 --phase robust
+```
+
+Within a conservative 12-pixel radius of the basketball seed, the bundle contains
+six track entries (`5-10`). They are exact copies of one trajectory, so the robust
+grounder collapses them to one unique track before measurement. Consequently the
+metric results correctly remain unchanged and their cross-track spread is zero:
+
+| Measurement | Robust median | Min/max | Absolute error vs GT |
+|---|---:|---:|---:|
+| Start-to-end displacement | 0.3243 m | 0.3243/0.3243 m | 0.2382 m |
+| Visible trajectory length | 3.6049 m | 3.6049/3.6049 m | 0.4468 m |
+
+This is an honest negative result for ensembling on this bundle: duplicate removal
+makes object identity explicit, but cannot improve geometry when every local track is
+identical. The machine-readable result is
+`results/basketball_6/phase3_robust.json`.
+
 ## Design
 
 ```
