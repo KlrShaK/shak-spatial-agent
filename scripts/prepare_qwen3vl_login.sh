@@ -17,8 +17,13 @@ mkdir -p "$DEPS_DIR" "$HF_HOME"
   --python "$D4RT_PYTHON" \
   --target "$DEPS_DIR" \
   --upgrade \
+  --no-deps \
   'transformers>=4.57,<5' \
-  'accelerate>=1.1' \
+  'accelerate>=1.1,<2' \
+  'huggingface-hub>=0.34,<1' \
+  'tokenizers>=0.22,<=0.23' \
+  'safetensors>=0.4.3' \
+  regex \
   sentencepiece
 
 export PYTHONPATH="$DEPS_DIR${PYTHONPATH:+:$PYTHONPATH}"
