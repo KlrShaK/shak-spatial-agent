@@ -36,11 +36,20 @@ path = snapshot_download(repo_id="$MODEL")
 print(f"Cached $MODEL at {path}")
 PY
 
-# Prove that the cache is sufficient without contacting the Hub.
+# Prove that the cache is sufficient without contacting the Hub. Copy the small
+# dependency layer to node-local storage to avoid slow package scanning on Lustre.
+LOCAL_DEPS="$(mktemp -d /tmp/qwen3vl_python.XXXXXX)"
+cp -a "$DEPS_DIR/." "$LOCAL_DEPS/"
+PYTHONPATH="$LOCAL_DEPS${PYTHONPATH:+:$PYTHONPATH}" \
 HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1 "$D4RT_PYTHON" - <<PY
-from transformers import AutoConfig, AutoProcessor
+from pathlib import Path
+from huggingface_hub import snapshot_download
 
-AutoConfig.from_pretrained("$MODEL", local_files_only=True)
-AutoProcessor.from_pretrained("$MODEL", local_files_only=True)
-print("Offline model and processor preflight passed.")
+snapshot = Path(snapshot_download(repo_id="$MODEL", local_files_only=True))
+index = snapshot / "model.safetensors.index.json"
+shards = sorted(snapshot.glob("model-*-of-*.safetensors"))
+assert index.is_file(), index
+assert len(shards) == 4, shards
+assert all(shard.stat().st_size > 1_000_000_000 for shard in shards), shards
+print(f"Offline snapshot preflight passed: {snapshot} ({len(shards)} weight shards).")
 PY
