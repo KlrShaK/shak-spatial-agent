@@ -160,6 +160,18 @@ def _parse_planner_json(text: str) -> dict[str, Any]:
     return {"tool": tool, "point_2d": [x, y], "frame": frame}
 
 
+def _parse_metric_estimate(text: str) -> dict[str, Any]:
+    """Parse the constrained, no-tool metric estimate returned by Qwen."""
+    match = re.search(r"\{.*\}", text, flags=re.DOTALL)
+    if match is None:
+        raise ValueError(f"Qwen did not return a JSON object: {text!r}")
+    value = json.loads(match.group(0))
+    estimate = float(value["estimate_m"])
+    if not math.isfinite(estimate) or estimate < 0:
+        raise ValueError(f"invalid metric estimate: {estimate!r}")
+    return {"estimate_m": estimate, "reason": str(value.get("reason", ""))}
+
+
 def _read_video_frame(video_path: Path, frame_index: int):
     """Read one RGB frame lazily so deterministic runs do not require OpenCV."""
     import cv2
@@ -268,6 +280,46 @@ class QwenPlanner:
             clean_up_tokenization_spaces=False,
         )[0].strip()
 
+    def estimate_without_tools(
+        self, labelled_images: list[tuple[int, Any]], question: str
+    ) -> tuple[dict[str, Any], str]:
+        """Force a best-effort metric estimate from pixels alone for ablation."""
+        content: list[dict[str, Any]] = []
+        for frame_index, image in labelled_images:
+            content.append({"type": "text", "text": f"Frame {frame_index}:"})
+            content.append({"type": "image", "image": image})
+        content.append({
+            "type": "text",
+            "text": (
+                f"Question: {question}\n\n"
+                "Use only these video frames and visual common-sense priors. Do not use external tools, "
+                "tracking, depth, camera calibration, or supplied geometry. You must make your best "
+                "non-negative numerical estimate in meters even though monocular scale is uncertain. "
+                "Return JSON only: {\"estimate_m\": number, \"reason\": \"brief explanation\"}"
+            ),
+        })
+        messages = [{"role": "user", "content": content}]
+        inputs = self.processor.apply_chat_template(
+            messages,
+            tokenize=True,
+            add_generation_prompt=True,
+            return_dict=True,
+            return_tensors="pt",
+        ).to(self.model.device)
+        with self.torch.inference_mode():
+            generated = self.model.generate(
+                **inputs,
+                max_new_tokens=self.max_new_tokens,
+                do_sample=False,
+            )
+        new_tokens = generated[:, inputs.input_ids.shape[1]:]
+        raw = self.processor.batch_decode(
+            new_tokens,
+            skip_special_tokens=True,
+            clean_up_tokenization_spaces=False,
+        )[0].strip()
+        return _parse_metric_estimate(raw), raw
+
 
 def run_qwen(
     demo_dir: Path,
@@ -362,6 +414,60 @@ def run_qwen(
             "planning_correct": sum(bool(item.get("planning_correct")) for item in results),
             "grounding_within_40px": sum(bool(item.get("grounding_within_40px")) for item in results),
         },
+    }
+
+
+def run_direct_vlm(
+    demo_dir: Path,
+    reference_seed: tuple[float, float, int],
+    model_id: str,
+    max_new_tokens: int,
+) -> dict[str, Any]:
+    """Force Qwen to estimate both metric quantities from pixels alone."""
+    gt = DemoGeometry(demo_dir, source="gt")
+    planner = QwenPlanner(model_id, max_new_tokens=max_new_tokens)
+    reference_hit = gt.nearest_track(*reference_seed)
+    sample_indices = sorted({round(i * (gt.num_frames - 1) / 7) for i in range(8)})
+    labelled_images = [
+        (index, _read_video_frame(demo_dir / "assets" / "input_video.mp4", index))
+        for index in sample_indices
+    ]
+    results = []
+    for question in QUESTIONS:
+        item: dict[str, Any] = {**question}
+        try:
+            estimate, raw = planner.estimate_without_tools(labelled_images, question["question"])
+            reference = _measure(gt, reference_hit.track_id, question["tool"])
+            key = "endpoint_displacement_m" if question["tool"] == "endpoint_displacement" else "path_length_m"
+            gt_value = float(reference[key])
+            error = abs(estimate["estimate_m"] - gt_value)
+            item.update({
+                "raw_qwen_response": raw,
+                "estimate_m": estimate["estimate_m"],
+                "reason": estimate["reason"],
+                "gt_m": gt_value,
+                "absolute_error_m": round(error, 4),
+                "relative_error": round(error / gt_value, 4) if gt_value else None,
+            })
+        except Exception as exc:
+            item["error"] = f"{type(exc).__name__}: {exc}"
+        results.append(item)
+    gpu = {}
+    if planner.torch.cuda.is_available():
+        gpu = {
+            "name": planner.torch.cuda.get_device_name(0),
+            "max_memory_allocated_gib": round(planner.torch.cuda.max_memory_allocated(0) / 2**30, 3),
+        }
+    return {
+        "phase": "direct_vlm",
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "demo_dir": str(demo_dir),
+        "model": model_id,
+        "local_model_path": planner.model_path,
+        "sampled_frames": sample_indices,
+        "information_available_to_model": "RGB frames and question only",
+        "gpu": gpu,
+        "questions": results,
     }
 
 
@@ -553,10 +659,26 @@ def _print_aggregate(result: dict[str, Any]) -> None:
     print(_aggregate_markdown(result))
 
 
+def _print_direct_vlm(result: dict[str, Any]) -> None:
+    print(f"Pure VLM baseline: {result['model']}")
+    print(f"Sampled frames: {result['sampled_frames']}")
+    print("Measurement                 Qwen (m)  GT (m)  Abs. error  Relative error")
+    print("--------------------------  --------  ------  ----------  --------------")
+    for item in result["questions"]:
+        if "error" in item:
+            print(f"{item['id']:<26}  ERROR: {item['error']}")
+            continue
+        print(
+            f"{item['id']:<26}  {item['estimate_m']:>8.4f}  {item['gt_m']:>6.4f}  "
+            f"{item['absolute_error_m']:>10.4f}  {100 * item['relative_error']:>12.1f}%"
+        )
+        print(f"  reason: {item['reason']}")
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
-        "--phase", choices=["deterministic", "qwen", "robust", "aggregate"], default="deterministic"
+        "--phase", choices=["deterministic", "qwen", "robust", "aggregate", "direct"], default="deterministic"
     )
     parser.add_argument("--demo-dir", type=Path, default=DEFAULT_DEMO)
     parser.add_argument("--seed-u", type=float, default=DEFAULT_SEED[0])
@@ -594,12 +716,16 @@ def main() -> None:
         result = run_robust(args.demo_dir, seed, args.grounding_radius)
         output = args.output or Path("d4rt_agent/results/basketball_6/phase3_robust.json")
         printer = _print_robust
-    else:
+    elif args.phase == "aggregate":
         result = run_aggregate(args.results_dir)
         output = args.output or args.results_dir / "aggregate.json"
         args.report.parent.mkdir(parents=True, exist_ok=True)
         args.report.write_text(_aggregate_markdown(result))
         printer = _print_aggregate
+    else:
+        result = run_direct_vlm(args.demo_dir, seed, args.model, args.max_new_tokens)
+        output = args.output or Path("d4rt_agent/results/basketball_6/phase5_direct_vlm.json")
+        printer = _print_direct_vlm
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(json.dumps(result, indent=2) + "\n")
     printer(result)
