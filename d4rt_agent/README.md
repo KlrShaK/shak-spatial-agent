@@ -44,7 +44,7 @@ Verification:
 
 ### Phase 2 status: Qwen planner
 
-Status: **GPU validation pending**
+Status: **complete**
 
 The same entry point supports `--phase qwen`. Qwen3-VL receives frame 0 and must
 return one constrained JSON plan containing the selected measurement tool and a
@@ -66,6 +66,19 @@ small Python layer to node-local storage, enables `HF_HUB_OFFLINE` and
 `TRANSFORMERS_OFFLINE`, resolves the cached snapshot to an absolute path, and uses
 `local_files_only=True`. A missing dependency or weight snapshot causes an immediate
 preflight failure instead of a network attempt.
+
+Qwen3-VL-8B was validated offline on one 40 GB A100. Peak allocated GPU memory
+was 16.63 GiB, leaving approximately 23 GiB unallocated for Open-D4RT or runtime
+headroom.
+
+| Question | Selected tool | Grounding error | D4RT answer | Planning correct |
+|---|---|---:|---:|---:|
+| Start/end separation | `endpoint_displacement` | 19.43 px | 0.3243 m | yes |
+| Distance covered | `path_length` | 20.14 px | 3.6049 m | yes |
+
+Planning accuracy was 2/2 and grounding within the predefined 40-pixel tolerance
+was 2/2. Without D4RT, Qwen answered `cannot be determined` for both metric
+questions. The machine-readable result is `results/basketball_6/phase2_qwen.json`.
 
 ### Phase 3 results: duplicate-aware grounding
 
@@ -92,6 +105,26 @@ This is an honest negative result for ensembling on this bundle: duplicate remov
 makes object identity explicit, but cannot improve geometry when every local track is
 identical. The machine-readable result is
 `results/basketball_6/phase3_robust.json`.
+
+### Phase 4 results: aggregate evaluation
+
+Status: **complete**
+
+The final report is [results/basketball_6/AGGREGATE_RESULTS.md](results/basketball_6/AGGREGATE_RESULTS.md).
+
+| Component | Result |
+|---|---:|
+| Qwen tool selection | 100% (2/2) |
+| Qwen grounding within 40 px | 100% (2/2) |
+| Endpoint D4RT absolute error | 0.2382 m |
+| Visible path D4RT absolute error | 0.4468 m |
+| Direct Qwen metric answers | 0/2; correctly abstained twice |
+| Duplicate local tracks removed | 5 |
+
+The main limitation is D4RT geometry, not Qwen orchestration: Qwen chose the right
+operation and track for both prompts, while the resulting numerical error was already
+present in the deterministic D4RT ceiling. Path length covers only 42/64 visible
+frames and does not bridge the occlusion gap.
 
 ## Design
 
