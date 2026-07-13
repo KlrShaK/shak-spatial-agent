@@ -224,6 +224,41 @@ class QwenPlanner:
         )[0].strip()
         return _parse_planner_json(raw), raw
 
+    def answer_without_tools(self, labelled_images: list[tuple[int, Any]], question: str) -> str:
+        """Direct VLM baseline using sampled frames but no D4RT measurements."""
+        content: list[dict[str, Any]] = []
+        for frame_index, image in labelled_images:
+            content.append({"type": "text", "text": f"Frame {frame_index}:"})
+            content.append({"type": "image", "image": image})
+        content.append({
+            "type": "text",
+            "text": (
+                f"Question: {question}\n"
+                "Answer directly without external tools. Give a metric number only if the "
+                "video itself provides enough metric scale; otherwise say it cannot be determined."
+            ),
+        })
+        messages = [{"role": "user", "content": content}]
+        inputs = self.processor.apply_chat_template(
+            messages,
+            tokenize=True,
+            add_generation_prompt=True,
+            return_dict=True,
+            return_tensors="pt",
+        ).to(self.model.device)
+        with self.torch.inference_mode():
+            generated = self.model.generate(
+                **inputs,
+                max_new_tokens=self.max_new_tokens,
+                do_sample=False,
+            )
+        new_tokens = generated[:, inputs.input_ids.shape[1]:]
+        return self.processor.batch_decode(
+            new_tokens,
+            skip_special_tokens=True,
+            clean_up_tokenization_spaces=False,
+        )[0].strip()
+
 
 def run_qwen(
     demo_dir: Path,
@@ -281,6 +316,19 @@ def run_qwen(
             item["grounding_within_40px"] = False
         results.append(item)
 
+    sample_indices = sorted({0, pred.num_frames // 3, 2 * pred.num_frames // 3, pred.num_frames - 1})
+    labelled_images = [
+        (index, _read_video_frame(demo_dir / "assets" / "input_video.mp4", index))
+        for index in sample_indices
+    ]
+    direct_baseline = []
+    for question in QUESTIONS:
+        try:
+            response = planner.answer_without_tools(labelled_images, question["question"])
+            direct_baseline.append({**question, "response": response})
+        except Exception as exc:
+            direct_baseline.append({**question, "error": f"{type(exc).__name__}: {exc}"})
+
     gpu = {}
     if planner.torch.cuda.is_available():
         gpu = {
@@ -295,6 +343,7 @@ def run_qwen(
         "gpu": gpu,
         "reference_grounding": [reference_u, reference_v, reference_t],
         "questions": results,
+        "direct_vlm_baseline": direct_baseline,
         "summary": {
             "questions": len(results),
             "successful": sum("error" not in item for item in results),
@@ -351,6 +400,9 @@ def _print_qwen(result: dict[str, Any]) -> None:
             f"grounding_error={item['grounding_pixel_error']:.2f}px"
         )
     print(f"\nSummary: {json.dumps(result['summary'])}")
+    print("\nDirect VLM baseline (no D4RT):")
+    for item in result.get("direct_vlm_baseline", []):
+        print(f"  {item['id']}: {item.get('response', item.get('error'))}")
 
 
 def _print_robust(result: dict[str, Any]) -> None:
