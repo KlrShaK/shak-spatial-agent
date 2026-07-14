@@ -29,6 +29,8 @@ from d4rt_agent.simple_v2_eval import (
     MatchedWorldTrackGT,
     aggregate_files,
     load_alignment_scale_from_metadata,
+    measure_d4rt_result,
+    merge_d4rt_results,
 )
 
 
@@ -284,9 +286,20 @@ class OrchestratorTest(unittest.TestCase):
                     "label": "ball",
                     "bbox_2d_1000": [400, 400, 500, 500],
                     "t_src": 0,
-                    "t_tgt": [0, 31],
+                    "t_tgt": [0],
                     "t_cam": 0,
                     "justification": "Need the two endpoint positions.",
+                },
+            }),
+            json.dumps({
+                "action": "query_d4rt",
+                "arguments": {
+                    "label": "ball",
+                    "bbox_2d_1000": [400, 400, 500, 500],
+                    "t_src": 0,
+                    "t_tgt": [31],
+                    "t_cam": 0,
+                    "justification": "Need the ending position.",
                 },
             }),
             json.dumps({
@@ -294,7 +307,7 @@ class OrchestratorTest(unittest.TestCase):
                 "arguments": {
                     "bindings": {
                         "start": {"evidence_id": "d4rt_1", "path": ["predictions", 0, "benchmark_aligned_xyz_m"]},
-                        "end": {"evidence_id": "d4rt_1", "path": ["predictions", 1, "benchmark_aligned_xyz_m"]},
+                        "end": {"evidence_id": "d4rt_2", "path": ["predictions", 0, "benchmark_aligned_xyz_m"]},
                     },
                     "code": "value = dist(start, end)",
                     "justification": "Compute the requested Euclidean displacement.",
@@ -305,7 +318,7 @@ class OrchestratorTest(unittest.TestCase):
                 "arguments": {
                     "value": 1.0,
                     "unit": "m",
-                    "evidence_ids": ["d4rt_1", "math_1"],
+                    "evidence_ids": ["d4rt_1", "d4rt_2", "math_1"],
                     "limitations": "Sparse point evidence.",
                 },
             }),
@@ -329,6 +342,11 @@ class OrchestratorTest(unittest.TestCase):
         # The host policy appears in the artifact, but in no message shown to Qwen.
         self.assertEqual(solved["point_mode"], "ensemble5")
         self.assertTrue(all("point_mode" not in snapshot for snapshot in qwen.message_snapshots))
+
+        merged = merge_d4rt_results([
+            solved["evidence"]["d4rt_1"], solved["evidence"]["d4rt_2"]
+        ])
+        self.assertEqual(measure_d4rt_result("endpoint_displacement", merged, aligned=True), 1.0)
 
     def test_binding_resolution_rejects_literal_numbers(self) -> None:
         with self.assertRaises(ValueError):

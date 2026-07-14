@@ -224,8 +224,11 @@ def _validate_final_evidence(
     math_ids = [item for item in evidence_ids if item.startswith("math_")]
     if not d4rt_ids or not math_ids:
         raise ValueError("final answer must cite both a d4rt_* and math_* call")
-    query = evidence[d4rt_ids[-1]]
-    targets = {int(value) for value in query["t_tgt"]}
+    targets = {
+        int(value)
+        for evidence_id in d4rt_ids
+        for value in evidence[evidence_id]["t_tgt"]
+    }
     if task_id == "endpoint_displacement" and not {0, 31}.issubset(targets):
         raise ValueError("endpoint evidence must query sampled frames 0 and 31")
     if task_id == "distance_travelled" and targets != set(range(NUM_SAMPLED_FRAMES)):
@@ -293,6 +296,15 @@ class OfflineQwen:
             skip_special_tokens=True,
             clean_up_tokenization_spaces=False,
         )[0].strip()
+
+
+class OrchestrationError(RuntimeError):
+    """Agent exhaustion that retains all replayable partial state."""
+
+    def __init__(self, message: str, trace: list[dict[str, Any]], evidence: dict[str, dict[str, Any]]) -> None:
+        super().__init__(message)
+        self.trace = trace
+        self.evidence = evidence
 
 
 class SimpleV2Orchestrator:
@@ -406,9 +418,11 @@ class SimpleV2Orchestrator:
                         ),
                     }],
                 })
-        raise RuntimeError(
+        raise OrchestrationError(
             f"Qwen did not produce a valid final answer in {self.max_steps} steps; "
-            f"last trace entry: {trace[-1] if trace else 'none'}"
+            f"last trace entry: {trace[-1] if trace else 'none'}",
+            trace,
+            evidence,
         )
 
     def _execute_action(
@@ -536,16 +550,30 @@ def run_live(args: argparse.Namespace) -> dict[str, Any]:
     )
     question_results = []
     scores = []
+    failures = []
     for task in QUESTIONS:
-        solved = orchestrator.solve(dict(task))
-        score = score_question(
-            task_id=task["id"],
-            final_answer=solved["final_answer"],
-            evidence=solved["evidence"],
-            gt=gt,
-            width=sampled.width,
-            height=sampled.height,
-        )
+        try:
+            solved = orchestrator.solve(dict(task))
+            score = score_question(
+                task_id=task["id"],
+                final_answer=solved["final_answer"],
+                evidence=solved["evidence"],
+                gt=gt,
+                width=sampled.width,
+                height=sampled.height,
+            )
+        except OrchestrationError as error:
+            solved = {
+                "point_mode": args.point_mode,
+                **task,
+                "status": "failed",
+                "error": str(error),
+                "trace": error.trace,
+                "evidence": error.evidence,
+            }
+            question_results.append(solved)
+            failures.append({"task_id": task["id"], "error": str(error)})
+            break
         score["agent_vs_recomputed_aligned_delta_m"] = abs(
             float(score["agent_final_value"]) - float(score["benchmark_aligned_value_m"])
         )
@@ -554,6 +582,7 @@ def run_live(args: argparse.Namespace) -> dict[str, Any]:
 
     return {
         "phase": "simple_v2_live_agent",
+        "status": "failed" if failures else "complete",
         "created_at": _utc_now(),
         "point_mode": args.point_mode,
         "offline": True,
@@ -575,6 +604,7 @@ def run_live(args: argparse.Namespace) -> dict[str, Any]:
         "ground_truth": gt.canonical_trajectory(),
         "questions": question_results,
         "scores": scores,
+        "failures": failures,
         "gpu": backend.gpu_memory(),
         "trace_replay": [replay_tool_trace(item["trace"]) for item in question_results],
     }
@@ -672,6 +702,8 @@ def main(argv: Sequence[str] | None = None) -> None:
                 f"GT={score['gt_value_m']:.4f} m error={score['absolute_error_m']:.4f} m"
             )
     print(f"Saved: {output}")
+    if result.get("status") == "failed":
+        raise SystemExit(1)
 
 
 if __name__ == "__main__":

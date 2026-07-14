@@ -229,6 +229,30 @@ def measure_d4rt_result(task_id: str, query_result: dict[str, Any], aligned: boo
     raise ValueError(f"unsupported task: {task_id}")
 
 
+def merge_d4rt_results(query_results: Sequence[dict[str, Any]]) -> dict[str, Any]:
+    """Merge targets from multiple cited calls without changing their predictions."""
+
+    if not query_results:
+        raise ValueError("no D4RT evidence to merge")
+    point_modes = {item["point_mode"] for item in query_results}
+    if len(point_modes) != 1:
+        raise ValueError("cited D4RT evidence mixes immutable point modes")
+    by_target: dict[int, dict[str, Any]] = {}
+    for query in query_results:
+        for target, prediction in zip(query["t_tgt"], query["predictions"], strict=True):
+            by_target[int(target)] = prediction
+    ordered_targets = sorted(by_target)
+    predictions = [by_target[target] for target in ordered_targets]
+    return {
+        "point_mode": query_results[0]["point_mode"],
+        "t_tgt": ordered_targets,
+        "predictions": predictions,
+        "visibility_coverage": float(
+            np.mean([bool(item.get("visible", False)) for item in predictions])
+        ),
+    }
+
+
 def score_question(
     *,
     task_id: str,
@@ -242,18 +266,19 @@ def score_question(
     math_ids = [item for item in final_answer["evidence_ids"] if item.startswith("math_")]
     if not d4rt_ids or not math_ids:
         raise ValueError("final answer must cite both D4RT and calculation call IDs")
-    query_id = d4rt_ids[-1]
-    if query_id not in evidence:
-        raise ValueError(f"final answer cites unknown D4RT evidence: {query_id}")
-    query = evidence[query_id]
-    raw_value = measure_d4rt_result(task_id, query, aligned=False)
-    aligned_value = measure_d4rt_result(task_id, query, aligned=True)
+    unknown = [query_id for query_id in d4rt_ids if query_id not in evidence]
+    if unknown:
+        raise ValueError(f"final answer cites unknown D4RT evidence: {unknown}")
+    queries = [evidence[query_id] for query_id in d4rt_ids]
+    merged_query = merge_d4rt_results(queries)
+    raw_value = measure_d4rt_result(task_id, merged_query, aligned=False)
+    aligned_value = measure_d4rt_result(task_id, merged_query, aligned=True)
     gt_record = gt.measurement(task_id)
     gt_value = float(gt_record["value_m"])
     absolute_error = abs(aligned_value - gt_value)
     return {
         "task_id": task_id,
-        "d4rt_evidence_id": query_id,
+        "d4rt_evidence_ids": d4rt_ids,
         "math_evidence_ids": math_ids,
         "raw_d4rt_value": raw_value,
         "benchmark_aligned_value_m": aligned_value,
@@ -262,10 +287,16 @@ def score_question(
         "gt_value_m": gt_value,
         "absolute_error_m": absolute_error,
         "relative_error": absolute_error / gt_value if gt_value > 0 else None,
-        "visibility_coverage": float(query["visibility_coverage"]),
-        "grounding": gt.grounding_diagnostics(
-            query["bbox_2d_1000"], query["t_src"], width, height
-        ),
+        "visibility_coverage": float(merged_query["visibility_coverage"]),
+        "grounding": [
+            {
+                "d4rt_evidence_id": query_id,
+                **gt.grounding_diagnostics(
+                    query["bbox_2d_1000"], query["t_src"], width, height
+                ),
+            }
+            for query_id, query in zip(d4rt_ids, queries, strict=True)
+        ],
         "gt": gt_record,
         "evaluation_caveat": (
             "The D4RT point policy approximates the object-center trajectory, while "
