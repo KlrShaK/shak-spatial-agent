@@ -6,7 +6,7 @@
 #SBATCH --job-name=d4rt-simple-v2
 #SBATCH --gpus=nvidia_a100_80gb_pcie:1
 #SBATCH --cpus-per-task=4
-#SBATCH --mem-per-cpu=16G
+#SBATCH --mem-per-cpu=6G
 #SBATCH --tmp=8G
 #SBATCH --time=03:00:00
 #SBATCH --output=/cluster/work/igp_psr/spanwar/Open-d4rt/logs/d4rt_agent/simple_v2_%j.out

@@ -95,8 +95,21 @@ class LiveD4RTBackend:
         if self.device.type == "cpu" and self.dtype != torch.float32:
             self.dtype = torch.float32
 
-        model = build_model(cfg["model"]).eval()
-        payload = load_checkpoint(self.checkpoint_path, map_location="cpu")
+        if self.device.type == "cuda":
+            # Keep the 14 GB checkpoint and model state out of the 24 GiB host-RAM
+            # allowance.  Peak GPU use while copying fp32 checkpoint tensors into
+            # the configured model is comfortably below the requested 80 GB.
+            previous_default_dtype = torch.get_default_dtype()
+            torch.set_default_dtype(self.dtype)
+            try:
+                with torch.device(self.device):
+                    model = build_model(cfg["model"]).eval()
+            finally:
+                torch.set_default_dtype(previous_default_dtype)
+            payload = torch.load(self.checkpoint_path, map_location=self.device)
+        else:
+            model = build_model(cfg["model"]).eval()
+            payload = load_checkpoint(self.checkpoint_path, map_location="cpu")
         state_dict = _unwrap_state_dict(payload)
         if not state_dict:
             raise RuntimeError(f"no model weights found in checkpoint: {self.checkpoint_path}")
@@ -107,7 +120,11 @@ class LiveD4RTBackend:
         }
         del payload, state_dict
         gc.collect()
-        self.model = model.to(device=self.device, dtype=self.dtype).eval()
+        if self.device.type == "cuda":
+            torch.cuda.empty_cache()
+            self.model = model.eval()
+        else:
+            self.model = model.to(device=self.device, dtype=self.dtype).eval()
         if int(_model_clip_frames(self.model)) != NUM_SAMPLED_FRAMES:
             raise RuntimeError("loaded D4RT model does not expose a 32-frame query embedding")
 
