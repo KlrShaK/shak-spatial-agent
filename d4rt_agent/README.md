@@ -1,4 +1,56 @@
-# D4RT Agent (v1)
+# D4RT Agent
+
+## Simple v2: Qwen with a live D4RT decoder
+
+Phase 7 adds a fully offline live-inference path while keeping `simple_v1.py`
+unchanged:
+
+```text
+video -> exact 32-frame CPU sample -> Qwen tool loop -> cached live D4RT decoder
+      -> restricted numerical calculation -> answer, trace, and matched GT score
+```
+
+The point policy is immutable host configuration and is never a Qwen choice:
+
+```bash
+python -m d4rt_agent.simple_v2 --point-mode centroid
+python -m d4rt_agent.simple_v2 --point-mode ensemble5
+```
+
+Both modes use `round(linspace(0, N - 1, 32))`; sampled frames are numbered
+`0-31` for both Qwen and D4RT and every artifact preserves the mapping to original
+video frames. Videos shorter than 32 frames are rejected. The live backend encodes
+this clip once, caches video memory, and supports repeated `(Tsrc,Ttgt,Tcam=0)`
+decoder calls. It never consumes predicted tracks from `demo_data.json`.
+
+Qwen has exactly four actions: `inspect_frames`, `query_d4rt`, `python_math`, and
+`final_answer`. Every geometry and calculation result receives an evidence ID;
+final answers must cite both kinds. The numerical interpreter permits only numeric
+assignments, indexing, arithmetic, and a finite safe-function allowlist.
+
+For `ensemble5`, four deterministic seed-42 offsets augment the centroid. All are
+inside the Qwen box, image, and a 12-pixel centroid disk; at least three finite,
+visible predictions are required per target. Raw D4RT coordinates and values scaled
+with the existing GT-derived WorldTrack scale are reported separately.
+
+Run the two isolated 80 GB A100 jobs with:
+
+```bash
+sbatch --export=ALL,POINT_MODE=centroid scripts/run_simple_v2_a100.slurm
+sbatch --export=ALL,POINT_MODE=ensemble5 scripts/run_simple_v2_a100.slurm
+```
+
+Then build the validated comparison artifact and report:
+
+```bash
+python -m d4rt_agent.simple_v2 --aggregate
+```
+
+Implementation and run status are recorded in [V2_PROGRESS.md](V2_PROGRESS.md).
+The comparison explicitly notes that ensemble averaging approximates object-center
+motion while WorldTrack supplies a sparse surface-point GT trajectory.
+
+## V1 precomputed-track agent
 
 A VLM (Qwen3-VL) that orchestrates **D4RT 4D geometry as callable tools** to answer
 spatial-reasoning questions about a video. v1 reads the pre-built demo bundles

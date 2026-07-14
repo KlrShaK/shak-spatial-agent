@@ -63,4 +63,3 @@ nvidia-smi --query-gpu=name,memory.total,memory.free --format=csv
   --max-new-tokens 768 \
   --max-steps 12 \
   --output "$RESULT"
-
