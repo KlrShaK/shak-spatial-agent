@@ -1,0 +1,22 @@
+{
+  "scenes": [
+    {
+      "scene_id": "basketball_6",
+      "input_type": "frames",
+      "num_frames": 32,
+      "capture_type": "video",
+      "prompts": [
+        {
+          "id": "endpoint_displacement",
+          "question": "What is the straight-line 3D distance, in meters, between the basketball's starting position in Frame-0 and its ending position in Frame-31?\n\nPlease answer with a single number in meters.",
+          "ground_truth": 0.5625
+        },
+        {
+          "id": "distance_travelled",
+          "question": "What total distance, in meters, does the basketball travel between Frame-0 and Frame-31? Measure the distance along its full 3D trajectory, not just the straight-line distance between its starting and ending positions.\n\nPlease answer with a single number in meters.",
+          "ground_truth": 3.1581
+        }
+      ]
+    }
+  ]
+}
