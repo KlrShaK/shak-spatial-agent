@@ -313,6 +313,10 @@ def aggregate_files(
 ) -> dict[str, Any]:
     centroid = json.loads(Path(centroid_path).read_text())
     ensemble = json.loads(Path(ensemble_path).read_text())
+    if centroid.get("status") != "complete":
+        raise ValueError("centroid artifact is incomplete; rerun its live job")
+    if ensemble.get("status") != "complete":
+        raise ValueError("ensemble5 artifact is incomplete; rerun its live job")
     if centroid.get("point_mode") != "centroid":
         raise ValueError("centroid artifact has the wrong immutable point mode")
     if ensemble.get("point_mode") != "ensemble5":
@@ -332,6 +336,13 @@ def aggregate_files(
         "centroid": {item["task_id"]: item for item in centroid["scores"]},
         "ensemble5": {item["task_id"]: item for item in ensemble["scores"]},
     }
+    expected_tasks = {"endpoint_displacement", "distance_travelled"}
+    for mode, scores in by_mode.items():
+        missing = expected_tasks - set(scores)
+        if missing:
+            raise ValueError(
+                f"{mode} artifact is missing completed task scores: {sorted(missing)}"
+            )
     rows = []
     for task_id in ("endpoint_displacement", "distance_travelled"):
         c = by_mode["centroid"][task_id]

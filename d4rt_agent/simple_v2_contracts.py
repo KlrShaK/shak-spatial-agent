@@ -509,6 +509,12 @@ class _RestrictedMathEvaluator:
                         raise ValueError("slice values must be integers")
                     values.append(value)
             return slice(*values)
+        if isinstance(node, ast.Constant) and isinstance(node.value, str):
+            raise ValueError(
+                "string-key indexing is not permitted in numeric code; bind each "
+                "evidence field to its own variable, then use those numeric variables "
+                "directly (for example, path_length(points, visibility))"
+            )
         raise ValueError("indices must be integer constants or slices")
 
     @staticmethod

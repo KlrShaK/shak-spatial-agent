@@ -89,8 +89,11 @@ python_math bindings must refer to prior evidence in this exact form:
 {"variable":{"evidence_id":"d4rt_1","path":["field",0,"subfield"]}}
 Useful safe functions include dist(a,b), norm(a), path_length(points,visibility),
 mean(a), std(a), sqrt(x), abs(x), min(a), max(a), sum(a), and round(x,n).
-For a full trajectory, bind math_trajectory_aligned_xyz_m and math_visibility from a
-D4RT result, then call path_length. Metric answers must use benchmark-aligned meters.
+For a full trajectory, bind each field to a separate numeric variable, for example:
+{"points":{"evidence_id":"d4rt_1","path":["math_trajectory_aligned_xyz_m"]},
+ "visible":{"evidence_id":"d4rt_1","path":["math_visibility"]}}
+Then use code such as "value = path_length(points, visible)". Do not use string-key
+indexing inside code. Metric answers must use benchmark-aligned meters.
 
 Before final_answer, call python_math. The final evidence_ids must cite both the live
 D4RT call and the python_math call used for the number. State visibility or sparse
@@ -481,6 +484,7 @@ def replay_tool_trace(trace: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
 
     evidence: dict[str, dict[str, Any]] = {}
     replayed_math = 0
+    final_answers = 0
     for entry in trace:
         if entry.get("status") != "ok":
             continue
@@ -495,12 +499,15 @@ def replay_tool_trace(trace: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
             if replayed != result["outputs"]:
                 raise ValueError(f"calculation replay mismatch in {call_id}")
             replayed_math += 1
+        if call_id.startswith("final_"):
+            final_answers += 1
         if call_id.startswith(("d4rt_", "math_", "inspect_")):
             evidence[call_id] = dict(result)
     return {
-        "status": "ok",
+        "status": "complete" if final_answers == 1 else "incomplete",
         "successful_evidence_calls": len(evidence),
         "replayed_math_calls": replayed_math,
+        "final_answers": final_answers,
     }
 
 
@@ -686,6 +693,10 @@ def main(argv: Sequence[str] | None = None) -> None:
         artifact = json.loads(args.replay_trace.read_text())
         reports = [replay_tool_trace(item["trace"]) for item in artifact["questions"]]
         print(json.dumps(reports, indent=2))
+        if artifact.get("status") != "complete" or any(
+            report["status"] != "complete" for report in reports
+        ):
+            raise SystemExit(1)
         return
     result = run_live(args)
     output = args.output

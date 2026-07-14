@@ -210,6 +210,13 @@ class RestrictedMathTest(unittest.TestCase):
         with self.assertRaises(ValueError):
             restricted_python_math({"x": 1.0}, "bad = x / 0")
 
+    def test_string_index_error_explains_separate_numeric_bindings(self) -> None:
+        with self.assertRaisesRegex(ValueError, "bind each evidence field"):
+            restricted_python_math(
+                {"points": [[0.0, 0.0, 0.0]]},
+                "value = path_length(points, points['visibility'])",
+            )
+
 
 class GroundTruthTest(unittest.TestCase):
     @classmethod
@@ -339,6 +346,7 @@ class OrchestratorTest(unittest.TestCase):
         ).solve({"id": "endpoint_displacement", "question": "How far did it move?"})
         self.assertEqual(solved["final_answer"]["value"], 1.0)
         self.assertEqual(replay_tool_trace(solved["trace"])["replayed_math_calls"], 1)
+        self.assertEqual(replay_tool_trace(solved["trace"])["status"], "complete")
         # The host policy appears in the artifact, but in no message shown to Qwen.
         self.assertEqual(solved["point_mode"], "ensemble5")
         self.assertTrue(all("point_mode" not in snapshot for snapshot in qwen.message_snapshots))
@@ -351,6 +359,79 @@ class OrchestratorTest(unittest.TestCase):
     def test_binding_resolution_rejects_literal_numbers(self) -> None:
         with self.assertRaises(ValueError):
             resolve_bindings({"x": 3.0}, {"d4rt_1": {"x": 3.0}})
+
+    def test_path_math_recovers_after_separate_binding_hint(self) -> None:
+        frames = list(range(32))
+        qwen = _ScriptedQwen([
+            json.dumps({
+                "action": "query_d4rt",
+                "arguments": {
+                    "label": "object",
+                    "bbox_2d_1000": [400, 400, 500, 500],
+                    "t_src": 0,
+                    "t_tgt": frames,
+                    "t_cam": 0,
+                    "justification": "Need the full visible trajectory.",
+                },
+            }),
+            json.dumps({
+                "action": "python_math",
+                "arguments": {
+                    "bindings": {
+                        "track": {
+                            "evidence_id": "d4rt_1",
+                            "path": ["math_trajectory_aligned_xyz_m"],
+                        }
+                    },
+                    "code": "value = path_length(track, track['math_visibility'])",
+                    "justification": "Compute the visible path.",
+                },
+            }),
+            json.dumps({
+                "action": "python_math",
+                "arguments": {
+                    "bindings": {
+                        "track": {
+                            "evidence_id": "d4rt_1",
+                            "path": ["math_trajectory_aligned_xyz_m"],
+                        },
+                        "visible": {
+                            "evidence_id": "d4rt_1",
+                            "path": ["math_visibility"],
+                        },
+                    },
+                    "code": "value = path_length(track, visible)",
+                    "justification": "Compute the visible path with separate numeric bindings.",
+                },
+            }),
+            json.dumps({
+                "action": "final_answer",
+                "arguments": {
+                    "value": 1.0,
+                    "unit": "m",
+                    "evidence_ids": ["d4rt_1", "math_1"],
+                    "limitations": "Sparse point evidence.",
+                },
+            }),
+        ])
+        from d4rt_agent.simple_v2_contracts import SampledVideo
+
+        sampled = SampledVideo(
+            video_path=Path("fake.mp4"),
+            frames_rgb=np.zeros((32, 4, 4, 3), dtype=np.uint8),
+            original_indices=tuple(frames),
+            total_original_frames=32,
+            fps=15.0,
+            width=4,
+            height=4,
+        )
+        solved = SimpleV2Orchestrator(
+            qwen=qwen, backend=_FakeBackend(), sampled_video=sampled, max_steps=4
+        ).solve({"id": "distance_travelled", "question": "How far did it travel?"})
+        self.assertEqual(solved["final_answer"]["value"], 1.0)
+        self.assertEqual(solved["trace"][1]["status"], "rejected")
+        self.assertIn("bind each evidence field", solved["trace"][1]["error"])
+        self.assertTrue(any("bind each evidence field" in item for item in qwen.message_snapshots))
 
 
 class AggregateTest(unittest.TestCase):
@@ -368,6 +449,7 @@ class AggregateTest(unittest.TestCase):
             })
             questions.append({"id": task_id, "trace": []})
         return {
+            "status": "complete",
             "point_mode": mode,
             "sampling": {"sampled_to_original": list(range(32))},
             "configuration": {"seed": 42, "qwen_decoding": {"do_sample": False}},
@@ -397,6 +479,23 @@ class AggregateTest(unittest.TestCase):
             self.assertEqual(len(result["comparison"]), 2)
             self.assertTrue(output.exists())
             self.assertIn("Centroid D4RT", report.read_text())
+
+    def test_incomplete_artifact_is_rejected_before_aggregation(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            centroid = root / "centroid.json"
+            ensemble = root / "ensemble.json"
+            incomplete = self._artifact("centroid", 1.0)
+            incomplete["status"] = "failed"
+            centroid.write_text(json.dumps(incomplete))
+            ensemble.write_text(json.dumps(self._artifact("ensemble5", 2.0)))
+            with self.assertRaisesRegex(ValueError, "centroid artifact is incomplete"):
+                aggregate_files(
+                    centroid,
+                    ensemble,
+                    root / "aggregate.json",
+                    root / "report.md",
+                )
 
 
 if __name__ == "__main__":
