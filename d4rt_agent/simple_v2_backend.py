@@ -204,8 +204,8 @@ class LiveD4RTBackend:
     ) -> dict[str, Any]:
         """Decode one centroid or five-point policy for all requested targets."""
 
-        if int(t_cam) != 0:
-            raise ValueError("simple v2 fixes t_cam=0")
+        if not (0 <= int(t_cam) < NUM_SAMPLED_FRAMES):
+            raise ValueError("t_cam is outside [0,31]")
         if not (0 <= int(t_src) < NUM_SAMPLED_FRAMES):
             raise ValueError("t_src is outside [0,31]")
         targets = np.asarray(t_tgt, dtype=np.int64)
@@ -237,8 +237,11 @@ class LiveD4RTBackend:
             "t_tgt": self.torch.from_numpy(np.tile(targets, num_points)).to(
                 device=self.device, dtype=self.torch.long
             ),
-            "t_cam": self.torch.zeros(
-                (num_points * num_targets,), device=self.device, dtype=self.torch.long
+            "t_cam": self.torch.full(
+                (num_points * num_targets,),
+                int(t_cam),
+                device=self.device,
+                dtype=self.torch.long,
             ),
         }
         with self.torch.inference_mode(), self._autocast_context():
@@ -275,8 +278,16 @@ class LiveD4RTBackend:
             "original_t_tgt": [
                 int(self.sampled_video.original_indices[int(value)]) for value in targets.tolist()
             ],
-            "t_cam": 0,
-            "original_t_cam": int(self.sampled_video.original_indices[0]),
+            "t_cam": int(t_cam),
+            "original_t_cam": int(self.sampled_video.original_indices[int(t_cam)]),
+            # Restated per result so the frame is visible where positions are used,
+            # not only in the system prompt.
+            "coordinate_frame": (
+                f"Positions are expressed in the camera frame of sampled frame {int(t_cam)} "
+                "(OpenCV axes: +x right, +y down, +z forward; origin at that camera). "
+                "Do not combine these positions with positions from a query that used a "
+                "different t_cam."
+            ),
             "query_points": points,
             "predictions": predictions,
             "math_trajectory_aligned_xyz_m": [item["math_xyz_aligned_m"] for item in predictions],

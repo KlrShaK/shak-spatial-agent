@@ -269,6 +269,16 @@ def merge_d4rt_results(query_results: Sequence[dict[str, Any]]) -> dict[str, Any
     point_modes = {item["point_mode"] for item in query_results}
     if len(point_modes) != 1:
         raise ValueError("cited D4RT evidence mixes immutable point modes")
+    # Positions from different t_cam live in different camera frames.  Merging them
+    # would fabricate an incoherent trajectory, so refuse rather than score garbage.
+    if any("t_cam" not in item for item in query_results):
+        raise ValueError("cited D4RT evidence is missing t_cam; comparability is unverifiable")
+    camera_frames = {int(item["t_cam"]) for item in query_results}
+    if len(camera_frames) != 1:
+        raise ValueError(
+            "cited D4RT evidence mixes camera frames "
+            f"{sorted(camera_frames)}; positions are only comparable within one t_cam"
+        )
     by_target: dict[int, dict[str, Any]] = {}
     for query in query_results:
         for target, prediction in zip(query["t_tgt"], query["predictions"], strict=True):

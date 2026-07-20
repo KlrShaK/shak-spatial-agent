@@ -17,6 +17,9 @@ import numpy as np
 
 
 NUM_SAMPLED_FRAMES = 32
+# Fallback when the container reports no usable frame rate; timing shown to Qwen
+# depends on fps, so a wrong-but-stated assumption beats an undefined one.
+DEFAULT_ASSUMED_FPS = 30.0
 POINT_MODES = ("centroid", "ensemble5")
 ENSEMBLE_SEED = 42
 ENSEMBLE_RADIUS_PX = 12.0
@@ -90,7 +93,7 @@ def sample_video_cpu(video_path: str | Path) -> SampledVideo:
     indices = uniform_sample_indices(len(frames))
     sampled = np.stack([frames[index] for index in indices], axis=0).astype(np.uint8, copy=False)
     if not math.isfinite(fps) or fps <= 0:
-        fps = 15.0
+        fps = DEFAULT_ASSUMED_FPS
     return SampledVideo(
         video_path=path,
         frames_rgb=sampled,
@@ -109,7 +112,8 @@ ACTION_SCHEMAS: tuple[dict[str, Any], ...] = (
         "name": "query_d4rt",
         "description": (
             "Query live 3D positions for an object box grounded in the explicitly "
-            "declared sampled source frame t_src."
+            "declared sampled source frame t_src, expressed in the camera frame of "
+            "the chosen viewpoint t_cam."
         ),
         "parameters": {
             "type": "object",
@@ -126,7 +130,7 @@ ACTION_SCHEMAS: tuple[dict[str, Any], ...] = (
                     "type": "array",
                     "items": {"type": "integer", "minimum": 0, "maximum": 31},
                 },
-                "t_cam": {"type": "integer", "enum": [0]},
+                "t_cam": {"type": "integer", "minimum": 0, "maximum": 31},
                 "justification": {"type": "string"},
             },
         },
@@ -222,8 +226,8 @@ def validate_action(action: Mapping[str, Any]) -> tuple[str, dict[str, Any]]:
         if len(set(args["t_tgt"])) != len(args["t_tgt"]):
             raise ValueError("t_tgt must not contain duplicates")
         args["t_cam"] = int(args.get("t_cam"))
-        if args["t_cam"] != 0:
-            raise ValueError("simple v2 fixes t_cam=0")
+        if not (0 <= args["t_cam"] < NUM_SAMPLED_FRAMES):
+            raise ValueError("t_cam is outside [0, 31]")
     elif name == "python_math":
         _require_justification(args)
         if not isinstance(args.get("bindings"), Mapping):

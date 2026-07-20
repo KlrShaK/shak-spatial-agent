@@ -82,11 +82,59 @@ class ActionContractTest(unittest.TestCase):
             for line in SYSTEM_PROMPT.splitlines()
             if line.startswith('{"action":"') and "ACTION_NAME" not in line
         ]
-        self.assertEqual(len(examples), 5)
+        self.assertEqual(len(examples), 7)
         self.assertEqual(
             [validate_action(example)[0] for example in examples],
-            ["query_d4rt", "python_math", "query_d4rt", "python_math", "final_answer"],
+            [
+                "query_d4rt",
+                "python_math",
+                "query_d4rt",
+                "python_math",
+                "final_answer",
+                # Example C composes speed from displacement and elapsed time.
+                "python_math",
+                # Example D selects a non-zero viewpoint for a directional question.
+                "query_d4rt",
+            ],
         )
+
+    def test_qwen_chooses_any_viewpoint_within_the_sampled_range(self) -> None:
+        def _query(t_cam: int) -> dict[str, object]:
+            return {
+                "action": "query_d4rt",
+                "arguments": {
+                    "label": "cupboard",
+                    "bbox_2d_1000": [300, 240, 470, 640],
+                    "t_src": 20,
+                    "t_tgt": [25],
+                    "t_cam": t_cam,
+                    "justification": "Express the position from the requested viewpoint.",
+                },
+            }
+
+        for t_cam in (0, 25, 31):
+            self.assertEqual(validate_action(_query(t_cam))[1]["t_cam"], t_cam)
+        for outside in (-1, 32):
+            with self.assertRaisesRegex(ValueError, r"t_cam is outside \[0, 31\]"):
+                validate_action(_query(outside))
+
+    def test_merge_refuses_evidence_from_different_camera_frames(self) -> None:
+        def _result(t_cam: int, target: int) -> dict[str, object]:
+            return {
+                "point_mode": "centroid",
+                "t_cam": t_cam,
+                "t_tgt": [target],
+                "predictions": [{
+                    "benchmark_aligned_xyz_m": [1.0, 0.0, 0.0], "visible": True
+                }],
+            }
+
+        merged = merge_d4rt_results([_result(25, 5), _result(25, 24)])
+        self.assertEqual(merged["t_tgt"], [5, 24])
+        with self.assertRaisesRegex(ValueError, "mixes camera frames"):
+            merge_d4rt_results([_result(0, 5), _result(25, 24)])
+        with self.assertRaisesRegex(ValueError, "missing t_cam"):
+            merge_d4rt_results([{"point_mode": "centroid", "t_tgt": [5], "predictions": []}])
 
     def test_30b_entry_point_injects_and_enforces_model(self) -> None:
         arguments = prepare_30b_arguments(["--point-mode", "ensemble5"])
@@ -391,6 +439,7 @@ class _FakeBackend:
             "bbox_2d_1000": kwargs["bbox_2d_1000"],
             "t_src": kwargs["t_src"],
             "t_tgt": kwargs["t_tgt"],
+            "t_cam": kwargs["t_cam"],
             "predictions": predictions,
             "math_trajectory_aligned_xyz_m": [
                 item["math_xyz_aligned_m"] for item in predictions
