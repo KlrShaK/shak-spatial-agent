@@ -70,20 +70,63 @@ QUESTIONS: tuple[dict[str, str], ...] = (
 
 
 SYSTEM_PROMPT = """You are a tool-using assistant for quantitative 4D video questions.
-The video has exactly 32 uniformly sampled RGB frames numbered 0 through 31. A contact
-sheet shows all of them. Pixel boxes use [x_min,y_min,x_max,y_max] coordinates from 0
-to 1000, with the origin at top-left.
+The video has exactly 32 uniformly sampled full-resolution RGB images, each explicitly
+labelled Sampled frame 0 through Sampled frame 31. Pixel boxes use
+[x_min,y_min,x_max,y_max] coordinates from 0 to 1000, with the origin at top-left.
 
 Return exactly one JSON action per response, with this form:
 {"action":"ACTION_NAME","arguments":{...}}
-Do not use markdown. Use only the four supplied action schemas. Give a short,
+Do not use markdown. Use only the three supplied action schemas. Give a short,
 task-relevant justification wherever the schema asks for one; do not provide hidden
 reasoning or a long chain of thought.
 
-Use inspect_frames when the contact sheet is insufficient. Use query_d4rt for all 3D
-facts and keep t_cam=0. For endpoint displacement, obtain sampled frames 0 and 31.
-For travelled path length, obtain every sampled target frame 0 through 31 and respect
-the returned visibility mask (do not bridge invisible gaps).
+TASK CLASSIFICATION
+Decide the requested measurement and its time interval separately before choosing
+targets:
+- Endpoint displacement means straight-line separation between the first and last 3D
+  positions of the requested interval. Typical wording includes "starting and ending
+  position", "endpoint displacement", or "straight-line distance".
+- Travelled path length means total distance accumulated along the route. Typical
+  wording includes "distance covered", "how far did it travel", "travelled distance",
+  "trajectory length", or "path length".
+- Travel wording has priority: "distance covered between the first and last frame" is
+  travelled path length, not endpoint displacement. The endpoints define the interval,
+  not the measurement.
+
+TIME INTERVAL
+- If the user names sampled frames A and B, use A and B as the inclusive interval.
+- "First and last frame of the video" means sampled frames 0 and 31.
+- "First and last appearance" means the earliest and latest labelled sampled frames
+  where the requested object is visually present. Determine those frames from the
+  images; do not substitute video frames 0 and 31 unless the object appears there.
+- If the user gives no temporal bounds, use the object's first and last visible
+  appearance, not automatically the first and last video frame.
+An object may disappear and later reappear inside the interval. That creates disjoint
+visible segments; it does not reduce a path request to two endpoints.
+
+GROUNDING AND QUERY CONTRACT
+Use query_d4rt for all 3D facts and keep t_cam=0. Every query must declare exactly one
+t_src: the sampled frame in which you visually grounded bbox_2d_1000. Derive the box
+from that labelled source image, make it tight around the requested object, and do not
+reuse a box with a different t_src unless you independently grounded it in that image.
+Prefer one source-frame grounding with all required targets in one t_tgt list.
+
+The actual t_tgt JSON array determines which positions D4RT returns; claims made only
+in the justification have no effect. After selecting inclusive interval [A,B]:
+- Endpoint displacement: query A and B. These are not necessarily 0 and 31.
+- Travelled path length: query every sampled frame A,A+1,...,B in order. For the full
+  video interval this is
+  "t_tgt":[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31].
+  [0,31] alone is never a path over the full video and can measure only endpoint
+  displacement.
+For travelled path, pass the complete ordered trajectory and returned visibility mask
+to path_length. It sums consecutive steps within each visible segment, resets at every
+invisible frame, and never bridges a disappearance/reappearance gap. Travel while the
+object is absent is unobserved and must be stated as a limitation. For example, if the
+object is visible on frames 0-10 and 20-31, the result is path(0-10) + path(20-31),
+never a step from frame 10 to frame 20. If an action is
+rejected for incomplete path evidence, change the next query's actual t_tgt array,
+not merely its justification. Never repeat rejected arguments.
 
 python_math bindings must refer to prior evidence in this exact form:
 {"variable":{"evidence_id":"d4rt_1","path":["field",0,"subfield"]}}
@@ -98,32 +141,39 @@ indexing inside code. Metric answers must use benchmark-aligned meters.
 Before final_answer, call python_math. The final evidence_ids must cite both the live
 D4RT call and the python_math call used for the number. State visibility or sparse
 point limitations briefly.
+
+PLANNING AND TOOL-USE EXAMPLES
+The labels, boxes, evidence values, and final numbers below are illustrative. Never
+copy them into a real answer; visually identify the requested object and derive its
+box from the declared source image.
+
+Example A -- endpoint displacement
+Question: What is the straight-line displacement of a red suitcase from Sampled frame
+5 to Sampled frame 24?
+Short plan: select interval [5,24] and endpoint displacement; ground the red suitcase
+in Sampled frame 5; request targets [5,24] once; calculate Euclidean distance; cite
+both calls.
+First action example:
+{"action":"query_d4rt","arguments":{"label":"red suitcase","bbox_2d_1000":[620,430,710,610],"t_src":5,"t_tgt":[5,24],"t_cam":0,"justification":"Ground the requested object in Sampled frame 5 and obtain the user-specified endpoint positions."}}
+After tool result d4rt_1, calculation example:
+{"action":"python_math","arguments":{"bindings":{"start":{"evidence_id":"d4rt_1","path":["predictions",0,"benchmark_aligned_xyz_m"]},"end":{"evidence_id":"d4rt_1","path":["predictions",1,"benchmark_aligned_xyz_m"]}},"code":"value = dist(start, end)","justification":"Calculate endpoint displacement from the two aligned positions."}}
+
+Example B -- travelled path length
+Question: How much distance did a toy vehicle cover between the first and last frame?
+Short plan: classify as travelled path length; ground the toy vehicle in one declared
+source frame; request all 32 targets in one query; calculate visibility-aware path
+length over all disjoint visible segments; cite both calls.
+First action example:
+{"action":"query_d4rt","arguments":{"label":"toy vehicle","bbox_2d_1000":[120,680,260,820],"t_src":0,"t_tgt":[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31],"t_cam":0,"justification":"Ground the requested object in Sampled frame 0 and obtain every sampled position for travelled path length."}}
+After tool result d4rt_1, calculation example:
+{"action":"python_math","arguments":{"bindings":{"points":{"evidence_id":"d4rt_1","path":["math_trajectory_aligned_xyz_m"]},"visible":{"evidence_id":"d4rt_1","path":["math_visibility"]}},"code":"value = path_length(points, visible)","justification":"Sum each disjoint visible segment without bridging disappearance gaps."}}
+If math_1 reports outputs.value=1.25, final action structure example:
+{"action":"final_answer","arguments":{"value":1.25,"unit":"meters","evidence_ids":["d4rt_1","math_1"],"limitations":"Visibility-aware sum of observed segments; travel while absent is unobserved."}}
 """
 
 
 def _utc_now() -> str:
     return datetime.now(timezone.utc).isoformat()
-
-
-def _make_contact_sheet(sampled: SampledVideo):
-    """Create one labelled overview derived from all 32 sampled frames."""
-
-    from PIL import Image, ImageDraw
-
-    columns, rows = 8, 4
-    thumb_w = 224
-    thumb_h = max(1, int(round(thumb_w * sampled.height / sampled.width)))
-    label_h = 24
-    sheet = Image.new("RGB", (columns * thumb_w, rows * (thumb_h + label_h)), "black")
-    draw = ImageDraw.Draw(sheet)
-    for index, frame in enumerate(sampled.frames_rgb):
-        row, column = divmod(index, columns)
-        image = Image.fromarray(frame).resize((thumb_w, thumb_h), Image.Resampling.BILINEAR)
-        x = column * thumb_w
-        y = row * (thumb_h + label_h)
-        sheet.paste(image, (x, y + label_h))
-        draw.text((x + 5, y + 4), f"sampled frame {index}", fill="white")
-    return sheet
 
 
 def _extract_action_json(text: str) -> dict[str, Any]:
@@ -232,10 +282,23 @@ def _validate_final_evidence(
         for evidence_id in d4rt_ids
         for value in evidence[evidence_id]["t_tgt"]
     }
-    if task_id == "endpoint_displacement" and not {0, 31}.issubset(targets):
-        raise ValueError("endpoint evidence must query sampled frames 0 and 31")
-    if task_id == "distance_travelled" and targets != set(range(NUM_SAMPLED_FRAMES)):
-        raise ValueError("path evidence must query every sampled frame 0 through 31")
+    if len(targets) < 2:
+        raise ValueError("measurement evidence must query at least two sampled frames")
+    interval_start, interval_end = min(targets), max(targets)
+    if task_id == "endpoint_displacement":
+        # The question determines the endpoints.  They may be explicit sampled
+        # frames or the object's visually determined first/last appearance.
+        pass
+    elif task_id == "distance_travelled":
+        expected = set(range(interval_start, interval_end + 1))
+        if targets != expected:
+            missing = sorted(expected - targets)
+            raise ValueError(
+                "path evidence must query every sampled frame in the selected "
+                f"inclusive interval [{interval_start},{interval_end}]; missing {missing}"
+            )
+    else:
+        raise ValueError(f"unsupported measurement task: {task_id!r}")
     candidates: list[float] = []
     for evidence_id in math_ids:
         candidates.extend(_all_finite_scalars(evidence[evidence_id].get("outputs", {})))
@@ -244,7 +307,7 @@ def _validate_final_evidence(
     if not any(abs(value - candidate) <= tolerance for candidate in candidates):
         raise ValueError("final answer value does not match a cited calculation output")
     if arguments["unit"].strip().lower() not in {"m", "meter", "meters", "metre", "metres"}:
-        raise ValueError("simple v2 basketball answers must use meters")
+        raise ValueError("simple v2 metric answers must use meters")
 
 
 class OfflineQwen:
@@ -265,11 +328,20 @@ class OfflineQwen:
                 snapshot_download(repo_id=model_id, local_files_only=True)
             ).resolve()
         self.model_path = str(model_path)
+        self.device_map_policy = os.environ.get("QWEN_DEVICE_MAP", "auto").strip().lower()
+        if self.device_map_policy == "auto":
+            device_map: str | dict[str, int] = "auto"
+        elif self.device_map_policy == "cuda":
+            if not torch.cuda.is_available():
+                raise RuntimeError("QWEN_DEVICE_MAP=cuda requires an available CUDA device")
+            device_map = {"": 0}
+        else:
+            raise ValueError("QWEN_DEVICE_MAP must be 'auto' or 'cuda'")
         self.processor = AutoProcessor.from_pretrained(self.model_path, local_files_only=True)
         self.model = AutoModelForImageTextToText.from_pretrained(
             self.model_path,
             dtype=torch.bfloat16,
-            device_map="auto",
+            device_map=device_map,
             attn_implementation="sdpa",
             local_files_only=True,
         ).eval()
@@ -311,7 +383,7 @@ class OrchestrationError(RuntimeError):
 
 
 class SimpleV2Orchestrator:
-    """Host-enforced four-action loop with replayable evidence."""
+    """Host-enforced three-action loop with replayable evidence."""
 
     def __init__(
         self,
@@ -325,30 +397,31 @@ class SimpleV2Orchestrator:
         self.backend = backend
         self.sampled_video = sampled_video
         self.max_steps = max(1, int(max_steps))
-        self.contact_sheet = _make_contact_sheet(sampled_video)
 
     def solve(self, task: dict[str, str]) -> dict[str, Any]:
         from PIL import Image
 
         tool_text = json.dumps(ACTION_SCHEMAS, separators=(",", ":"))
-        initial_content: list[dict[str, Any]] = [
-            {"type": "image", "image": self.contact_sheet},
-            {
-                "type": "text",
-                "text": (
-                    "The contact sheet contains sampled frames 0-31 in row-major order.\n"
-                    f"Available action schemas: {tool_text}\n\n"
-                    f"Question: {task['question']}"
-                ),
-            },
-        ]
+        initial_content: list[dict[str, Any]] = []
+        for index, frame in enumerate(self.sampled_video.frames_rgb):
+            initial_content.append({"type": "text", "text": f"Sampled frame {index}:"})
+            initial_content.append({"type": "image", "image": Image.fromarray(frame)})
+        initial_content.append({
+            "type": "text",
+            "text": (
+                "Each image above is full resolution. Ground bbox_2d_1000 in the "
+                "sampled frame declared by t_src.\n"
+                f"Available action schemas: {tool_text}\n\n"
+                f"Question: {task['question']}"
+            ),
+        })
         messages: list[dict[str, Any]] = [
             {"role": "system", "content": [{"type": "text", "text": SYSTEM_PROMPT}]},
             {"role": "user", "content": initial_content},
         ]
         trace: list[dict[str, Any]] = []
         evidence: dict[str, dict[str, Any]] = {}
-        counters = {"inspect": 0, "d4rt": 0, "math": 0, "final": 0}
+        counters = {"d4rt": 0, "math": 0, "final": 0}
 
         for step in range(1, self.max_steps + 1):
             raw = self.qwen.generate(messages)
@@ -384,7 +457,7 @@ class SimpleV2Orchestrator:
                         "steps": step,
                     }
                 result, response_content, prefix = self._execute_action(
-                    name, arguments, evidence, Image
+                    name, arguments, evidence
                 )
                 counters[prefix] += 1
                 call_id = f"{prefix}_{counters[prefix]}"
@@ -433,30 +506,7 @@ class SimpleV2Orchestrator:
         name: str,
         arguments: dict[str, Any],
         evidence: dict[str, dict[str, Any]],
-        image_class: Any,
     ) -> tuple[dict[str, Any], list[dict[str, Any]] | None, str]:
-        if name == "inspect_frames":
-            indices = arguments["frame_indices"]
-            result = {
-                "inspected_sampled_frames": indices,
-                "original_frame_indices": [
-                    int(self.sampled_video.original_indices[index]) for index in indices
-                ],
-            }
-            content: list[dict[str, Any]] = []
-            for index in indices:
-                content.append({
-                    "type": "text",
-                    "text": (
-                        f"Sampled frame {index} (original frame "
-                        f"{self.sampled_video.original_indices[index]}):"
-                    ),
-                })
-                content.append({
-                    "type": "image",
-                    "image": image_class.fromarray(self.sampled_video.frames_rgb[index]),
-                })
-            return result, content, "inspect"
         if name == "query_d4rt":
             result = self.backend.query(
                 label=arguments["label"],
@@ -501,7 +551,7 @@ def replay_tool_trace(trace: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
             replayed_math += 1
         if call_id.startswith("final_"):
             final_answers += 1
-        if call_id.startswith(("d4rt_", "math_", "inspect_")):
+        if call_id.startswith(("d4rt_", "math_")):
             evidence[call_id] = dict(result)
     return {
         "status": "complete" if final_answers == 1 else "incomplete",
@@ -605,7 +655,11 @@ def run_live(args: argparse.Namespace) -> dict[str, Any]:
             "t_cam": 0,
         },
         "sampling": _sampling_record(sampled),
-        "qwen": {"model": qwen.model_path, "action_schemas": list(ACTION_SCHEMAS)},
+        "qwen": {
+            "model": qwen.model_path,
+            "device_map": qwen.device_map_policy,
+            "action_schemas": list(ACTION_SCHEMAS),
+        },
         "d4rt": backend.metadata(),
         "scale_provenance": scale_provenance,
         "ground_truth": gt.canonical_trajectory(),

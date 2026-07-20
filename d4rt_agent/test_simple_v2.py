@@ -11,7 +11,9 @@ import unittest
 import numpy as np
 
 from d4rt_agent.simple_v2 import (
+    SYSTEM_PROMPT,
     SimpleV2Orchestrator,
+    _validate_final_evidence,
     replay_tool_trace,
     resolve_bindings,
 )
@@ -32,6 +34,7 @@ from d4rt_agent.simple_v2_eval import (
     measure_d4rt_result,
     merge_d4rt_results,
 )
+from d4rt_agent.simple_v2_30b import QWEN_30B_MODEL_ID, prepare_30b_arguments
 
 
 class SamplingContractTest(unittest.TestCase):
@@ -50,6 +53,54 @@ class SamplingContractTest(unittest.TestCase):
 class ActionContractTest(unittest.TestCase):
     def test_qwen_schemas_do_not_contain_point_mode(self) -> None:
         self.assertNotIn("point_mode", json.dumps(ACTION_SCHEMAS))
+
+    def test_qwen_has_only_three_actions_without_frame_inspection(self) -> None:
+        self.assertEqual(
+            [schema["name"] for schema in ACTION_SCHEMAS],
+            ["query_d4rt", "python_math", "final_answer"],
+        )
+
+    def test_system_prompt_is_generic_and_teaches_complete_path_queries(self) -> None:
+        prompt = SYSTEM_PROMPT.lower()
+        self.assertNotIn("basketball", prompt)
+        self.assertIn("distance covered", prompt)
+        self.assertIn("travel wording has priority", prompt)
+        self.assertIn("decide the requested measurement and its time interval separately", prompt)
+        self.assertIn("first and last visible\n  appearance", prompt)
+        self.assertIn("disjoint\nvisible segments", prompt)
+        self.assertIn("never bridges a disappearance/reappearance gap", prompt)
+        self.assertIn("path(0-10) + path(20-31)", prompt)
+        self.assertIn('"t_tgt":[5,24]', SYSTEM_PROMPT)
+        full_targets = json.dumps(list(range(32)), separators=(",", ":"))
+        self.assertIn(f'"t_tgt":{full_targets}', SYSTEM_PROMPT)
+        self.assertIn("[0,31] alone is never a path over the full video", SYSTEM_PROMPT)
+        self.assertIn("Never repeat rejected arguments", SYSTEM_PROMPT)
+
+    def test_system_prompt_tool_examples_are_valid_actions(self) -> None:
+        examples = [
+            json.loads(line)
+            for line in SYSTEM_PROMPT.splitlines()
+            if line.startswith('{"action":"') and "ACTION_NAME" not in line
+        ]
+        self.assertEqual(len(examples), 5)
+        self.assertEqual(
+            [validate_action(example)[0] for example in examples],
+            ["query_d4rt", "python_math", "query_d4rt", "python_math", "final_answer"],
+        )
+
+    def test_30b_entry_point_injects_and_enforces_model(self) -> None:
+        arguments = prepare_30b_arguments(["--point-mode", "ensemble5"])
+        self.assertEqual(arguments[-2:], ["--qwen-model", QWEN_30B_MODEL_ID])
+        cached = (
+            "/cache/models--Qwen--Qwen3-VL-30B-A3B-Instruct/"
+            "snapshots/revision"
+        )
+        self.assertEqual(
+            prepare_30b_arguments(["--qwen-model", cached]),
+            ["--qwen-model", cached],
+        )
+        with self.assertRaisesRegex(ValueError, "requires Qwen/Qwen3-VL-30B"):
+            prepare_30b_arguments(["--qwen-model", "Qwen/Qwen3-VL-8B-Instruct"])
 
     def test_qwen_cannot_emit_point_mode(self) -> None:
         with self.assertRaisesRegex(ValueError, "never select or emit"):
@@ -88,11 +139,45 @@ class ActionContractTest(unittest.TestCase):
                     "justification": "Need geometry.",
                 },
             })
-        with self.assertRaisesRegex(ValueError, "justification"):
+        with self.assertRaisesRegex(ValueError, "declare the sampled source frame"):
             validate_action({
-                "action": "inspect_frames",
-                "arguments": {"frame_indices": [0], "justification": ""},
+                "action": "query_d4rt",
+                "arguments": {
+                    "label": "object",
+                    "bbox_2d_1000": [0, 0, 10, 10],
+                    "t_tgt": [31],
+                    "t_cam": 0,
+                    "justification": "Need geometry.",
+                },
             })
+
+    def test_final_evidence_accepts_question_selected_intervals(self) -> None:
+        endpoint_evidence = {
+            "d4rt_1": {"t_tgt": [5, 24]},
+            "math_1": {"outputs": {"value": 2.0}},
+        }
+        _validate_final_evidence(
+            "endpoint_displacement",
+            {"value": 2.0, "unit": "meters", "evidence_ids": ["d4rt_1", "math_1"]},
+            endpoint_evidence,
+        )
+
+        path_evidence = {
+            "d4rt_1": {"t_tgt": [5, 6, 7]},
+            "math_1": {"outputs": {"value": 3.0}},
+        }
+        _validate_final_evidence(
+            "distance_travelled",
+            {"value": 3.0, "unit": "m", "evidence_ids": ["d4rt_1", "math_1"]},
+            path_evidence,
+        )
+        path_evidence["d4rt_1"]["t_tgt"] = [5, 7]
+        with self.assertRaisesRegex(ValueError, "selected inclusive interval"):
+            _validate_final_evidence(
+                "distance_travelled",
+                {"value": 3.0, "unit": "m", "evidence_ids": ["d4rt_1", "math_1"]},
+                path_evidence,
+            )
 
 
 class GroundingPolicyTest(unittest.TestCase):
@@ -185,13 +270,17 @@ class RestrictedMathTest(unittest.TestCase):
     def test_endpoint_and_visible_path(self) -> None:
         result = restricted_python_math(
             {
-                "points": [[0, 0, 0], [1, 0, 0], [9, 0, 0], [11, 0, 0]],
-                "visible": [True, True, False, True],
+                "points": [
+                    [0, 0, 0], [1, 0, 0], [9, 0, 0], [11, 0, 0], [13, 0, 0]
+                ],
+                "visible": [True, True, False, True, True],
             },
             "endpoint = dist(points[0], points[-1])\ntravel = path_length(points, visible)",
         )
-        self.assertEqual(result["endpoint"], 11.0)
-        self.assertEqual(result["travel"], 1.0)
+        self.assertEqual(result["endpoint"], 13.0)
+        # Segment [0,1] contributes 1 and segment [3,4] contributes 2.  The
+        # disappearance at index 2 prevents an incorrect 10-unit bridge.
+        self.assertEqual(result["travel"], 3.0)
 
     def test_import_loop_files_and_attributes_are_rejected(self) -> None:
         rejected = (
@@ -237,13 +326,40 @@ class GroundTruthTest(unittest.TestCase):
         self.assertAlmostEqual(path["value_m"], 3.1000854, places=6)
         self.assertEqual(path["visible_segments"], [[0, 3], [21, 31]])
 
+    def test_gt_measurements_use_the_selected_interval_and_disjoint_segments(self) -> None:
+        gt = MatchedWorldTrackGT(DEFAULT_WORLDTRACK_NPZ, uniform_sample_indices(64))
+        endpoint = gt.measurement("endpoint_displacement", 1, 3)
+        trajectory = gt.canonical_trajectory()["xyz_m"]
+        self.assertAlmostEqual(
+            endpoint["value_m"], math.dist(trajectory[1], trajectory[3]), places=9
+        )
+        self.assertEqual(endpoint["endpoint_sampled_frames"], [1, 3])
+
+        path = gt.measurement("distance_travelled", 1, 22)
+        self.assertEqual(path["sampled_interval"], [1, 22])
+        self.assertEqual(path["visible_segments"], [[1, 3], [21, 22]])
+
 
 class _ScriptedQwen:
     def __init__(self, responses: list[str]) -> None:
         self.responses = iter(responses)
         self.message_snapshots: list[str] = []
+        self.initial_content_layout: list[dict] | None = None
 
     def generate(self, messages):
+        if self.initial_content_layout is None:
+            self.initial_content_layout = []
+            for part in messages[1]["content"]:
+                if part["type"] == "image":
+                    self.initial_content_layout.append({
+                        "type": "image",
+                        "size": list(part["image"].size),
+                    })
+                else:
+                    self.initial_content_layout.append({
+                        "type": "text",
+                        "text": part["text"],
+                    })
         # Images are represented by their type only so the snapshot is JSON-safe.
         serializable = []
         for message in messages:
@@ -350,6 +466,17 @@ class OrchestratorTest(unittest.TestCase):
         # The host policy appears in the artifact, but in no message shown to Qwen.
         self.assertEqual(solved["point_mode"], "ensemble5")
         self.assertTrue(all("point_mode" not in snapshot for snapshot in qwen.message_snapshots))
+        self.assertIsNotNone(qwen.initial_content_layout)
+        layout = qwen.initial_content_layout
+        self.assertEqual(len(layout), 65)
+        for index in range(32):
+            self.assertEqual(layout[2 * index], {
+                "type": "text", "text": f"Sampled frame {index}:"
+            })
+            self.assertEqual(layout[2 * index + 1], {
+                "type": "image", "size": [4, 4]
+            })
+        self.assertIn("Ground bbox_2d_1000", layout[-1]["text"])
 
         merged = merge_d4rt_results([
             solved["evidence"]["d4rt_1"], solved["evidence"]["d4rt_2"]

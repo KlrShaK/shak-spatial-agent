@@ -106,20 +106,11 @@ def sample_video_cpu(video_path: str | Path) -> SampledVideo:
 # point_mode field; the policy is fixed in the host process before Qwen is loaded.
 ACTION_SCHEMAS: tuple[dict[str, Any], ...] = (
     {
-        "name": "inspect_frames",
-        "description": "Inspect selected sampled video frames in more detail.",
-        "parameters": {
-            "type": "object",
-            "required": ["frame_indices", "justification"],
-            "properties": {
-                "frame_indices": {"type": "array", "items": {"type": "integer"}},
-                "justification": {"type": "string"},
-            },
-        },
-    },
-    {
         "name": "query_d4rt",
-        "description": "Query live 3D positions for a box-grounded object point.",
+        "description": (
+            "Query live 3D positions for an object box grounded in the explicitly "
+            "declared sampled source frame t_src."
+        ),
         "parameters": {
             "type": "object",
             "required": [
@@ -201,15 +192,7 @@ def validate_action(action: Mapping[str, Any]) -> tuple[str, dict[str, Any]]:
         raise ValueError("action.arguments must be an object")
     args = dict(arguments)
 
-    if name == "inspect_frames":
-        _require_justification(args)
-        indices = args.get("frame_indices")
-        if not isinstance(indices, list) or not indices or len(indices) > NUM_SAMPLED_FRAMES:
-            raise ValueError("frame_indices must be a non-empty list of at most 32 frames")
-        args["frame_indices"] = [int(value) for value in indices]
-        if any(value < 0 or value >= NUM_SAMPLED_FRAMES for value in args["frame_indices"]):
-            raise ValueError("inspect frame index is outside [0, 31]")
-    elif name == "query_d4rt":
+    if name == "query_d4rt":
         _require_justification(args)
         label = args.get("label")
         if not isinstance(label, str) or not label.strip():
@@ -223,7 +206,11 @@ def validate_action(action: Mapping[str, Any]) -> tuple[str, dict[str, Any]]:
         if bbox[0] > bbox[2] or bbox[1] > bbox[3]:
             raise ValueError("bbox_2d_1000 min coordinates must not exceed max coordinates")
         args["bbox_2d_1000"] = bbox
-        args["t_src"] = int(args.get("t_src"))
+        if "t_src" not in args:
+            raise ValueError(
+                "query_d4rt.t_src must declare the sampled source frame used to ground the box"
+            )
+        args["t_src"] = int(args["t_src"])
         targets = args.get("t_tgt")
         if not isinstance(targets, list) or not targets:
             raise ValueError("t_tgt must be a non-empty list")

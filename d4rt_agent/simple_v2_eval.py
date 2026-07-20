@@ -122,22 +122,45 @@ class MatchedWorldTrackGT:
             "seed": self.seed,
         }
 
-    def measurement(self, task_id: str) -> dict[str, Any]:
+    def measurement(
+        self,
+        task_id: str,
+        sampled_start: int = 0,
+        sampled_end: int = NUM_SAMPLED_FRAMES - 1,
+    ) -> dict[str, Any]:
         trajectory = self.canonical_trajectory()
-        xyz = np.asarray(trajectory["xyz_m"], dtype=np.float64)
-        visible = np.asarray(trajectory["visibility"], dtype=bool)
+        sampled_start = int(sampled_start)
+        sampled_end = int(sampled_end)
+        if not (0 <= sampled_start <= sampled_end < NUM_SAMPLED_FRAMES):
+            raise ValueError(
+                "measurement interval must satisfy 0 <= start <= end <= 31"
+            )
+        xyz_full = np.asarray(trajectory["xyz_m"], dtype=np.float64)
+        visible_full = np.asarray(trajectory["visibility"], dtype=bool)
+        interval = slice(sampled_start, sampled_end + 1)
+        xyz = xyz_full[interval]
+        visible = visible_full[interval]
         if task_id == "endpoint_displacement":
             value = float(np.linalg.norm(xyz[-1] - xyz[0]))
             endpoint_visible = [bool(visible[0]), bool(visible[-1])]
-            details: dict[str, Any] = {"endpoint_visible": endpoint_visible}
+            details: dict[str, Any] = {
+                "endpoint_visible": endpoint_visible,
+                "endpoint_sampled_frames": [sampled_start, sampled_end],
+            }
         elif task_id == "distance_travelled":
             value = visible_path_length(xyz, visible)
-            details = {"visible_segments": visible_segments(visible)}
+            details = {
+                "visible_segments": [
+                    [start + sampled_start, end + sampled_start]
+                    for start, end in visible_segments(visible)
+                ]
+            }
         else:
             raise ValueError(f"unsupported task: {task_id}")
         return {
             "task_id": task_id,
             "value_m": value,
+            "sampled_interval": [sampled_start, sampled_end],
             "visibility_coverage": float(np.mean(visible)),
             **details,
             "trajectory": trajectory,
@@ -212,19 +235,28 @@ def measure_d4rt_result(task_id: str, query_result: dict[str, Any], aligned: boo
     xyz_array = np.asarray(xyz, dtype=np.float64)
     visible_array = np.asarray(visible, dtype=bool)
     targets = [int(value) for value in query_result["t_tgt"]]
+    if len(set(targets)) < 2:
+        raise ValueError("D4RT measurement evidence needs at least two sampled frames")
     by_target = {target: offset for offset, target in enumerate(targets)}
+    interval_start, interval_end = min(by_target), max(by_target)
     if task_id == "endpoint_displacement":
-        if 0 not in by_target or 31 not in by_target:
-            raise ValueError("endpoint D4RT evidence does not contain sampled frames 0 and 31")
-        if not visible_array[by_target[0]] or not visible_array[by_target[31]]:
+        if not visible_array[by_target[interval_start]] or not visible_array[by_target[interval_end]]:
             raise ValueError("endpoint D4RT evidence is invalid or invisible at an endpoint")
         return float(
-            np.linalg.norm(xyz_array[by_target[31]] - xyz_array[by_target[0]])
+            np.linalg.norm(
+                xyz_array[by_target[interval_end]] - xyz_array[by_target[interval_start]]
+            )
         )
     if task_id == "distance_travelled":
-        if set(targets) != set(range(NUM_SAMPLED_FRAMES)):
-            raise ValueError("path D4RT evidence does not contain all sampled frames 0-31")
-        order = np.asarray([by_target[index] for index in range(NUM_SAMPLED_FRAMES)])
+        expected = set(range(interval_start, interval_end + 1))
+        if set(targets) != expected:
+            raise ValueError(
+                "path D4RT evidence does not contain every frame in selected interval "
+                f"[{interval_start},{interval_end}]"
+            )
+        order = np.asarray(
+            [by_target[index] for index in range(interval_start, interval_end + 1)]
+        )
         return visible_path_length(xyz_array[order], visible_array[order])
     raise ValueError(f"unsupported task: {task_id}")
 
@@ -273,11 +305,14 @@ def score_question(
     merged_query = merge_d4rt_results(queries)
     raw_value = measure_d4rt_result(task_id, merged_query, aligned=False)
     aligned_value = measure_d4rt_result(task_id, merged_query, aligned=True)
-    gt_record = gt.measurement(task_id)
+    selected_targets = [int(value) for value in merged_query["t_tgt"]]
+    sampled_interval = [min(selected_targets), max(selected_targets)]
+    gt_record = gt.measurement(task_id, *sampled_interval)
     gt_value = float(gt_record["value_m"])
     absolute_error = abs(aligned_value - gt_value)
     return {
         "task_id": task_id,
+        "sampled_interval": sampled_interval,
         "d4rt_evidence_ids": d4rt_ids,
         "math_evidence_ids": math_ids,
         "raw_d4rt_value": raw_value,
