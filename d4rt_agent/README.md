@@ -17,16 +17,32 @@ python -m d4rt_agent.simple_v2 --point-mode centroid
 python -m d4rt_agent.simple_v2 --point-mode ensemble5
 ```
 
+The dedicated 30B-A3B experiment reuses the same contracts while enforcing the
+larger model and direct CUDA placement:
+
+```bash
+python -m d4rt_agent.simple_v2_30b --point-mode ensemble5
+sbatch --export=ALL,POINT_MODE=ensemble5 scripts/run_simple_v2_30b_blackwell.slurm
+```
+
+Its logs and result artifacts use a `simple_v2_30b` prefix and cannot overwrite the
+8B experiment.
+
 Both modes use `round(linspace(0, N - 1, 32))`; sampled frames are numbered
 `0-31` for both Qwen and D4RT and every artifact preserves the mapping to original
 video frames. Videos shorter than 32 frames are rejected. The live backend encodes
 this clip once, caches video memory, and supports repeated `(Tsrc,Ttgt,Tcam=0)`
 decoder calls. It never consumes predicted tracks from `demo_data.json`.
 
-Qwen has exactly four actions: `inspect_frames`, `query_d4rt`, `python_math`, and
-`final_answer`. Every geometry and calculation result receives an evidence ID;
-final answers must cite both kinds. The numerical interpreter permits only numeric
-assignments, indexing, arithmetic, and a finite safe-function allowlist.
+Qwen receives all 32 sampled frames as separately labelled, full-resolution images.
+It has exactly three actions: `query_d4rt`, `python_math`, and `final_answer`.
+Every D4RT query declares the sampled source frame (`t_src`) in which its bounding
+box was visually grounded. Every geometry and calculation result receives an
+evidence ID; final answers must cite both kinds. The numerical interpreter permits
+only numeric assignments, indexing, arithmetic, and a finite safe-function
+allowlist. The generic system prompt distinguishes endpoint displacement from
+travelled path length and includes unrelated-object examples for both complete tool
+sequences; path queries are explicitly taught to target all 32 sampled frames.
 
 For `ensemble5`, four deterministic seed-42 offsets augment the centroid. All are
 inside the Qwen box, image, and a 12-pixel centroid disk; at least three finite,
