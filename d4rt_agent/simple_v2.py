@@ -68,6 +68,12 @@ QUESTIONS: tuple[dict[str, str], ...] = (
             "frame of the video?"
         ),
     },
+    # Open-ended: no WorldTrack ground truth, so this is answered and recorded but
+    # scored: false.  It exercises the descriptive/text answer path.
+    {
+        "id": "person_motion_description",
+        "question": "How did the person move during this clip?",
+    },
 )
 
 

@@ -462,8 +462,27 @@ def aggregate_files(
                 "raw_qwen_response": entry.get("raw_qwen_response"),
             }
             for question in artifact["questions"]
-            for entry in question["trace"]
+            for entry in question.get("trace", [])
             if entry.get("status") == "rejected"
+        ]
+
+    def _scored_field(artifact: dict[str, Any], field: str) -> dict[str, Any]:
+        return {
+            item["task_id"]: item[field]
+            for item in artifact["scores"]
+            if item.get("scored", True)
+        }
+
+    def _unscored(artifact: dict[str, Any]) -> list[dict[str, Any]]:
+        return [
+            {
+                "task_id": item["task_id"],
+                "answer_kind": item.get("answer_kind"),
+                "reason": item.get("unscored_reason"),
+                "answer": item.get("agent_final_text") or item.get("agent_final_value"),
+            }
+            for item in artifact["scores"]
+            if not item.get("scored", True)
         ]
 
     result = {
@@ -479,22 +498,18 @@ def aggregate_files(
         "mode_diagnostics": {
             "centroid": {
                 "gpu": centroid.get("gpu"),
-                "visibility": {
-                    item["task_id"]: item["visibility_coverage"] for item in centroid["scores"]
-                },
-                "grounding": {
-                    item["task_id"]: item["grounding"] for item in centroid["scores"]
-                },
+                # Unscored answers carry no measurement diagnostics, so they are
+                # listed separately rather than indexed into the scored maps.
+                "visibility": _scored_field(centroid, "visibility_coverage"),
+                "grounding": _scored_field(centroid, "grounding"),
+                "unscored": _unscored(centroid),
                 "failures": _failures(centroid),
             },
             "ensemble5": {
                 "gpu": ensemble.get("gpu"),
-                "visibility": {
-                    item["task_id"]: item["visibility_coverage"] for item in ensemble["scores"]
-                },
-                "grounding": {
-                    item["task_id"]: item["grounding"] for item in ensemble["scores"]
-                },
+                "visibility": _scored_field(ensemble, "visibility_coverage"),
+                "grounding": _scored_field(ensemble, "grounding"),
+                "unscored": _unscored(ensemble),
                 "failures": _failures(ensemble),
             },
         },

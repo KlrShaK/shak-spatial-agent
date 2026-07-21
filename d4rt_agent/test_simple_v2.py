@@ -768,6 +768,43 @@ class AggregateTest(unittest.TestCase):
             self.assertTrue(output.exists())
             self.assertIn("Centroid D4RT", report.read_text())
 
+    def test_unscored_answer_does_not_break_aggregation(self) -> None:
+        """An open-ended question rides along without measurement diagnostics."""
+
+        def with_unscored(mode: str, value: float) -> dict:
+            artifact = self._artifact(mode, value)
+            artifact["scores"].append({
+                "task_id": "person_motion_description",
+                "answer_kind": "text",
+                "scored": False,
+                "unscored_reason": "answer kind 'text' has no automated scoring",
+                "agent_final_text": "The person walked toward the camera.",
+            })
+            artifact["questions"].append({"id": "person_motion_description", "trace": []})
+            return artifact
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            centroid = root / "centroid.json"
+            ensemble = root / "ensemble.json"
+            centroid.write_text(json.dumps(with_unscored("centroid", 1.0)))
+            ensemble.write_text(json.dumps(with_unscored("ensemble5", 2.0)))
+            result = aggregate_files(
+                centroid, ensemble, root / "aggregate.json", root / "report.md"
+            )
+            # The scored comparison is unchanged by the extra question.
+            self.assertEqual(len(result["comparison"]), 2)
+            diagnostics = result["mode_diagnostics"]["centroid"]
+            self.assertNotIn("person_motion_description", diagnostics["visibility"])
+            self.assertEqual(
+                [item["task_id"] for item in diagnostics["unscored"]],
+                ["person_motion_description"],
+            )
+            self.assertEqual(
+                diagnostics["unscored"][0]["answer"],
+                "The person walked toward the camera.",
+            )
+
     def test_incomplete_artifact_is_rejected_before_aggregation(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
