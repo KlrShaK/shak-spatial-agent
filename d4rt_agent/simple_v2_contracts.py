@@ -485,7 +485,12 @@ class _RestrictedMathEvaluator:
             if isinstance(node.value, bool):
                 return bool(node.value)
             if not isinstance(node.value, (int, float)):
-                raise ValueError("only numeric constants are permitted")
+                raise ValueError(
+                    "only numeric constants are permitted; python_math computes numbers, "
+                    "not words. Drop the text assignments and keep the numeric ones, then "
+                    'report the wording in final_answer with kind="text", quoting the '
+                    "measured magnitudes and citing the evidence ids behind them."
+                )
             return node.value
         if isinstance(node, ast.Name):
             if node.id not in self.environment:

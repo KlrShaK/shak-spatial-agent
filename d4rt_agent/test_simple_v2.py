@@ -470,6 +470,19 @@ class RestrictedMathTest(unittest.TestCase):
             self.assertIn("dist(a, b)", message)
             self.assertIn("no loops, comprehensions", message)
 
+    def test_string_constant_rejection_points_at_the_text_answer(self) -> None:
+        """The agent stored its description in the calculator and looped 10x (job 7936361)."""
+
+        code = (
+            "value = dist(points[0], points[-1])\n"
+            'value_direction = "forward and slightly to the right"'
+        )
+        with self.assertRaises(ValueError) as caught:
+            restricted_python_math({"points": [[0.0, 0.0, 0.0], [1.0, 0.0, 0.0]]}, code)
+        message = str(caught.exception)
+        self.assertIn("computes numbers", message)
+        self.assertIn('kind="text"', message)
+
     def test_non_finite_result_is_rejected(self) -> None:
         with self.assertRaises(ValueError):
             restricted_python_math({"x": 1.0}, "bad = x / 0")
