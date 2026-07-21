@@ -83,7 +83,7 @@ class ActionContractTest(unittest.TestCase):
             for line in SYSTEM_PROMPT.splitlines()
             if line.startswith('{"action":"') and "ACTION_NAME" not in line
         ]
-        self.assertEqual(len(examples), 8)
+        self.assertEqual(len(examples), 12)
         self.assertEqual(
             [validate_action(example)[0] for example in examples],
             [
@@ -95,8 +95,16 @@ class ActionContractTest(unittest.TestCase):
                 # Example C composes speed from displacement and elapsed time.
                 "python_math",
                 # Example D selects a non-zero viewpoint for a directional question
-                # and answers it in words.
+                # and answers it in words.  It must show the python_math call it
+                # cites: an example that skips straight to a described answer is one
+                # the model reproduces (job 7985547).
                 "query_d4rt",
+                "python_math",
+                "final_answer",
+                # Example E builds a motion description from measured components,
+                # grounding after frame 0 so the endpoints are never zero-filled.
+                "query_d4rt",
+                "python_math",
                 "final_answer",
             ],
         )

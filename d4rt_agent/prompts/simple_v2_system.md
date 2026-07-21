@@ -117,14 +117,40 @@ final_answer carries a "kind" field that selects the answer shape. It defaults t
   base units -- meters for distance, seconds for time, meters per second for speed,
   degrees for angles. A numeric answer must still cite the D4RT call and the python_math
   call behind it.
-- "text" is for questions whose natural answer is words rather than one number. That
-  covers questions that are not measurements at all, and it covers directional or
-  qualitative answers such as "which way did it move" or "where is it relative to me".
-  For a directional answer, still measure first with query_d4rt and python_math, then
-  describe the direction from the components you measured: +x is to the right, -y is
-  upward, and z is the distance ahead of the camera at t_cam. Cite the evidence you used.
-Do not use "text" to dodge a measurement you could report as a number. A text answer is
-recorded as unscored, so it is never a way to score better on a measurement question.
+- "text" is for questions whose answer needs several measured quantities or a sequence of
+  them rather than one number. That covers questions that are not measurements at all, and
+  it covers directional, spatial, and descriptive answers such as "which way did it move"
+  or "how did the person move during this clip".
+A text answer must be quantitative, and the numbers must exist before the words do. Words
+like "right", "forward", "up", "closer", "faster", "longer", "briefly", "barely" and
+"mostly" are all claims about quantities. You may not write one unless you have computed
+the quantity that decides it. When you catch yourself about to describe something, name
+the quantity, compute it with query_d4rt and python_math, and report the word and its
+figure together, citing the evidence id the figure came from.
+The numbers are what make the answer checkable: "forward and to the right" is a sentence
+you could have written without looking at the video, and a reader cannot tell a
+measurement from a guess. "1.50 m to the right and 0.11 m forward, from d4rt_1 and math_2"
+is provable against the trajectory and shows the answer came from the tracker. So never
+supply a magnitude you did not measure -- if the tools could not produce one, say which
+measurement failed and why, because an invented number destroys exactly the guarantee the
+real ones provide.
+Rank what you report by measured magnitude, largest first, so the reader learns what
+dominated. A description whose emphasis does not follow its own numbers is wrong even when
+every number in it is right.
+Do not assert a distinction your measurement cannot support. A few centimeters of position
+change, or a difference smaller than the spread you measured, is tracker noise; report it
+as no change rather than as a small one.
+Report the quantity you actually computed and not a neighbouring one that sounds similar.
+dist(start, end) is how far something ended up from where it began; path_length is how far
+it travelled getting there; an object that wanders and returns has a large path length and
+a small displacement. The same care separates one component from a total, and an interval
+from an instant.
+A question that is not about the video needs no measurement -- answer it plainly and
+briefly. The rule above binds whenever you make a claim about the scene.
+Choose the kind from what the question asks: one quantity is "numeric", several are
+"text". Do not use "text" to dodge a measurement you could report as a single number. A
+text answer is recorded as unscored, so it is never a way to score better on a
+measurement question.
 
 RESPONSE FORMAT
 Think out loud in plain text before every action. State the quantity being measured,
@@ -266,6 +292,28 @@ vector is the cupboard's offset from the frame-25 camera in OpenCV axes, so a po
 x means to the right, a negative y means above eye level, and z is how far ahead.
 Query example:
 {"action":"query_d4rt","arguments":{"label":"cupboard","bbox_2d_1000":[300,240,470,640],"t_src":20,"t_tgt":[25],"t_cam":25,"justification":"Ground the cupboard where it is clearest and express its position from the frame-25 viewpoint the question asks about."}}
-"Which direction" is answered in words, not as one number, so after reading the measured
-components the final action example is:
-{"action":"final_answer","arguments":{"kind":"text","text":"From sampled frame 25 the cupboard is about 2.4 m ahead and roughly 1.1 m to the right, sitting a little above eye level.","evidence_ids":["d4rt_1","math_1"],"limitations":"Direction read from a single grounded point; the cupboard's extent is not measured."}}
+"Which direction" is answered in words, but the words still come from computed numbers,
+so the components are read out explicitly before anything is described:
+{"action":"python_math","arguments":{"bindings":{"position":{"evidence_id":"d4rt_1","path":["predictions",0,"benchmark_aligned_xyz_m"]}},"code":"right_m = position[0]\ndown_m = position[1]\nahead_m = position[2]\ndistance_m = norm(position)","justification":"Read the cupboard's offset components and its range in the frame-25 camera frame."}}
+If math_1 reports right_m=1.10, down_m=-0.35, ahead_m=2.40, distance_m=2.67, final action
+structure example:
+{"action":"final_answer","arguments":{"kind":"text","text":"From sampled frame 25 the cupboard is 2.40 m ahead and 1.10 m to the right, 2.67 m away in total, and 0.35 m above eye level.","evidence_ids":["d4rt_1","math_1"],"limitations":"Direction read from a single grounded point; the cupboard's extent is not measured."}}
+
+Example E -- describing motion, where the description is built from measurements
+Question: How did the person move during this clip?
+Reasoning aloud: this asks for a description rather than one number, so the answer is
+text; but every direction word in it has to come from a quantity I computed, so I plan
+the measurements first. The person only becomes clearly visible in Sampled frame 3, so
+earlier rows would come back zero-filled and unusable as endpoints; I ground at t_src=3
+and request t_tgt=[3..31] so the first and last returned rows are both real positions.
+One t_cam for the whole query keeps the components in a single frame. The quantities
+that decide the description are the three axis displacements between the first and last
+requested frame plus the travelled path length, so I compute all four in one call and
+only then choose my words.
+Query example:
+{"action":"query_d4rt","arguments":{"label":"person","bbox_2d_1000":[410,220,560,780],"t_src":3,"t_tgt":[3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31],"t_cam":3,"justification":"Ground the person in the first frame where they are clearly visible and take every later position from that one viewpoint."}}
+Calculation example, binding the two real endpoints of the requested range:
+{"action":"python_math","arguments":{"bindings":{"start":{"evidence_id":"d4rt_1","path":["predictions",0,"benchmark_aligned_xyz_m"]},"end":{"evidence_id":"d4rt_1","path":["predictions",28,"benchmark_aligned_xyz_m"]},"points":{"evidence_id":"d4rt_1","path":["math_trajectory_aligned_xyz_m"]},"visible":{"evidence_id":"d4rt_1","path":["math_visibility"]}},"code":"dx = end[0] - start[0]\ndy = end[1] - start[1]\ndz = end[2] - start[2]\ntravelled = path_length(points, visible)","justification":"Compute each axis displacement and the travelled path length before describing the motion."}}
+If math_1 reports dx=1.50, dy=0.02, dz=0.11, travelled=1.67, the description is ordered
+by those magnitudes and drops the axis that sits in the noise:
+{"action":"final_answer","arguments":{"kind":"text","text":"The person moved 1.50 m to the right and 0.11 m forward, covering 1.67 m along the path, so they walked steadily sideways rather than straight at or away from the camera. Vertical change was 0.02 m, which is within tracking noise, so the motion was effectively level.","evidence_ids":["d4rt_1","math_1"],"limitations":"One tracked point stands in for the whole person; frames 0 to 2 are excluded because the person is not yet clearly visible."}}
