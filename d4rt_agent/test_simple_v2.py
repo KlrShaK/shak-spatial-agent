@@ -63,19 +63,23 @@ class ActionContractTest(unittest.TestCase):
 
     def test_system_prompt_is_generic_and_teaches_complete_path_queries(self) -> None:
         prompt = SYSTEM_PROMPT.lower()
+        # Collapse line wrapping and drop markdown emphasis so these assert on the
+        # wording, not on where the paragraph breaks or how it is marked up.
+        flowed = " ".join(prompt.split())
+        literal = " ".join(SYSTEM_PROMPT.split()).replace("`", "").replace("*", "")
         self.assertNotIn("basketball", prompt)
         self.assertIn("distance covered", prompt)
-        self.assertIn("travel wording has priority", prompt)
-        self.assertIn("decide the requested measurement and its time interval separately", prompt)
-        self.assertIn("first and last visible\n  appearance", prompt)
-        self.assertIn("disjoint\nvisible segments", prompt)
-        self.assertIn("never bridges a disappearance/reappearance gap", prompt)
+        self.assertIn("travel wording has priority", flowed)
+        self.assertIn("decide the requested measurement and its time interval separately", flowed)
+        self.assertIn("first and last visible appearance", flowed)
+        self.assertIn("disjoint visible segments", flowed)
+        self.assertIn("never bridges a disappearance/reappearance gap", flowed)
         self.assertIn("path(0-10) + path(20-31)", prompt)
         self.assertIn('"t_tgt":[5,24]', SYSTEM_PROMPT)
         full_targets = json.dumps(list(range(32)), separators=(",", ":"))
         self.assertIn(f'"t_tgt":{full_targets}', SYSTEM_PROMPT)
-        self.assertIn("[0,31] alone is never a path over the full video", SYSTEM_PROMPT)
-        self.assertIn("Never repeat rejected arguments", SYSTEM_PROMPT)
+        self.assertIn("[0,31] alone is never a path over the full video", literal)
+        self.assertIn("Never repeat rejected arguments", literal)
 
     def test_system_prompt_tool_examples_are_valid_actions(self) -> None:
         examples = [
