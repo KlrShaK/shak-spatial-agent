@@ -413,6 +413,18 @@ SAFE_MATH_FUNCTIONS: dict[str, Callable[..., Any]] = {
 }
 
 
+# Rejections must say what IS available, not only what is forbidden: a model that
+# reaches for a loop needs to be pointed at the helper that already does the job.
+_SAFE_FUNCTION_HINT = (
+    "This calculator has no loops, comprehensions, or conditionals; write straight-line "
+    "numeric statements over whole arrays instead. Use path_length(points, visibility) "
+    "to sum a trajectory's consecutive steps, dist(a, b) for the distance between two "
+    "positions, and norm(a), sum(a), mean(a), std(a), min(a), max(a), sqrt(x), abs(x), "
+    "round(x, n) for the rest. Array arithmetic, slicing, and integer indexing all work, "
+    "so points[0], points[-1], and end - start are available without iterating."
+)
+
+
 class _RestrictedMathEvaluator:
     """Small AST interpreter; it never calls ``eval`` or ``exec``."""
 
@@ -462,7 +474,7 @@ class _RestrictedMathEvaluator:
             else:
                 raise ValueError(
                     "only numeric assignments and expressions are permitted; "
-                    f"rejected {type(statement).__name__}"
+                    f"rejected {type(statement).__name__}. {_SAFE_FUNCTION_HINT}"
                 )
         if not self.outputs:
             raise ValueError("math code produced no result")
@@ -511,7 +523,10 @@ class _RestrictedMathEvaluator:
                 return SAFE_MATH_FUNCTIONS[node.func.id](*arguments)
             except (ArithmeticError, TypeError, ValueError) as error:
                 raise ValueError(f"safe math call failed: {error}") from error
-        raise ValueError(f"unsafe or unsupported math syntax: {type(node).__name__}")
+        raise ValueError(
+            f"unsafe or unsupported math syntax: {type(node).__name__}. "
+            f"{_SAFE_FUNCTION_HINT}"
+        )
 
     def _index(self, node: ast.AST) -> int | slice:
         if isinstance(node, ast.Constant) and isinstance(node.value, int):

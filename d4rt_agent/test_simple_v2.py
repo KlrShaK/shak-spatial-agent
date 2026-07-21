@@ -455,6 +455,21 @@ class RestrictedMathTest(unittest.TestCase):
                 with self.assertRaises(ValueError):
                     restricted_python_math({"values": [1, 2]}, code)
 
+    def test_loop_and_comprehension_rejections_name_the_helpers(self) -> None:
+        """A dead-end rejection made the agent retry 11 times and fail (job 7934576)."""
+
+        points = [[0.0, 0.0, 0.0], [1.0, 0.0, 0.0]]
+        for code in (
+            "value = sum([norm(p) for p in points])",
+            "total = 0.0\nfor i in range(1, 2):\n    total = total + 1.0\nvalue = total",
+        ):
+            with self.assertRaises(ValueError) as caught:
+                restricted_python_math({"points": points}, code)
+            message = str(caught.exception)
+            self.assertIn("path_length(points, visibility)", message)
+            self.assertIn("dist(a, b)", message)
+            self.assertIn("no loops, comprehensions", message)
+
     def test_non_finite_result_is_rejected(self) -> None:
         with self.assertRaises(ValueError):
             restricted_python_math({"x": 1.0}, "bad = x / 0")
