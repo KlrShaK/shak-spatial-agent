@@ -150,19 +150,31 @@ ACTION_SCHEMAS: tuple[dict[str, Any], ...] = (
     },
     {
         "name": "final_answer",
-        "description": "Return one supported numerical answer and cite its evidence.",
+        "description": (
+            "Return one supported answer and cite its evidence. kind selects the answer "
+            "shape and defaults to 'numeric' when omitted. kind='numeric' requires value "
+            "and unit and must cite evidence. kind='text' requires text and is used for "
+            "questions whose natural answer is words rather than one number; a text "
+            "answer is recorded as unscored."
+        ),
         "parameters": {
             "type": "object",
-            "required": ["value", "unit", "evidence_ids", "limitations"],
+            "required": ["evidence_ids", "limitations"],
             "properties": {
+                "kind": {"type": "string", "enum": ["numeric", "text"]},
                 "value": {"type": "number"},
                 "unit": {"type": "string"},
+                "text": {"type": "string"},
                 "evidence_ids": {"type": "array", "items": {"type": "string"}},
                 "limitations": {"type": "string"},
             },
         },
     },
 )
+
+
+FINAL_ANSWER_KINDS = ("numeric", "text")
+MAX_FINAL_TEXT_CHARS = 2000
 
 
 def _require_justification(arguments: Mapping[str, Any]) -> str:
@@ -235,19 +247,38 @@ def validate_action(action: Mapping[str, Any]) -> tuple[str, dict[str, Any]]:
         if not isinstance(args.get("code"), str) or not args["code"].strip():
             raise ValueError("python_math.code must be non-empty")
     else:
-        value = float(args.get("value"))
-        if not math.isfinite(value):
-            raise ValueError("final answer value must be finite")
-        unit = args.get("unit")
-        if not isinstance(unit, str) or not unit.strip():
-            raise ValueError("final answer unit must be non-empty")
-        evidence = args.get("evidence_ids")
-        if not isinstance(evidence, list) or not evidence or not all(isinstance(x, str) for x in evidence):
-            raise ValueError("final answer must cite evidence_ids")
-        limitations = args.get("limitations")
+        # kind is optional so every pre-existing numeric answer stays valid unchanged.
+        kind = args.get("kind", "numeric")
+        if kind not in FINAL_ANSWER_KINDS:
+            raise ValueError(
+                f"final answer kind must be one of {list(FINAL_ANSWER_KINDS)}; got {kind!r}"
+            )
+        evidence = args.get("evidence_ids", [] if kind == "text" else None)
+        if not isinstance(evidence, list) or not all(isinstance(x, str) for x in evidence):
+            raise ValueError("final answer evidence_ids must be a list of strings")
+        if kind == "numeric" and not evidence:
+            raise ValueError("numeric final answer must cite evidence_ids")
+        limitations = args.get("limitations", "")
         if not isinstance(limitations, str):
             raise ValueError("final answer limitations must be a string")
-        args.update(value=value, unit=unit.strip(), evidence_ids=evidence, limitations=limitations.strip())
+        args.update(kind=kind, evidence_ids=evidence, limitations=limitations.strip())
+        if kind == "numeric":
+            value = float(args.get("value"))
+            if not math.isfinite(value):
+                raise ValueError("final answer value must be finite")
+            unit = args.get("unit")
+            if not isinstance(unit, str) or not unit.strip():
+                raise ValueError("final answer unit must be non-empty")
+            args.update(value=value, unit=unit.strip())
+        else:
+            text = args.get("text")
+            if not isinstance(text, str) or not text.strip():
+                raise ValueError("text final answer must provide non-empty text")
+            if len(text) > MAX_FINAL_TEXT_CHARS:
+                raise ValueError(
+                    f"text final answer exceeds {MAX_FINAL_TEXT_CHARS} characters"
+                )
+            args["text"] = text.strip()
     return str(name), args
 
 

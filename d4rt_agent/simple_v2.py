@@ -41,6 +41,7 @@ from .simple_v2_eval import (
     DEFAULT_DEMO_DATA,
     DEFAULT_GT_SEED,
     DEFAULT_WORLDTRACK_NPZ,
+    METRE_SCORED_TASKS,
     MatchedWorldTrackGT,
     aggregate_files,
     load_alignment_scale_from_metadata,
@@ -181,6 +182,23 @@ composition step is the part only you can do.
 Prefer the fewest queries that fully support the number: one grounding per object,
 with all the frames you need in a single t_tgt list.
 
+ANSWER KINDS
+final_answer carries a "kind" field that selects the answer shape. It defaults to
+"numeric" when you omit it.
+- "numeric" is the default and covers every question whose answer is one measured
+  quantity. Report it in the unit the question names; if the question names none, use SI
+  base units -- meters for distance, seconds for time, meters per second for speed,
+  degrees for angles. A numeric answer must still cite the D4RT call and the python_math
+  call behind it.
+- "text" is for questions whose natural answer is words rather than one number. That
+  covers questions that are not measurements at all, and it covers directional or
+  qualitative answers such as "which way did it move" or "where is it relative to me".
+  For a directional answer, still measure first with query_d4rt and python_math, then
+  describe the direction from the components you measured: +x is to the right, -y is
+  upward, and z is the distance ahead of the camera at t_cam. Cite the evidence you used.
+Do not use "text" to dodge a measurement you could report as a number. A text answer is
+recorded as unscored, so it is never a way to score better on a measurement question.
+
 RESPONSE FORMAT
 Think out loud in plain text before every action. State the quantity being measured,
 the object or objects involved, the frames you need and why, and the formula that turns
@@ -294,7 +312,7 @@ First action example:
 After tool result d4rt_1, calculation example:
 {"action":"python_math","arguments":{"bindings":{"points":{"evidence_id":"d4rt_1","path":["math_trajectory_aligned_xyz_m"]},"visible":{"evidence_id":"d4rt_1","path":["math_visibility"]}},"code":"value = path_length(points, visible)","justification":"Sum each disjoint visible segment without bridging disappearance gaps."}}
 If math_1 reports outputs.value=1.25, final action structure example:
-{"action":"final_answer","arguments":{"value":1.25,"unit":"meters","evidence_ids":["d4rt_1","math_1"],"limitations":"Visibility-aware sum of observed segments; travel while absent is unobserved."}}
+{"action":"final_answer","arguments":{"kind":"numeric","value":1.25,"unit":"meters","evidence_ids":["d4rt_1","math_1"],"limitations":"Visibility-aware sum of observed segments; travel while absent is unobserved."}}
 
 Example C -- composing a quantity D4RT does not return directly
 Question: How fast is the cyclist moving?
@@ -321,6 +339,9 @@ vector is the cupboard's offset from the frame-25 camera in OpenCV axes, so a po
 x means to the right, a negative y means above eye level, and z is how far ahead.
 Query example:
 {"action":"query_d4rt","arguments":{"label":"cupboard","bbox_2d_1000":[300,240,470,640],"t_src":20,"t_tgt":[25],"t_cam":25,"justification":"Ground the cupboard where it is clearest and express its position from the frame-25 viewpoint the question asks about."}}
+"Which direction" is answered in words, not as one number, so after reading the measured
+components the final action example is:
+{"action":"final_answer","arguments":{"kind":"text","text":"From sampled frame 25 the cupboard is about 2.4 m ahead and roughly 1.1 m to the right, sitting a little above eye level.","evidence_ids":["d4rt_1","math_1"],"limitations":"Direction read from a single grounded point; the cupboard's extent is not measured."}}
 """
 
 
@@ -425,6 +446,10 @@ def _validate_final_evidence(
     if any(item not in evidence for item in evidence_ids):
         unknown = [item for item in evidence_ids if item not in evidence]
         raise ValueError(f"final answer cites unknown evidence IDs: {unknown}")
+    if arguments.get("kind", "numeric") == "text":
+        # Descriptive answers carry no scored number, so there is nothing to trace
+        # back to a calculation.  They are recorded as unscored instead.
+        return
     d4rt_ids = [item for item in evidence_ids if item.startswith("d4rt_")]
     math_ids = [item for item in evidence_ids if item.startswith("math_")]
     if not d4rt_ids or not math_ids:
@@ -449,8 +474,9 @@ def _validate_final_evidence(
                 "path evidence must query every sampled frame in the selected "
                 f"inclusive interval [{interval_start},{interval_end}]; missing {missing}"
             )
-    else:
-        raise ValueError(f"unsupported measurement task: {task_id!r}")
+    # Any other task id simply has no bespoke evidence rule yet; the two-frame
+    # minimum above still applies.  Task ids are host-supplied, never model-supplied,
+    # so falling back here cannot be used to weaken a rule the model was given.
     candidates: list[float] = []
     for evidence_id in math_ids:
         candidates.extend(_all_finite_scalars(evidence[evidence_id].get("outputs", {})))
@@ -458,8 +484,11 @@ def _validate_final_evidence(
     tolerance = max(1e-3, abs(value) * 1e-3)
     if not any(abs(value - candidate) <= tolerance for candidate in candidates):
         raise ValueError("final answer value does not match a cited calculation output")
-    if arguments["unit"].strip().lower() not in {"m", "meter", "meters", "metre", "metres"}:
-        raise ValueError("simple v2 metric answers must use meters")
+    # Only the GT-scored tasks are pinned to meters, because their answer is compared
+    # against a metres ground truth where "centimeters" would be a silent 100x error.
+    if task_id in METRE_SCORED_TASKS:
+        if arguments["unit"].strip().lower() not in {"m", "meter", "meters", "metre", "metres"}:
+            raise ValueError(f"{task_id} answers are scored in meters and must use meters")
 
 
 class OfflineQwen:
@@ -773,14 +802,6 @@ def run_live(args: argparse.Namespace) -> dict[str, Any]:
     for task in QUESTIONS:
         try:
             solved = orchestrator.solve(dict(task))
-            score = score_question(
-                task_id=task["id"],
-                final_answer=solved["final_answer"],
-                evidence=solved["evidence"],
-                gt=gt,
-                width=sampled.width,
-                height=sampled.height,
-            )
         except OrchestrationError as error:
             solved = {
                 "point_mode": args.point_mode,
@@ -793,10 +814,29 @@ def run_live(args: argparse.Namespace) -> dict[str, Any]:
             question_results.append(solved)
             failures.append({"task_id": task["id"], "error": str(error)})
             break
-        score["agent_vs_recomputed_aligned_delta_m"] = abs(
-            float(score["agent_final_value"]) - float(score["benchmark_aligned_value_m"])
-        )
+        # Record the solved question before scoring: a scoring error must never
+        # discard an expensive completed run.
         question_results.append(solved)
+        try:
+            score = score_question(
+                task_id=task["id"],
+                final_answer=solved["final_answer"],
+                evidence=solved["evidence"],
+                gt=gt,
+                width=sampled.width,
+                height=sampled.height,
+            )
+        except Exception as error:  # noqa: BLE001 - never lose the artifact to scoring
+            failures.append({
+                "task_id": task["id"],
+                "stage": "scoring",
+                "error": f"{type(error).__name__}: {error}",
+            })
+            continue
+        if score.get("scored", True):
+            score["agent_vs_recomputed_aligned_delta_m"] = abs(
+                float(score["agent_final_value"]) - float(score["benchmark_aligned_value_m"])
+            )
         scores.append(score)
 
     return {
@@ -829,7 +869,9 @@ def run_live(args: argparse.Namespace) -> dict[str, Any]:
         "scores": scores,
         "failures": failures,
         "gpu": backend.gpu_memory(),
-        "trace_replay": [replay_tool_trace(item["trace"]) for item in question_results],
+        "trace_replay": [
+            replay_tool_trace(item.get("trace", [])) for item in question_results
+        ],
     }
 
 
@@ -923,8 +965,16 @@ def main(argv: Sequence[str] | None = None) -> None:
     output.write_text(json.dumps(result, indent=2, allow_nan=False) + "\n")
     if "scores" in result:
         for score in result["scores"]:
+            task = score.get("task_id", "?")
+            if not score.get("scored", True):
+                answer = score.get("agent_final_text") or score.get("agent_final_value")
+                print(
+                    f"{task}: UNSCORED ({score.get('unscored_reason', 'no reason given')}) "
+                    f"answer={answer!r}"
+                )
+                continue
             print(
-                f"{score['task_id']}: raw={score['raw_d4rt_value']:.4f} "
+                f"{task}: raw={score['raw_d4rt_value']:.4f} "
                 f"aligned={score['benchmark_aligned_value_m']:.4f} m "
                 f"GT={score['gt_value_m']:.4f} m error={score['absolute_error_m']:.4f} m"
             )

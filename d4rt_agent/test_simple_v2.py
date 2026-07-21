@@ -33,6 +33,7 @@ from d4rt_agent.simple_v2_eval import (
     load_alignment_scale_from_metadata,
     measure_d4rt_result,
     merge_d4rt_results,
+    score_question,
 )
 from d4rt_agent.simple_v2_30b import QWEN_30B_MODEL_ID, prepare_30b_arguments
 
@@ -82,7 +83,7 @@ class ActionContractTest(unittest.TestCase):
             for line in SYSTEM_PROMPT.splitlines()
             if line.startswith('{"action":"') and "ACTION_NAME" not in line
         ]
-        self.assertEqual(len(examples), 7)
+        self.assertEqual(len(examples), 8)
         self.assertEqual(
             [validate_action(example)[0] for example in examples],
             [
@@ -93,10 +94,57 @@ class ActionContractTest(unittest.TestCase):
                 "final_answer",
                 # Example C composes speed from displacement and elapsed time.
                 "python_math",
-                # Example D selects a non-zero viewpoint for a directional question.
+                # Example D selects a non-zero viewpoint for a directional question
+                # and answers it in words.
                 "query_d4rt",
+                "final_answer",
             ],
         )
+
+    def test_final_answer_kind_defaults_to_numeric(self) -> None:
+        name, args = validate_action({
+            "action": "final_answer",
+            "arguments": {
+                "value": 1.25,
+                "unit": "meters",
+                "evidence_ids": ["d4rt_1", "math_1"],
+                "limitations": "",
+            },
+        })
+        self.assertEqual(name, "final_answer")
+        self.assertEqual(args["kind"], "numeric")
+        self.assertEqual(args["value"], 1.25)
+
+    def test_text_answer_needs_text_and_allows_empty_evidence(self) -> None:
+        _, args = validate_action({
+            "action": "final_answer",
+            "arguments": {"kind": "text", "text": "  I am doing well.  "},
+        })
+        self.assertEqual(args["kind"], "text")
+        self.assertEqual(args["text"], "I am doing well.")
+        self.assertEqual(args["evidence_ids"], [])
+        with self.assertRaisesRegex(ValueError, "non-empty text"):
+            validate_action({
+                "action": "final_answer",
+                "arguments": {"kind": "text", "text": "   "},
+            })
+        with self.assertRaisesRegex(ValueError, "exceeds 2000 characters"):
+            validate_action({
+                "action": "final_answer",
+                "arguments": {"kind": "text", "text": "x" * 2001},
+            })
+        with self.assertRaisesRegex(ValueError, "kind must be one of"):
+            validate_action({
+                "action": "final_answer",
+                "arguments": {"kind": "direction", "text": "left"},
+            })
+
+    def test_numeric_answer_still_requires_evidence(self) -> None:
+        with self.assertRaisesRegex(ValueError, "must cite evidence_ids"):
+            validate_action({
+                "action": "final_answer",
+                "arguments": {"value": 1.0, "unit": "meters", "evidence_ids": []},
+            })
 
     def test_qwen_chooses_any_viewpoint_within_the_sampled_range(self) -> None:
         def _query(t_cam: int) -> dict[str, object]:
@@ -226,6 +274,70 @@ class ActionContractTest(unittest.TestCase):
                 {"value": 3.0, "unit": "m", "evidence_ids": ["d4rt_1", "math_1"]},
                 path_evidence,
             )
+
+    def test_unit_gate_applies_only_to_the_metre_scored_tasks(self) -> None:
+        evidence = {
+            "d4rt_1": {"t_tgt": [0, 31]},
+            "math_1": {"outputs": {"value": 2.0}},
+        }
+        with self.assertRaisesRegex(ValueError, "scored in meters"):
+            _validate_final_evidence(
+                "endpoint_displacement",
+                {"value": 2.0, "unit": "centimeters", "evidence_ids": ["d4rt_1", "math_1"]},
+                evidence,
+            )
+        # An open-ended task carries no metres GT, so any sensible unit is allowed and
+        # the unknown task id must not raise.
+        _validate_final_evidence(
+            "object_speed",
+            {"value": 2.0, "unit": "m/s", "evidence_ids": ["d4rt_1", "math_1"]},
+            evidence,
+        )
+
+    def test_text_answer_needs_no_measurement_evidence(self) -> None:
+        _validate_final_evidence(
+            "small_talk", {"kind": "text", "text": "Doing well.", "evidence_ids": []}, {}
+        )
+        # Cited ids must still exist, even for text.
+        with self.assertRaisesRegex(ValueError, "unknown evidence IDs"):
+            _validate_final_evidence(
+                "small_talk",
+                {"kind": "text", "text": "Doing well.", "evidence_ids": ["d4rt_9"]},
+                {},
+            )
+
+
+class UnscoredAnswerTest(unittest.TestCase):
+    def test_text_answer_scores_as_unscored(self) -> None:
+        score = score_question(
+            task_id="endpoint_displacement",
+            final_answer={
+                "kind": "text",
+                "text": "It moved toward the camera.",
+                "evidence_ids": ["d4rt_1", "math_1"],
+            },
+            evidence={},
+            gt=None,
+            width=640,
+            height=480,
+        )
+        self.assertFalse(score["scored"])
+        self.assertEqual(score["answer_kind"], "text")
+        self.assertEqual(score["agent_final_text"], "It moved toward the camera.")
+        self.assertIn("no automated scoring", score["unscored_reason"])
+
+    def test_task_without_ground_truth_is_unscored_not_an_error(self) -> None:
+        score = score_question(
+            task_id="object_speed",
+            final_answer={"value": 1.5, "unit": "m/s", "evidence_ids": ["d4rt_1", "math_1"]},
+            evidence={},
+            gt=None,
+            width=640,
+            height=480,
+        )
+        self.assertFalse(score["scored"])
+        self.assertEqual(score["answer_kind"], "numeric")
+        self.assertIn("no WorldTrack ground truth", score["unscored_reason"])
 
 
 class GroundingPolicyTest(unittest.TestCase):

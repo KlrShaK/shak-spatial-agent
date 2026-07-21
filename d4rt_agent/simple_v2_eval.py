@@ -224,6 +224,11 @@ def visible_path_length(xyz: np.ndarray, visibility: np.ndarray) -> float:
     return total
 
 
+# The tasks with WorldTrack ground truth, and therefore the only ones that can be
+# scored automatically.  Anything else is answered and recorded, but not scored.
+METRE_SCORED_TASKS = frozenset({"endpoint_displacement", "distance_travelled"})
+
+
 def measure_d4rt_result(task_id: str, query_result: dict[str, Any], aligned: bool) -> float:
     key = "benchmark_aligned_xyz_m" if aligned else "raw_xyz"
     xyz = []
@@ -304,6 +309,23 @@ def score_question(
     width: int,
     height: int,
 ) -> dict[str, Any]:
+    kind = final_answer.get("kind", "numeric")
+    if kind != "numeric" or task_id not in METRE_SCORED_TASKS:
+        reason = (
+            f"answer kind {kind!r} has no automated scoring"
+            if kind != "numeric"
+            else f"task {task_id!r} has no WorldTrack ground truth"
+        )
+        return {
+            "task_id": task_id,
+            "answer_kind": kind,
+            "scored": False,
+            "unscored_reason": reason,
+            "agent_final_text": final_answer.get("text"),
+            "agent_final_value": final_answer.get("value"),
+            "agent_final_unit": final_answer.get("unit"),
+            "evidence_ids": list(final_answer.get("evidence_ids", [])),
+        }
     d4rt_ids = [item for item in final_answer["evidence_ids"] if item.startswith("d4rt_")]
     math_ids = [item for item in final_answer["evidence_ids"] if item.startswith("math_")]
     if not d4rt_ids or not math_ids:
@@ -322,6 +344,8 @@ def score_question(
     absolute_error = abs(aligned_value - gt_value)
     return {
         "task_id": task_id,
+        "answer_kind": "numeric",
+        "scored": True,
         "sampled_interval": sampled_interval,
         "d4rt_evidence_ids": d4rt_ids,
         "math_evidence_ids": math_ids,
