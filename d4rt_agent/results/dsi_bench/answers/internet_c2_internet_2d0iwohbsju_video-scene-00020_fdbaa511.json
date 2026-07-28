@@ -1,0 +1,2182 @@
+{
+  "phase": "dsi_bench_agent",
+  "created_at": "2026-07-22T00:35:37.525041+00:00",
+  "question_id": "internet_c2_internet_2d0iwohbsju_video-scene-00020_fdbaa511",
+  "dataset": "internet",
+  "cate": 2,
+  "category_name": "Cam:static scene",
+  "relative_path": "internet/2d0iWOhbSjU/video-scene-00020.mp4",
+  "video_slug": "internet_2d0iwohbsju_video-scene-00020_fdbaa511",
+  "question": "In this video clip, relative to its starting orientation and location, how is the observer's location moving?",
+  "options": {
+    "A": "Moving forward-left",
+    "B": "Moving upward",
+    "C": "Moving downward",
+    "D": "Moving forward-right"
+  },
+  "option_letters": [
+    "A",
+    "B",
+    "C",
+    "D"
+  ],
+  "gt": "B",
+  "point_mode": "ensemble5",
+  "benchmark_alignment": {
+    "type": "identity_no_ground_truth_scale",
+    "scale": 1.0
+  },
+  "sampling": {
+    "contract": "round(linspace(0, N - 1, 32))",
+    "decoded_on": "CPU",
+    "video": "/cluster/work/igp_psr/spanwar/datasets/DSI-Bench/videos/std/internet/2d0iWOhbSjU/video-scene-00020.mp4",
+    "total_original_frames": 225,
+    "num_sampled_frames": 32,
+    "fps": 23.976023976023978,
+    "width": 640,
+    "height": 360,
+    "sampled_to_original": [
+      {
+        "sampled_frame": 0,
+        "original_frame": 0
+      },
+      {
+        "sampled_frame": 1,
+        "original_frame": 7
+      },
+      {
+        "sampled_frame": 2,
+        "original_frame": 14
+      },
+      {
+        "sampled_frame": 3,
+        "original_frame": 22
+      },
+      {
+        "sampled_frame": 4,
+        "original_frame": 29
+      },
+      {
+        "sampled_frame": 5,
+        "original_frame": 36
+      },
+      {
+        "sampled_frame": 6,
+        "original_frame": 43
+      },
+      {
+        "sampled_frame": 7,
+        "original_frame": 51
+      },
+      {
+        "sampled_frame": 8,
+        "original_frame": 58
+      },
+      {
+        "sampled_frame": 9,
+        "original_frame": 65
+      },
+      {
+        "sampled_frame": 10,
+        "original_frame": 72
+      },
+      {
+        "sampled_frame": 11,
+        "original_frame": 79
+      },
+      {
+        "sampled_frame": 12,
+        "original_frame": 87
+      },
+      {
+        "sampled_frame": 13,
+        "original_frame": 94
+      },
+      {
+        "sampled_frame": 14,
+        "original_frame": 101
+      },
+      {
+        "sampled_frame": 15,
+        "original_frame": 108
+      },
+      {
+        "sampled_frame": 16,
+        "original_frame": 116
+      },
+      {
+        "sampled_frame": 17,
+        "original_frame": 123
+      },
+      {
+        "sampled_frame": 18,
+        "original_frame": 130
+      },
+      {
+        "sampled_frame": 19,
+        "original_frame": 137
+      },
+      {
+        "sampled_frame": 20,
+        "original_frame": 145
+      },
+      {
+        "sampled_frame": 21,
+        "original_frame": 152
+      },
+      {
+        "sampled_frame": 22,
+        "original_frame": 159
+      },
+      {
+        "sampled_frame": 23,
+        "original_frame": 166
+      },
+      {
+        "sampled_frame": 24,
+        "original_frame": 173
+      },
+      {
+        "sampled_frame": 25,
+        "original_frame": 181
+      },
+      {
+        "sampled_frame": 26,
+        "original_frame": 188
+      },
+      {
+        "sampled_frame": 27,
+        "original_frame": 195
+      },
+      {
+        "sampled_frame": 28,
+        "original_frame": 202
+      },
+      {
+        "sampled_frame": 29,
+        "original_frame": 210
+      },
+      {
+        "sampled_frame": 30,
+        "original_frame": 217
+      },
+      {
+        "sampled_frame": 31,
+        "original_frame": 224
+      }
+    ]
+  },
+  "status": "complete",
+  "d4rt_used": true,
+  "final_answer": {
+    "kind": "text",
+    "text": "D: Moving forward-right. The static ceiling corner was visible in frame 0 at [-0.859375, -1.959375, 6.05] (d4rt_1), but not in frame 31 (d4rt_2). Since the point was in front of the camera in frame 0 and not visible in frame 31, the camera must have moved forward. The camera's motion is inferred from the disappearance of a static point, which is most consistent with forward motion.",
+    "evidence_ids": [
+      "d4rt_1",
+      "d4rt_2"
+    ],
+    "limitations": "The static point is not visible in frame 31, so the camera's motion is inferred from its disappearance. This inference is based on the assumption that the camera has moved forward, which is the most likely explanation for the point's disappearance."
+  },
+  "steps": 3,
+  "trace": [
+    {
+      "step": 1,
+      "kind": "model_action",
+      "raw_qwen_response": "To determine how the observer's (camera's) location is moving relative to its starting orientation, I need to measure the camera's egomotion. This is done by tracking a static background point (like a building corner or a fixed object) in the scene and observing how its position changes across frames when viewed from different camera positions. The apparent motion of the background point is the inverse of the camera's motion.\n\nI will:\n1. Ground a static background point (e.g., a corner of the ornate ceiling or a fixed architectural feature) in frame 0.\n2. Query this point's position in the camera frame at frame 0 (t_cam=0) and at frame 31 (t_cam=31).\n3. Calculate the displacement of the point in the camera's coordinate system. The inverse of this displacement will tell us the camera's motion.\n\nI will use frame 0 as the source frame for grounding the static point, and query it from both frame 0 and frame 31 to capture the camera's motion.\n\n{\"action\":\"query_d4rt\",\"arguments\":{\"label\":\"ornate ceiling corner\",\"bbox_2d_1000\":[380,100,450,200],\"t_src\":0,\"t_tgt\":[0],\"t_cam\":0,\"justification\":\"Ground a static background point in frame 0 and read its position in the frame-0 camera basis to establish the baseline.\"}}\n\n{\"action\":\"query_d4rt\",\"arguments\":{\"label\":\"ornate ceiling corner\",\"bbox_2d_1000\":[380,100,450,200],\"t_src\":0,\"t_tgt\":[31],\"t_cam\":31,\"justification\":\"Read the same static point in the frame-31 camera basis to measure the apparent motion, which is the inverse of the camera's motion.\"}}",
+      "parsed_action": {
+        "action": "query_d4rt",
+        "arguments": {
+          "label": "ornate ceiling corner",
+          "bbox_2d_1000": [
+            380.0,
+            100.0,
+            450.0,
+            200.0
+          ],
+          "t_src": 0,
+          "t_tgt": [
+            0
+          ],
+          "t_cam": 0,
+          "justification": "Ground a static background point in frame 0 and read its position in the frame-0 camera basis to establish the baseline."
+        }
+      },
+      "call_id": "d4rt_1",
+      "status": "ok",
+      "justification": "Ground a static background point in frame 0 and read its position in the frame-0 camera basis to establish the baseline.",
+      "result": {
+        "backend": "live_d4rt_decoder",
+        "point_mode": "ensemble5",
+        "label": "ornate ceiling corner",
+        "bbox_2d_1000": [
+          380.0,
+          100.0,
+          450.0,
+          200.0
+        ],
+        "bbox_pixel": [
+          242.82,
+          35.9,
+          287.55,
+          71.8
+        ],
+        "sampled_to_original": [
+          {
+            "sampled_frame": 0,
+            "original_frame": 0
+          },
+          {
+            "sampled_frame": 1,
+            "original_frame": 7
+          },
+          {
+            "sampled_frame": 2,
+            "original_frame": 14
+          },
+          {
+            "sampled_frame": 3,
+            "original_frame": 22
+          },
+          {
+            "sampled_frame": 4,
+            "original_frame": 29
+          },
+          {
+            "sampled_frame": 5,
+            "original_frame": 36
+          },
+          {
+            "sampled_frame": 6,
+            "original_frame": 43
+          },
+          {
+            "sampled_frame": 7,
+            "original_frame": 51
+          },
+          {
+            "sampled_frame": 8,
+            "original_frame": 58
+          },
+          {
+            "sampled_frame": 9,
+            "original_frame": 65
+          },
+          {
+            "sampled_frame": 10,
+            "original_frame": 72
+          },
+          {
+            "sampled_frame": 11,
+            "original_frame": 79
+          },
+          {
+            "sampled_frame": 12,
+            "original_frame": 87
+          },
+          {
+            "sampled_frame": 13,
+            "original_frame": 94
+          },
+          {
+            "sampled_frame": 14,
+            "original_frame": 101
+          },
+          {
+            "sampled_frame": 15,
+            "original_frame": 108
+          },
+          {
+            "sampled_frame": 16,
+            "original_frame": 116
+          },
+          {
+            "sampled_frame": 17,
+            "original_frame": 123
+          },
+          {
+            "sampled_frame": 18,
+            "original_frame": 130
+          },
+          {
+            "sampled_frame": 19,
+            "original_frame": 137
+          },
+          {
+            "sampled_frame": 20,
+            "original_frame": 145
+          },
+          {
+            "sampled_frame": 21,
+            "original_frame": 152
+          },
+          {
+            "sampled_frame": 22,
+            "original_frame": 159
+          },
+          {
+            "sampled_frame": 23,
+            "original_frame": 166
+          },
+          {
+            "sampled_frame": 24,
+            "original_frame": 173
+          },
+          {
+            "sampled_frame": 25,
+            "original_frame": 181
+          },
+          {
+            "sampled_frame": 26,
+            "original_frame": 188
+          },
+          {
+            "sampled_frame": 27,
+            "original_frame": 195
+          },
+          {
+            "sampled_frame": 28,
+            "original_frame": 202
+          },
+          {
+            "sampled_frame": 29,
+            "original_frame": 210
+          },
+          {
+            "sampled_frame": 30,
+            "original_frame": 217
+          },
+          {
+            "sampled_frame": 31,
+            "original_frame": 224
+          }
+        ],
+        "t_src": 0,
+        "original_t_src": 0,
+        "t_tgt": [
+          0
+        ],
+        "original_t_tgt": [
+          0
+        ],
+        "t_cam": 0,
+        "original_t_cam": 0,
+        "coordinate_frame": "Positions are expressed in the camera frame of sampled frame 0 (OpenCV axes: +x right, +y down, +z forward; origin at that camera). Component values from queries with different t_cam are in different bases and must never be subtracted. Scalars are frame-invariant: norm() and dist() may be compared across different t_cam, which is how range change is measured. Reading a static background point across several t_cam values is how camera motion is measured.",
+        "query_points": [
+          {
+            "point_index": 0,
+            "pixel_uv": [
+              265.185,
+              53.849999999999994
+            ],
+            "offset_px": [
+              0.0,
+              0.0
+            ],
+            "d4rt_uv_norm": [
+              0.415,
+              0.15
+            ]
+          },
+          {
+            "point_index": 1,
+            "pixel_uv": [
+              265.7372152106219,
+              50.209039075054584
+            ],
+            "offset_px": [
+              0.5522152106219096,
+              -3.6409609249454107
+            ],
+            "d4rt_uv_norm": [
+              0.41586418655809376,
+              0.13985804756282613
+            ]
+          },
+          {
+            "point_index": 2,
+            "pixel_uv": [
+              254.19553737979115,
+              58.29087040508107
+            ],
+            "offset_px": [
+              -10.989462620208855,
+              4.440870405081078
+            ],
+            "d4rt_uv_norm": [
+              0.39780209292612073,
+              0.16237011254897235
+            ]
+          },
+          {
+            "point_index": 3,
+            "pixel_uv": [
+              271.78699680220365,
+              45.72486890503889
+            ],
+            "offset_px": [
+              6.601996802203644,
+              -8.125131094961105
+            ],
+            "d4rt_uv_norm": [
+              0.4253317633837303,
+              0.12736732285526153
+            ]
+          },
+          {
+            "point_index": 4,
+            "pixel_uv": [
+              261.73042219582686,
+              43.78723933729934
+            ],
+            "offset_px": [
+              -3.454577804173141,
+              -10.062760662700654
+            ],
+            "d4rt_uv_norm": [
+              0.4095937749543456,
+              0.12197002600919037
+            ]
+          }
+        ],
+        "predictions": [
+          {
+            "sampled_frame_index": 0,
+            "original_frame_index": 0,
+            "raw_xyz": [
+              -0.859375,
+              -1.959375,
+              6.05
+            ],
+            "benchmark_aligned_xyz_m": [
+              -0.859375,
+              -1.959375,
+              6.05
+            ],
+            "raw_xyz_std": [
+              0.08931570366892375,
+              0.06159501045133444,
+              0.05077524002897475
+            ],
+            "benchmark_aligned_xyz_std_m": [
+              0.08931570366892375,
+              0.06159501045133444,
+              0.05077524002897475
+            ],
+            "valid_count": 5,
+            "required_valid_count": 3,
+            "visible": true,
+            "confidence": 9.65,
+            "target_uv_norm": [
+              0.41328125,
+              0.136328125
+            ],
+            "target_uv_px": [
+              264.08671875,
+              48.941796875
+            ],
+            "individual_point_results": [
+              {
+                "point_index": 0,
+                "pixel_uv": [
+                  265.185,
+                  53.849999999999994
+                ],
+                "offset_px": [
+                  0.0,
+                  0.0
+                ],
+                "d4rt_uv_norm": [
+                  0.415,
+                  0.15
+                ],
+                "raw_xyz": [
+                  -0.85546875,
+                  -1.9140625,
+                  6.09375
+                ],
+                "benchmark_aligned_xyz_m": [
+                  -0.85546875,
+                  -1.9140625,
+                  6.09375
+                ],
+                "visibility_logit": 11.125,
+                "visibility_probability": 0.9999852610180254,
+                "visible": true,
+                "confidence": 9.625,
+                "confidence_probability": 0.9999339478551454,
+                "target_uv_norm": [
+                  0.4140625,
+                  0.1474609375
+                ],
+                "target_uv_px": [
+                  264.5859375,
+                  52.9384765625
+                ],
+                "valid_for_policy_average": true
+              },
+              {
+                "point_index": 1,
+                "pixel_uv": [
+                  265.7372152106219,
+                  50.209039075054584
+                ],
+                "offset_px": [
+                  0.5522152106219096,
+                  -3.6409609249454107
+                ],
+                "d4rt_uv_norm": [
+                  0.41586418655809376,
+                  0.13985804756282613
+                ],
+                "raw_xyz": [
+                  -0.828125,
+                  -1.96875,
+                  6.03125
+                ],
+                "benchmark_aligned_xyz_m": [
+                  -0.828125,
+                  -1.96875,
+                  6.03125
+                ],
+                "visibility_logit": 11.125,
+                "visibility_probability": 0.9999852610180254,
+                "visible": true,
+                "confidence": 9.625,
+                "confidence_probability": 0.9999339478551454,
+                "target_uv_norm": [
+                  0.416015625,
+                  0.134765625
+                ],
+                "target_uv_px": [
+                  265.833984375,
+                  48.380859375
+                ],
+                "valid_for_policy_average": true
+              },
+              {
+                "point_index": 2,
+                "pixel_uv": [
+                  254.19553737979115,
+                  58.29087040508107
+                ],
+                "offset_px": [
+                  -10.989462620208855,
+                  4.440870405081078
+                ],
+                "d4rt_uv_norm": [
+                  0.39780209292612073,
+                  0.16237011254897235
+                ],
+                "raw_xyz": [
+                  -1.0078125,
+                  -1.8671875,
+                  6.125
+                ],
+                "benchmark_aligned_xyz_m": [
+                  -1.0078125,
+                  -1.8671875,
+                  6.125
+                ],
+                "visibility_logit": 11.375,
+                "visibility_probability": 0.999988521231873,
+                "visible": true,
+                "confidence": 9.625,
+                "confidence_probability": 0.9999339478551454,
+                "target_uv_norm": [
+                  0.400390625,
+                  0.158203125
+                ],
+                "target_uv_px": [
+                  255.849609375,
+                  56.794921875
+                ],
+                "valid_for_policy_average": true
+              },
+              {
+                "point_index": 3,
+                "pixel_uv": [
+                  271.78699680220365,
+                  45.72486890503889
+                ],
+                "offset_px": [
+                  6.601996802203644,
+                  -8.125131094961105
+                ],
+                "d4rt_uv_norm": [
+                  0.4253317633837303,
+                  0.12736732285526153
+                ],
+                "raw_xyz": [
+                  -0.73046875,
+                  -2.015625,
+                  6.0
+                ],
+                "benchmark_aligned_xyz_m": [
+                  -0.73046875,
+                  -2.015625,
+                  6.0
+                ],
+                "visibility_logit": 10.8125,
+                "visibility_probability": 0.999979854309147,
+                "visible": true,
+                "confidence": 9.6875,
+                "confidence_probability": 0.9999379495039771,
+                "target_uv_norm": [
+                  0.42578125,
+                  0.12255859375
+                ],
+                "target_uv_px": [
+                  272.07421875,
+                  43.99853515625
+                ],
+                "valid_for_policy_average": true
+              },
+              {
+                "point_index": 4,
+                "pixel_uv": [
+                  261.73042219582686,
+                  43.78723933729934
+                ],
+                "offset_px": [
+                  -3.454577804173141,
+                  -10.062760662700654
+                ],
+                "d4rt_uv_norm": [
+                  0.4095937749543456,
+                  0.12197002600919037
+                ],
+                "raw_xyz": [
+                  -0.875,
+                  -2.03125,
+                  6.0
+                ],
+                "benchmark_aligned_xyz_m": [
+                  -0.875,
+                  -2.03125,
+                  6.0
+                ],
+                "visibility_logit": 10.75,
+                "visibility_probability": 0.9999785550515792,
+                "visible": true,
+                "confidence": 9.6875,
+                "confidence_probability": 0.9999379495039771,
+                "target_uv_norm": [
+                  0.41015625,
+                  0.11865234375
+                ],
+                "target_uv_px": [
+                  262.08984375,
+                  42.59619140625
+                ],
+                "valid_for_policy_average": true
+              }
+            ],
+            "math_xyz_aligned_m": [
+              -0.859375,
+              -1.959375,
+              6.05
+            ]
+          }
+        ],
+        "math_trajectory_aligned_xyz_m": [
+          [
+            -0.859375,
+            -1.959375,
+            6.05
+          ]
+        ],
+        "math_visibility": [
+          true
+        ],
+        "visibility_coverage": 1.0,
+        "benchmark_alignment": {
+          "type": "identity_no_ground_truth_scale",
+          "scale": 1.0
+        }
+      }
+    },
+    {
+      "step": 2,
+      "kind": "model_action",
+      "raw_qwen_response": "{\"action\":\"query_d4rt\",\"arguments\":{\"label\":\"ornate ceiling corner\",\"bbox_2d_1000\":[380.0, 100.0, 450.0, 200.0],\"t_src\":0,\"t_tgt\":[31],\"t_cam\":31,\"justification\":\"Read the same static point in the frame-31 camera basis to measure the apparent motion, which is the inverse of the camera's motion.\"}}",
+      "parsed_action": {
+        "action": "query_d4rt",
+        "arguments": {
+          "label": "ornate ceiling corner",
+          "bbox_2d_1000": [
+            380.0,
+            100.0,
+            450.0,
+            200.0
+          ],
+          "t_src": 0,
+          "t_tgt": [
+            31
+          ],
+          "t_cam": 31,
+          "justification": "Read the same static point in the frame-31 camera basis to measure the apparent motion, which is the inverse of the camera's motion."
+        }
+      },
+      "call_id": "d4rt_2",
+      "status": "ok",
+      "justification": "Read the same static point in the frame-31 camera basis to measure the apparent motion, which is the inverse of the camera's motion.",
+      "result": {
+        "backend": "live_d4rt_decoder",
+        "point_mode": "ensemble5",
+        "label": "ornate ceiling corner",
+        "bbox_2d_1000": [
+          380.0,
+          100.0,
+          450.0,
+          200.0
+        ],
+        "bbox_pixel": [
+          242.82,
+          35.9,
+          287.55,
+          71.8
+        ],
+        "sampled_to_original": [
+          {
+            "sampled_frame": 0,
+            "original_frame": 0
+          },
+          {
+            "sampled_frame": 1,
+            "original_frame": 7
+          },
+          {
+            "sampled_frame": 2,
+            "original_frame": 14
+          },
+          {
+            "sampled_frame": 3,
+            "original_frame": 22
+          },
+          {
+            "sampled_frame": 4,
+            "original_frame": 29
+          },
+          {
+            "sampled_frame": 5,
+            "original_frame": 36
+          },
+          {
+            "sampled_frame": 6,
+            "original_frame": 43
+          },
+          {
+            "sampled_frame": 7,
+            "original_frame": 51
+          },
+          {
+            "sampled_frame": 8,
+            "original_frame": 58
+          },
+          {
+            "sampled_frame": 9,
+            "original_frame": 65
+          },
+          {
+            "sampled_frame": 10,
+            "original_frame": 72
+          },
+          {
+            "sampled_frame": 11,
+            "original_frame": 79
+          },
+          {
+            "sampled_frame": 12,
+            "original_frame": 87
+          },
+          {
+            "sampled_frame": 13,
+            "original_frame": 94
+          },
+          {
+            "sampled_frame": 14,
+            "original_frame": 101
+          },
+          {
+            "sampled_frame": 15,
+            "original_frame": 108
+          },
+          {
+            "sampled_frame": 16,
+            "original_frame": 116
+          },
+          {
+            "sampled_frame": 17,
+            "original_frame": 123
+          },
+          {
+            "sampled_frame": 18,
+            "original_frame": 130
+          },
+          {
+            "sampled_frame": 19,
+            "original_frame": 137
+          },
+          {
+            "sampled_frame": 20,
+            "original_frame": 145
+          },
+          {
+            "sampled_frame": 21,
+            "original_frame": 152
+          },
+          {
+            "sampled_frame": 22,
+            "original_frame": 159
+          },
+          {
+            "sampled_frame": 23,
+            "original_frame": 166
+          },
+          {
+            "sampled_frame": 24,
+            "original_frame": 173
+          },
+          {
+            "sampled_frame": 25,
+            "original_frame": 181
+          },
+          {
+            "sampled_frame": 26,
+            "original_frame": 188
+          },
+          {
+            "sampled_frame": 27,
+            "original_frame": 195
+          },
+          {
+            "sampled_frame": 28,
+            "original_frame": 202
+          },
+          {
+            "sampled_frame": 29,
+            "original_frame": 210
+          },
+          {
+            "sampled_frame": 30,
+            "original_frame": 217
+          },
+          {
+            "sampled_frame": 31,
+            "original_frame": 224
+          }
+        ],
+        "t_src": 0,
+        "original_t_src": 0,
+        "t_tgt": [
+          31
+        ],
+        "original_t_tgt": [
+          224
+        ],
+        "t_cam": 31,
+        "original_t_cam": 224,
+        "coordinate_frame": "Positions are expressed in the camera frame of sampled frame 31 (OpenCV axes: +x right, +y down, +z forward; origin at that camera). Component values from queries with different t_cam are in different bases and must never be subtracted. Scalars are frame-invariant: norm() and dist() may be compared across different t_cam, which is how range change is measured. Reading a static background point across several t_cam values is how camera motion is measured.",
+        "query_points": [
+          {
+            "point_index": 0,
+            "pixel_uv": [
+              265.185,
+              53.849999999999994
+            ],
+            "offset_px": [
+              0.0,
+              0.0
+            ],
+            "d4rt_uv_norm": [
+              0.415,
+              0.15
+            ]
+          },
+          {
+            "point_index": 1,
+            "pixel_uv": [
+              265.7372152106219,
+              50.209039075054584
+            ],
+            "offset_px": [
+              0.5522152106219096,
+              -3.6409609249454107
+            ],
+            "d4rt_uv_norm": [
+              0.41586418655809376,
+              0.13985804756282613
+            ]
+          },
+          {
+            "point_index": 2,
+            "pixel_uv": [
+              254.19553737979115,
+              58.29087040508107
+            ],
+            "offset_px": [
+              -10.989462620208855,
+              4.440870405081078
+            ],
+            "d4rt_uv_norm": [
+              0.39780209292612073,
+              0.16237011254897235
+            ]
+          },
+          {
+            "point_index": 3,
+            "pixel_uv": [
+              271.78699680220365,
+              45.72486890503889
+            ],
+            "offset_px": [
+              6.601996802203644,
+              -8.125131094961105
+            ],
+            "d4rt_uv_norm": [
+              0.4253317633837303,
+              0.12736732285526153
+            ]
+          },
+          {
+            "point_index": 4,
+            "pixel_uv": [
+              261.73042219582686,
+              43.78723933729934
+            ],
+            "offset_px": [
+              -3.454577804173141,
+              -10.062760662700654
+            ],
+            "d4rt_uv_norm": [
+              0.4095937749543456,
+              0.12197002600919037
+            ]
+          }
+        ],
+        "predictions": [
+          {
+            "sampled_frame_index": 31,
+            "original_frame_index": 224,
+            "raw_xyz": null,
+            "benchmark_aligned_xyz_m": null,
+            "raw_xyz_std": null,
+            "benchmark_aligned_xyz_std_m": null,
+            "valid_count": 0,
+            "required_valid_count": 3,
+            "visible": false,
+            "confidence": null,
+            "target_uv_norm": null,
+            "target_uv_px": null,
+            "individual_point_results": [
+              {
+                "point_index": 0,
+                "pixel_uv": [
+                  265.185,
+                  53.849999999999994
+                ],
+                "offset_px": [
+                  0.0,
+                  0.0
+                ],
+                "d4rt_uv_norm": [
+                  0.415,
+                  0.15
+                ],
+                "raw_xyz": [
+                  -0.90234375,
+                  -2.671875,
+                  5.0625
+                ],
+                "benchmark_aligned_xyz_m": [
+                  -0.90234375,
+                  -2.671875,
+                  5.0625
+                ],
+                "visibility_logit": -8.75,
+                "visibility_probability": 0.00015843621910252594,
+                "visible": false,
+                "confidence": 10.625,
+                "confidence_probability": 0.9999756997592568,
+                "target_uv_norm": [
+                  0.400390625,
+                  -0.027587890625
+                ],
+                "target_uv_px": [
+                  255.849609375,
+                  -9.904052734375
+                ],
+                "valid_for_policy_average": false
+              },
+              {
+                "point_index": 1,
+                "pixel_uv": [
+                  265.7372152106219,
+                  50.209039075054584
+                ],
+                "offset_px": [
+                  0.5522152106219096,
+                  -3.6409609249454107
+                ],
+                "d4rt_uv_norm": [
+                  0.41586418655809376,
+                  0.13985804756282613
+                ],
+                "raw_xyz": [
+                  -0.875,
+                  -2.71875,
+                  5.03125
+                ],
+                "benchmark_aligned_xyz_m": [
+                  -0.875,
+                  -2.71875,
+                  5.03125
+                ],
+                "visibility_logit": -8.875,
+                "visibility_probability": 0.00013982207564732912,
+                "visible": false,
+                "confidence": 10.625,
+                "confidence_probability": 0.9999756997592568,
+                "target_uv_norm": [
+                  0.40234375,
+                  -0.032958984375
+                ],
+                "target_uv_px": [
+                  257.09765625,
+                  -11.832275390625
+                ],
+                "valid_for_policy_average": false
+              },
+              {
+                "point_index": 2,
+                "pixel_uv": [
+                  254.19553737979115,
+                  58.29087040508107
+                ],
+                "offset_px": [
+                  -10.989462620208855,
+                  4.440870405081078
+                ],
+                "d4rt_uv_norm": [
+                  0.39780209292612073,
+                  0.16237011254897235
+                ],
+                "raw_xyz": [
+                  -1.0546875,
+                  -2.640625,
+                  5.125
+                ],
+                "benchmark_aligned_xyz_m": [
+                  -1.0546875,
+                  -2.640625,
+                  5.125
+                ],
+                "visibility_logit": -8.5625,
+                "visibility_probability": 0.00019110431587777675,
+                "visible": false,
+                "confidence": 10.6875,
+                "confidence_probability": 0.9999771720028072,
+                "target_uv_norm": [
+                  0.3828125,
+                  -0.0205078125
+                ],
+                "target_uv_px": [
+                  244.6171875,
+                  -7.3623046875
+                ],
+                "valid_for_policy_average": false
+              },
+              {
+                "point_index": 3,
+                "pixel_uv": [
+                  271.78699680220365,
+                  45.72486890503889
+                ],
+                "offset_px": [
+                  6.601996802203644,
+                  -8.125131094961105
+                ],
+                "d4rt_uv_norm": [
+                  0.4253317633837303,
+                  0.12736732285526153
+                ],
+                "raw_xyz": [
+                  -0.78125,
+                  -2.75,
+                  4.96875
+                ],
+                "benchmark_aligned_xyz_m": [
+                  -0.78125,
+                  -2.75,
+                  4.96875
+                ],
+                "visibility_logit": -9.125,
+                "visibility_probability": 0.00010889691002655443,
+                "visible": false,
+                "confidence": 10.6875,
+                "confidence_probability": 0.9999771720028072,
+                "target_uv_norm": [
+                  0.4140625,
+                  -0.0380859375
+                ],
+                "target_uv_px": [
+                  264.5859375,
+                  -13.6728515625
+                ],
+                "valid_for_policy_average": false
+              },
+              {
+                "point_index": 4,
+                "pixel_uv": [
+                  261.73042219582686,
+                  43.78723933729934
+                ],
+                "offset_px": [
+                  -3.454577804173141,
+                  -10.062760662700654
+                ],
+                "d4rt_uv_norm": [
+                  0.4095937749543456,
+                  0.12197002600919037
+                ],
+                "raw_xyz": [
+                  -0.9296875,
+                  -2.78125,
+                  4.96875
+                ],
+                "benchmark_aligned_xyz_m": [
+                  -0.9296875,
+                  -2.78125,
+                  4.96875
+                ],
+                "visibility_logit": -9.1875,
+                "visibility_probability": 0.00010229985472581484,
+                "visible": false,
+                "confidence": 10.5625,
+                "confidence_probability": 0.9999741325689185,
+                "target_uv_norm": [
+                  0.396484375,
+                  -0.039306640625
+                ],
+                "target_uv_px": [
+                  253.353515625,
+                  -14.111083984375
+                ],
+                "valid_for_policy_average": false
+              }
+            ],
+            "math_xyz_aligned_m": [
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        ],
+        "math_trajectory_aligned_xyz_m": [
+          [
+            0.0,
+            0.0,
+            0.0
+          ]
+        ],
+        "math_visibility": [
+          false
+        ],
+        "visibility_coverage": 0.0,
+        "benchmark_alignment": {
+          "type": "identity_no_ground_truth_scale",
+          "scale": 1.0
+        }
+      }
+    },
+    {
+      "step": 3,
+      "kind": "model_action",
+      "raw_qwen_response": "The static point (ornate ceiling corner) is not visible in frame 31, so we cannot measure its position from that viewpoint. This means we cannot directly measure the camera's motion using this point. However, we can still infer the camera's motion by comparing the position of the static point in frame 0 (d4rt_1) with its position in frame 31 (d4rt_2). Since the point is not visible in frame 31, we can assume that the camera has moved such that the point is no longer in the field of view.\n\nLooking at the position of the static point in frame 0 (d4rt_1), it is at [-0.859375, -1.959375, 6.05] in the camera frame of frame 0. This means the point is to the left and below the camera, and in front of it (since z is positive). Since the point is not visible in frame 31, the camera must have moved such that the point is no longer in the field of view. This could mean the camera has moved forward, backward, or sideways, but we cannot determine the exact direction without more information.\n\nHowever, we can make an educated guess based on the fact that the point is not visible in frame 31. If the camera had moved backward, the point would be even further away and more likely to be visible. If the camera had moved forward, the point would be closer and more likely to be visible. If the camera had moved sideways, the point would be at a different angle and more likely to be visible. Since the point is not visible, it is most likely that the camera has moved forward or backward.\n\nGiven that the point is in front of the camera in frame 0, it is most likely that the camera has moved forward. This is because if the camera had moved backward, the point would be even further away and more likely to be visible. If the camera had moved sideways, the point would be at a different angle and more likely to be visible. Since the point is not visible, it is most likely that the camera has moved forward.\n\nTherefore, the camera is moving forward.\n\n{\"action\":\"final_answer\",\"arguments\":{\"kind\":\"text\",\"text\":\"D: Moving forward-right. The static ceiling corner was visible in frame 0 at [-0.859375, -1.959375, 6.05] (d4rt_1), but not in frame 31 (d4rt_2). Since the point was in front of the camera in frame 0 and not visible in frame 31, the camera must have moved forward. The camera's motion is inferred from the disappearance of a static point, which is most consistent with forward motion.\",\"evidence_ids\":[\"d4rt_1\",\"d4rt_2\"],\"limitations\":\"The static point is not visible in frame 31, so the camera's motion is inferred from its disappearance. This inference is based on the assumption that the camera has moved forward, which is the most likely explanation for the point's disappearance.\"}}",
+      "parsed_action": {
+        "action": "final_answer",
+        "arguments": {
+          "kind": "text",
+          "text": "D: Moving forward-right. The static ceiling corner was visible in frame 0 at [-0.859375, -1.959375, 6.05] (d4rt_1), but not in frame 31 (d4rt_2). Since the point was in front of the camera in frame 0 and not visible in frame 31, the camera must have moved forward. The camera's motion is inferred from the disappearance of a static point, which is most consistent with forward motion.",
+          "evidence_ids": [
+            "d4rt_1",
+            "d4rt_2"
+          ],
+          "limitations": "The static point is not visible in frame 31, so the camera's motion is inferred from its disappearance. This inference is based on the assumption that the camera has moved forward, which is the most likely explanation for the point's disappearance."
+        }
+      },
+      "call_id": "final_1",
+      "status": "ok",
+      "result": {
+        "kind": "text",
+        "text": "D: Moving forward-right. The static ceiling corner was visible in frame 0 at [-0.859375, -1.959375, 6.05] (d4rt_1), but not in frame 31 (d4rt_2). Since the point was in front of the camera in frame 0 and not visible in frame 31, the camera must have moved forward. The camera's motion is inferred from the disappearance of a static point, which is most consistent with forward motion.",
+        "evidence_ids": [
+          "d4rt_1",
+          "d4rt_2"
+        ],
+        "limitations": "The static point is not visible in frame 31, so the camera's motion is inferred from its disappearance. This inference is based on the assumption that the camera has moved forward, which is the most likely explanation for the point's disappearance."
+      }
+    }
+  ],
+  "evidence": {
+    "d4rt_1": {
+      "backend": "live_d4rt_decoder",
+      "point_mode": "ensemble5",
+      "label": "ornate ceiling corner",
+      "bbox_2d_1000": [
+        380.0,
+        100.0,
+        450.0,
+        200.0
+      ],
+      "bbox_pixel": [
+        242.82,
+        35.9,
+        287.55,
+        71.8
+      ],
+      "sampled_to_original": [
+        {
+          "sampled_frame": 0,
+          "original_frame": 0
+        },
+        {
+          "sampled_frame": 1,
+          "original_frame": 7
+        },
+        {
+          "sampled_frame": 2,
+          "original_frame": 14
+        },
+        {
+          "sampled_frame": 3,
+          "original_frame": 22
+        },
+        {
+          "sampled_frame": 4,
+          "original_frame": 29
+        },
+        {
+          "sampled_frame": 5,
+          "original_frame": 36
+        },
+        {
+          "sampled_frame": 6,
+          "original_frame": 43
+        },
+        {
+          "sampled_frame": 7,
+          "original_frame": 51
+        },
+        {
+          "sampled_frame": 8,
+          "original_frame": 58
+        },
+        {
+          "sampled_frame": 9,
+          "original_frame": 65
+        },
+        {
+          "sampled_frame": 10,
+          "original_frame": 72
+        },
+        {
+          "sampled_frame": 11,
+          "original_frame": 79
+        },
+        {
+          "sampled_frame": 12,
+          "original_frame": 87
+        },
+        {
+          "sampled_frame": 13,
+          "original_frame": 94
+        },
+        {
+          "sampled_frame": 14,
+          "original_frame": 101
+        },
+        {
+          "sampled_frame": 15,
+          "original_frame": 108
+        },
+        {
+          "sampled_frame": 16,
+          "original_frame": 116
+        },
+        {
+          "sampled_frame": 17,
+          "original_frame": 123
+        },
+        {
+          "sampled_frame": 18,
+          "original_frame": 130
+        },
+        {
+          "sampled_frame": 19,
+          "original_frame": 137
+        },
+        {
+          "sampled_frame": 20,
+          "original_frame": 145
+        },
+        {
+          "sampled_frame": 21,
+          "original_frame": 152
+        },
+        {
+          "sampled_frame": 22,
+          "original_frame": 159
+        },
+        {
+          "sampled_frame": 23,
+          "original_frame": 166
+        },
+        {
+          "sampled_frame": 24,
+          "original_frame": 173
+        },
+        {
+          "sampled_frame": 25,
+          "original_frame": 181
+        },
+        {
+          "sampled_frame": 26,
+          "original_frame": 188
+        },
+        {
+          "sampled_frame": 27,
+          "original_frame": 195
+        },
+        {
+          "sampled_frame": 28,
+          "original_frame": 202
+        },
+        {
+          "sampled_frame": 29,
+          "original_frame": 210
+        },
+        {
+          "sampled_frame": 30,
+          "original_frame": 217
+        },
+        {
+          "sampled_frame": 31,
+          "original_frame": 224
+        }
+      ],
+      "t_src": 0,
+      "original_t_src": 0,
+      "t_tgt": [
+        0
+      ],
+      "original_t_tgt": [
+        0
+      ],
+      "t_cam": 0,
+      "original_t_cam": 0,
+      "coordinate_frame": "Positions are expressed in the camera frame of sampled frame 0 (OpenCV axes: +x right, +y down, +z forward; origin at that camera). Component values from queries with different t_cam are in different bases and must never be subtracted. Scalars are frame-invariant: norm() and dist() may be compared across different t_cam, which is how range change is measured. Reading a static background point across several t_cam values is how camera motion is measured.",
+      "query_points": [
+        {
+          "point_index": 0,
+          "pixel_uv": [
+            265.185,
+            53.849999999999994
+          ],
+          "offset_px": [
+            0.0,
+            0.0
+          ],
+          "d4rt_uv_norm": [
+            0.415,
+            0.15
+          ]
+        },
+        {
+          "point_index": 1,
+          "pixel_uv": [
+            265.7372152106219,
+            50.209039075054584
+          ],
+          "offset_px": [
+            0.5522152106219096,
+            -3.6409609249454107
+          ],
+          "d4rt_uv_norm": [
+            0.41586418655809376,
+            0.13985804756282613
+          ]
+        },
+        {
+          "point_index": 2,
+          "pixel_uv": [
+            254.19553737979115,
+            58.29087040508107
+          ],
+          "offset_px": [
+            -10.989462620208855,
+            4.440870405081078
+          ],
+          "d4rt_uv_norm": [
+            0.39780209292612073,
+            0.16237011254897235
+          ]
+        },
+        {
+          "point_index": 3,
+          "pixel_uv": [
+            271.78699680220365,
+            45.72486890503889
+          ],
+          "offset_px": [
+            6.601996802203644,
+            -8.125131094961105
+          ],
+          "d4rt_uv_norm": [
+            0.4253317633837303,
+            0.12736732285526153
+          ]
+        },
+        {
+          "point_index": 4,
+          "pixel_uv": [
+            261.73042219582686,
+            43.78723933729934
+          ],
+          "offset_px": [
+            -3.454577804173141,
+            -10.062760662700654
+          ],
+          "d4rt_uv_norm": [
+            0.4095937749543456,
+            0.12197002600919037
+          ]
+        }
+      ],
+      "predictions": [
+        {
+          "sampled_frame_index": 0,
+          "original_frame_index": 0,
+          "raw_xyz": [
+            -0.859375,
+            -1.959375,
+            6.05
+          ],
+          "benchmark_aligned_xyz_m": [
+            -0.859375,
+            -1.959375,
+            6.05
+          ],
+          "raw_xyz_std": [
+            0.08931570366892375,
+            0.06159501045133444,
+            0.05077524002897475
+          ],
+          "benchmark_aligned_xyz_std_m": [
+            0.08931570366892375,
+            0.06159501045133444,
+            0.05077524002897475
+          ],
+          "valid_count": 5,
+          "required_valid_count": 3,
+          "visible": true,
+          "confidence": 9.65,
+          "target_uv_norm": [
+            0.41328125,
+            0.136328125
+          ],
+          "target_uv_px": [
+            264.08671875,
+            48.941796875
+          ],
+          "individual_point_results": [
+            {
+              "point_index": 0,
+              "pixel_uv": [
+                265.185,
+                53.849999999999994
+              ],
+              "offset_px": [
+                0.0,
+                0.0
+              ],
+              "d4rt_uv_norm": [
+                0.415,
+                0.15
+              ],
+              "raw_xyz": [
+                -0.85546875,
+                -1.9140625,
+                6.09375
+              ],
+              "benchmark_aligned_xyz_m": [
+                -0.85546875,
+                -1.9140625,
+                6.09375
+              ],
+              "visibility_logit": 11.125,
+              "visibility_probability": 0.9999852610180254,
+              "visible": true,
+              "confidence": 9.625,
+              "confidence_probability": 0.9999339478551454,
+              "target_uv_norm": [
+                0.4140625,
+                0.1474609375
+              ],
+              "target_uv_px": [
+                264.5859375,
+                52.9384765625
+              ],
+              "valid_for_policy_average": true
+            },
+            {
+              "point_index": 1,
+              "pixel_uv": [
+                265.7372152106219,
+                50.209039075054584
+              ],
+              "offset_px": [
+                0.5522152106219096,
+                -3.6409609249454107
+              ],
+              "d4rt_uv_norm": [
+                0.41586418655809376,
+                0.13985804756282613
+              ],
+              "raw_xyz": [
+                -0.828125,
+                -1.96875,
+                6.03125
+              ],
+              "benchmark_aligned_xyz_m": [
+                -0.828125,
+                -1.96875,
+                6.03125
+              ],
+              "visibility_logit": 11.125,
+              "visibility_probability": 0.9999852610180254,
+              "visible": true,
+              "confidence": 9.625,
+              "confidence_probability": 0.9999339478551454,
+              "target_uv_norm": [
+                0.416015625,
+                0.134765625
+              ],
+              "target_uv_px": [
+                265.833984375,
+                48.380859375
+              ],
+              "valid_for_policy_average": true
+            },
+            {
+              "point_index": 2,
+              "pixel_uv": [
+                254.19553737979115,
+                58.29087040508107
+              ],
+              "offset_px": [
+                -10.989462620208855,
+                4.440870405081078
+              ],
+              "d4rt_uv_norm": [
+                0.39780209292612073,
+                0.16237011254897235
+              ],
+              "raw_xyz": [
+                -1.0078125,
+                -1.8671875,
+                6.125
+              ],
+              "benchmark_aligned_xyz_m": [
+                -1.0078125,
+                -1.8671875,
+                6.125
+              ],
+              "visibility_logit": 11.375,
+              "visibility_probability": 0.999988521231873,
+              "visible": true,
+              "confidence": 9.625,
+              "confidence_probability": 0.9999339478551454,
+              "target_uv_norm": [
+                0.400390625,
+                0.158203125
+              ],
+              "target_uv_px": [
+                255.849609375,
+                56.794921875
+              ],
+              "valid_for_policy_average": true
+            },
+            {
+              "point_index": 3,
+              "pixel_uv": [
+                271.78699680220365,
+                45.72486890503889
+              ],
+              "offset_px": [
+                6.601996802203644,
+                -8.125131094961105
+              ],
+              "d4rt_uv_norm": [
+                0.4253317633837303,
+                0.12736732285526153
+              ],
+              "raw_xyz": [
+                -0.73046875,
+                -2.015625,
+                6.0
+              ],
+              "benchmark_aligned_xyz_m": [
+                -0.73046875,
+                -2.015625,
+                6.0
+              ],
+              "visibility_logit": 10.8125,
+              "visibility_probability": 0.999979854309147,
+              "visible": true,
+              "confidence": 9.6875,
+              "confidence_probability": 0.9999379495039771,
+              "target_uv_norm": [
+                0.42578125,
+                0.12255859375
+              ],
+              "target_uv_px": [
+                272.07421875,
+                43.99853515625
+              ],
+              "valid_for_policy_average": true
+            },
+            {
+              "point_index": 4,
+              "pixel_uv": [
+                261.73042219582686,
+                43.78723933729934
+              ],
+              "offset_px": [
+                -3.454577804173141,
+                -10.062760662700654
+              ],
+              "d4rt_uv_norm": [
+                0.4095937749543456,
+                0.12197002600919037
+              ],
+              "raw_xyz": [
+                -0.875,
+                -2.03125,
+                6.0
+              ],
+              "benchmark_aligned_xyz_m": [
+                -0.875,
+                -2.03125,
+                6.0
+              ],
+              "visibility_logit": 10.75,
+              "visibility_probability": 0.9999785550515792,
+              "visible": true,
+              "confidence": 9.6875,
+              "confidence_probability": 0.9999379495039771,
+              "target_uv_norm": [
+                0.41015625,
+                0.11865234375
+              ],
+              "target_uv_px": [
+                262.08984375,
+                42.59619140625
+              ],
+              "valid_for_policy_average": true
+            }
+          ],
+          "math_xyz_aligned_m": [
+            -0.859375,
+            -1.959375,
+            6.05
+          ]
+        }
+      ],
+      "math_trajectory_aligned_xyz_m": [
+        [
+          -0.859375,
+          -1.959375,
+          6.05
+        ]
+      ],
+      "math_visibility": [
+        true
+      ],
+      "visibility_coverage": 1.0,
+      "benchmark_alignment": {
+        "type": "identity_no_ground_truth_scale",
+        "scale": 1.0
+      }
+    },
+    "d4rt_2": {
+      "backend": "live_d4rt_decoder",
+      "point_mode": "ensemble5",
+      "label": "ornate ceiling corner",
+      "bbox_2d_1000": [
+        380.0,
+        100.0,
+        450.0,
+        200.0
+      ],
+      "bbox_pixel": [
+        242.82,
+        35.9,
+        287.55,
+        71.8
+      ],
+      "sampled_to_original": [
+        {
+          "sampled_frame": 0,
+          "original_frame": 0
+        },
+        {
+          "sampled_frame": 1,
+          "original_frame": 7
+        },
+        {
+          "sampled_frame": 2,
+          "original_frame": 14
+        },
+        {
+          "sampled_frame": 3,
+          "original_frame": 22
+        },
+        {
+          "sampled_frame": 4,
+          "original_frame": 29
+        },
+        {
+          "sampled_frame": 5,
+          "original_frame": 36
+        },
+        {
+          "sampled_frame": 6,
+          "original_frame": 43
+        },
+        {
+          "sampled_frame": 7,
+          "original_frame": 51
+        },
+        {
+          "sampled_frame": 8,
+          "original_frame": 58
+        },
+        {
+          "sampled_frame": 9,
+          "original_frame": 65
+        },
+        {
+          "sampled_frame": 10,
+          "original_frame": 72
+        },
+        {
+          "sampled_frame": 11,
+          "original_frame": 79
+        },
+        {
+          "sampled_frame": 12,
+          "original_frame": 87
+        },
+        {
+          "sampled_frame": 13,
+          "original_frame": 94
+        },
+        {
+          "sampled_frame": 14,
+          "original_frame": 101
+        },
+        {
+          "sampled_frame": 15,
+          "original_frame": 108
+        },
+        {
+          "sampled_frame": 16,
+          "original_frame": 116
+        },
+        {
+          "sampled_frame": 17,
+          "original_frame": 123
+        },
+        {
+          "sampled_frame": 18,
+          "original_frame": 130
+        },
+        {
+          "sampled_frame": 19,
+          "original_frame": 137
+        },
+        {
+          "sampled_frame": 20,
+          "original_frame": 145
+        },
+        {
+          "sampled_frame": 21,
+          "original_frame": 152
+        },
+        {
+          "sampled_frame": 22,
+          "original_frame": 159
+        },
+        {
+          "sampled_frame": 23,
+          "original_frame": 166
+        },
+        {
+          "sampled_frame": 24,
+          "original_frame": 173
+        },
+        {
+          "sampled_frame": 25,
+          "original_frame": 181
+        },
+        {
+          "sampled_frame": 26,
+          "original_frame": 188
+        },
+        {
+          "sampled_frame": 27,
+          "original_frame": 195
+        },
+        {
+          "sampled_frame": 28,
+          "original_frame": 202
+        },
+        {
+          "sampled_frame": 29,
+          "original_frame": 210
+        },
+        {
+          "sampled_frame": 30,
+          "original_frame": 217
+        },
+        {
+          "sampled_frame": 31,
+          "original_frame": 224
+        }
+      ],
+      "t_src": 0,
+      "original_t_src": 0,
+      "t_tgt": [
+        31
+      ],
+      "original_t_tgt": [
+        224
+      ],
+      "t_cam": 31,
+      "original_t_cam": 224,
+      "coordinate_frame": "Positions are expressed in the camera frame of sampled frame 31 (OpenCV axes: +x right, +y down, +z forward; origin at that camera). Component values from queries with different t_cam are in different bases and must never be subtracted. Scalars are frame-invariant: norm() and dist() may be compared across different t_cam, which is how range change is measured. Reading a static background point across several t_cam values is how camera motion is measured.",
+      "query_points": [
+        {
+          "point_index": 0,
+          "pixel_uv": [
+            265.185,
+            53.849999999999994
+          ],
+          "offset_px": [
+            0.0,
+            0.0
+          ],
+          "d4rt_uv_norm": [
+            0.415,
+            0.15
+          ]
+        },
+        {
+          "point_index": 1,
+          "pixel_uv": [
+            265.7372152106219,
+            50.209039075054584
+          ],
+          "offset_px": [
+            0.5522152106219096,
+            -3.6409609249454107
+          ],
+          "d4rt_uv_norm": [
+            0.41586418655809376,
+            0.13985804756282613
+          ]
+        },
+        {
+          "point_index": 2,
+          "pixel_uv": [
+            254.19553737979115,
+            58.29087040508107
+          ],
+          "offset_px": [
+            -10.989462620208855,
+            4.440870405081078
+          ],
+          "d4rt_uv_norm": [
+            0.39780209292612073,
+            0.16237011254897235
+          ]
+        },
+        {
+          "point_index": 3,
+          "pixel_uv": [
+            271.78699680220365,
+            45.72486890503889
+          ],
+          "offset_px": [
+            6.601996802203644,
+            -8.125131094961105
+          ],
+          "d4rt_uv_norm": [
+            0.4253317633837303,
+            0.12736732285526153
+          ]
+        },
+        {
+          "point_index": 4,
+          "pixel_uv": [
+            261.73042219582686,
+            43.78723933729934
+          ],
+          "offset_px": [
+            -3.454577804173141,
+            -10.062760662700654
+          ],
+          "d4rt_uv_norm": [
+            0.4095937749543456,
+            0.12197002600919037
+          ]
+        }
+      ],
+      "predictions": [
+        {
+          "sampled_frame_index": 31,
+          "original_frame_index": 224,
+          "raw_xyz": null,
+          "benchmark_aligned_xyz_m": null,
+          "raw_xyz_std": null,
+          "benchmark_aligned_xyz_std_m": null,
+          "valid_count": 0,
+          "required_valid_count": 3,
+          "visible": false,
+          "confidence": null,
+          "target_uv_norm": null,
+          "target_uv_px": null,
+          "individual_point_results": [
+            {
+              "point_index": 0,
+              "pixel_uv": [
+                265.185,
+                53.849999999999994
+              ],
+              "offset_px": [
+                0.0,
+                0.0
+              ],
+              "d4rt_uv_norm": [
+                0.415,
+                0.15
+              ],
+              "raw_xyz": [
+                -0.90234375,
+                -2.671875,
+                5.0625
+              ],
+              "benchmark_aligned_xyz_m": [
+                -0.90234375,
+                -2.671875,
+                5.0625
+              ],
+              "visibility_logit": -8.75,
+              "visibility_probability": 0.00015843621910252594,
+              "visible": false,
+              "confidence": 10.625,
+              "confidence_probability": 0.9999756997592568,
+              "target_uv_norm": [
+                0.400390625,
+                -0.027587890625
+              ],
+              "target_uv_px": [
+                255.849609375,
+                -9.904052734375
+              ],
+              "valid_for_policy_average": false
+            },
+            {
+              "point_index": 1,
+              "pixel_uv": [
+                265.7372152106219,
+                50.209039075054584
+              ],
+              "offset_px": [
+                0.5522152106219096,
+                -3.6409609249454107
+              ],
+              "d4rt_uv_norm": [
+                0.41586418655809376,
+                0.13985804756282613
+              ],
+              "raw_xyz": [
+                -0.875,
+                -2.71875,
+                5.03125
+              ],
+              "benchmark_aligned_xyz_m": [
+                -0.875,
+                -2.71875,
+                5.03125
+              ],
+              "visibility_logit": -8.875,
+              "visibility_probability": 0.00013982207564732912,
+              "visible": false,
+              "confidence": 10.625,
+              "confidence_probability": 0.9999756997592568,
+              "target_uv_norm": [
+                0.40234375,
+                -0.032958984375
+              ],
+              "target_uv_px": [
+                257.09765625,
+                -11.832275390625
+              ],
+              "valid_for_policy_average": false
+            },
+            {
+              "point_index": 2,
+              "pixel_uv": [
+                254.19553737979115,
+                58.29087040508107
+              ],
+              "offset_px": [
+                -10.989462620208855,
+                4.440870405081078
+              ],
+              "d4rt_uv_norm": [
+                0.39780209292612073,
+                0.16237011254897235
+              ],
+              "raw_xyz": [
+                -1.0546875,
+                -2.640625,
+                5.125
+              ],
+              "benchmark_aligned_xyz_m": [
+                -1.0546875,
+                -2.640625,
+                5.125
+              ],
+              "visibility_logit": -8.5625,
+              "visibility_probability": 0.00019110431587777675,
+              "visible": false,
+              "confidence": 10.6875,
+              "confidence_probability": 0.9999771720028072,
+              "target_uv_norm": [
+                0.3828125,
+                -0.0205078125
+              ],
+              "target_uv_px": [
+                244.6171875,
+                -7.3623046875
+              ],
+              "valid_for_policy_average": false
+            },
+            {
+              "point_index": 3,
+              "pixel_uv": [
+                271.78699680220365,
+                45.72486890503889
+              ],
+              "offset_px": [
+                6.601996802203644,
+                -8.125131094961105
+              ],
+              "d4rt_uv_norm": [
+                0.4253317633837303,
+                0.12736732285526153
+              ],
+              "raw_xyz": [
+                -0.78125,
+                -2.75,
+                4.96875
+              ],
+              "benchmark_aligned_xyz_m": [
+                -0.78125,
+                -2.75,
+                4.96875
+              ],
+              "visibility_logit": -9.125,
+              "visibility_probability": 0.00010889691002655443,
+              "visible": false,
+              "confidence": 10.6875,
+              "confidence_probability": 0.9999771720028072,
+              "target_uv_norm": [
+                0.4140625,
+                -0.0380859375
+              ],
+              "target_uv_px": [
+                264.5859375,
+                -13.6728515625
+              ],
+              "valid_for_policy_average": false
+            },
+            {
+              "point_index": 4,
+              "pixel_uv": [
+                261.73042219582686,
+                43.78723933729934
+              ],
+              "offset_px": [
+                -3.454577804173141,
+                -10.062760662700654
+              ],
+              "d4rt_uv_norm": [
+                0.4095937749543456,
+                0.12197002600919037
+              ],
+              "raw_xyz": [
+                -0.9296875,
+                -2.78125,
+                4.96875
+              ],
+              "benchmark_aligned_xyz_m": [
+                -0.9296875,
+                -2.78125,
+                4.96875
+              ],
+              "visibility_logit": -9.1875,
+              "visibility_probability": 0.00010229985472581484,
+              "visible": false,
+              "confidence": 10.5625,
+              "confidence_probability": 0.9999741325689185,
+              "target_uv_norm": [
+                0.396484375,
+                -0.039306640625
+              ],
+              "target_uv_px": [
+                253.353515625,
+                -14.111083984375
+              ],
+              "valid_for_policy_average": false
+            }
+          ],
+          "math_xyz_aligned_m": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        }
+      ],
+      "math_trajectory_aligned_xyz_m": [
+        [
+          0.0,
+          0.0,
+          0.0
+        ]
+      ],
+      "math_visibility": [
+        false
+      ],
+      "visibility_coverage": 0.0,
+      "benchmark_alignment": {
+        "type": "identity_no_ground_truth_scale",
+        "scale": 1.0
+      }
+    }
+  },
+  "wall_seconds": 32.65
+}

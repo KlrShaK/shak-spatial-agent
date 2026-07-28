@@ -1,0 +1,169 @@
+{
+  "phase": "dsi_bench_baseline",
+  "created_at": "2026-07-22T00:07:52.890786+00:00",
+  "question_id": "internet_c4_internet_an2sz4h4qzk_video-scene-00048_265c8450",
+  "dataset": "internet",
+  "cate": 4,
+  "category_name": "Obj-Cam distance",
+  "relative_path": "internet/AN2SZ4H4Qzk/video-scene-00048.mp4",
+  "video_slug": "internet_an2sz4h4qzk_video-scene-00048_265c8450",
+  "question": "How does the distance between the observer and the horse change in this video?",
+  "options": {
+    "A": "Cannot be determined",
+    "B": "Remain unchanged",
+    "C": "Get closer",
+    "D": "Get farther"
+  },
+  "option_letters": [
+    "A",
+    "B",
+    "C",
+    "D"
+  ],
+  "gt": "D",
+  "qwen_model": "/cluster/work/igp_psr/spanwar/hf_cache/hub/models--Qwen--Qwen3-VL-8B-Instruct/snapshots/0c351dd01ed87e9c1b53cbc748cba10e6187ff3b",
+  "sampling": {
+    "contract": "round(linspace(0, N - 1, 32))",
+    "decoded_on": "CPU",
+    "video": "/cluster/work/igp_psr/spanwar/datasets/DSI-Bench/videos/std/internet/AN2SZ4H4Qzk/video-scene-00048.mp4",
+    "total_original_frames": 184,
+    "num_sampled_frames": 32,
+    "fps": 24.0,
+    "width": 640,
+    "height": 360,
+    "sampled_to_original": [
+      {
+        "sampled_frame": 0,
+        "original_frame": 0
+      },
+      {
+        "sampled_frame": 1,
+        "original_frame": 6
+      },
+      {
+        "sampled_frame": 2,
+        "original_frame": 12
+      },
+      {
+        "sampled_frame": 3,
+        "original_frame": 18
+      },
+      {
+        "sampled_frame": 4,
+        "original_frame": 24
+      },
+      {
+        "sampled_frame": 5,
+        "original_frame": 30
+      },
+      {
+        "sampled_frame": 6,
+        "original_frame": 35
+      },
+      {
+        "sampled_frame": 7,
+        "original_frame": 41
+      },
+      {
+        "sampled_frame": 8,
+        "original_frame": 47
+      },
+      {
+        "sampled_frame": 9,
+        "original_frame": 53
+      },
+      {
+        "sampled_frame": 10,
+        "original_frame": 59
+      },
+      {
+        "sampled_frame": 11,
+        "original_frame": 65
+      },
+      {
+        "sampled_frame": 12,
+        "original_frame": 71
+      },
+      {
+        "sampled_frame": 13,
+        "original_frame": 77
+      },
+      {
+        "sampled_frame": 14,
+        "original_frame": 83
+      },
+      {
+        "sampled_frame": 15,
+        "original_frame": 89
+      },
+      {
+        "sampled_frame": 16,
+        "original_frame": 94
+      },
+      {
+        "sampled_frame": 17,
+        "original_frame": 100
+      },
+      {
+        "sampled_frame": 18,
+        "original_frame": 106
+      },
+      {
+        "sampled_frame": 19,
+        "original_frame": 112
+      },
+      {
+        "sampled_frame": 20,
+        "original_frame": 118
+      },
+      {
+        "sampled_frame": 21,
+        "original_frame": 124
+      },
+      {
+        "sampled_frame": 22,
+        "original_frame": 130
+      },
+      {
+        "sampled_frame": 23,
+        "original_frame": 136
+      },
+      {
+        "sampled_frame": 24,
+        "original_frame": 142
+      },
+      {
+        "sampled_frame": 25,
+        "original_frame": 148
+      },
+      {
+        "sampled_frame": 26,
+        "original_frame": 153
+      },
+      {
+        "sampled_frame": 27,
+        "original_frame": 159
+      },
+      {
+        "sampled_frame": 28,
+        "original_frame": 165
+      },
+      {
+        "sampled_frame": 29,
+        "original_frame": 171
+      },
+      {
+        "sampled_frame": 30,
+        "original_frame": 177
+      },
+      {
+        "sampled_frame": 31,
+        "original_frame": 183
+      }
+    ]
+  },
+  "status": "complete",
+  "raw_response": "<C>",
+  "parsed_letter": null,
+  "wall_seconds": 1.18
+}

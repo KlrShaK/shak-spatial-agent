@@ -1,0 +1,3925 @@
+{
+  "phase": "dsi_bench_agent",
+  "created_at": "2026-07-22T00:56:59.719842+00:00",
+  "question_id": "k700_c0_k700_paragliding_95df0yxigbw_000076_000086_video-scene-00000_a1d4095b",
+  "dataset": "k700",
+  "cate": 0,
+  "category_name": "Obj:static cam",
+  "relative_path": "k700/paragliding/95Df0yxIGbw_000076_000086/video-scene-00000.mp4",
+  "video_slug": "k700_paragliding_95df0yxigbw_000076_000086_video-scene-00000_a1d4095b",
+  "question": "In this video clip, how is the paragliding's location moving in the 3D scene relative to his/her/its starting orientation and location?",
+  "options": {
+    "A": "Moving forward-right",
+    "B": "Moving backward-left",
+    "C": "Moving backward-right",
+    "D": "Moving forward-left"
+  },
+  "option_letters": [
+    "A",
+    "B",
+    "C",
+    "D"
+  ],
+  "gt": "A",
+  "point_mode": "ensemble5",
+  "benchmark_alignment": {
+    "type": "identity_no_ground_truth_scale",
+    "scale": 1.0
+  },
+  "sampling": {
+    "contract": "round(linspace(0, N - 1, 32))",
+    "decoded_on": "CPU",
+    "video": "/cluster/work/igp_psr/spanwar/datasets/DSI-Bench/videos/std/k700/paragliding/95Df0yxIGbw_000076_000086/video-scene-00000.mp4",
+    "total_original_frames": 90,
+    "num_sampled_frames": 32,
+    "fps": 29.97,
+    "width": 1280,
+    "height": 720,
+    "sampled_to_original": [
+      {
+        "sampled_frame": 0,
+        "original_frame": 0
+      },
+      {
+        "sampled_frame": 1,
+        "original_frame": 3
+      },
+      {
+        "sampled_frame": 2,
+        "original_frame": 6
+      },
+      {
+        "sampled_frame": 3,
+        "original_frame": 9
+      },
+      {
+        "sampled_frame": 4,
+        "original_frame": 11
+      },
+      {
+        "sampled_frame": 5,
+        "original_frame": 14
+      },
+      {
+        "sampled_frame": 6,
+        "original_frame": 17
+      },
+      {
+        "sampled_frame": 7,
+        "original_frame": 20
+      },
+      {
+        "sampled_frame": 8,
+        "original_frame": 23
+      },
+      {
+        "sampled_frame": 9,
+        "original_frame": 26
+      },
+      {
+        "sampled_frame": 10,
+        "original_frame": 29
+      },
+      {
+        "sampled_frame": 11,
+        "original_frame": 32
+      },
+      {
+        "sampled_frame": 12,
+        "original_frame": 34
+      },
+      {
+        "sampled_frame": 13,
+        "original_frame": 37
+      },
+      {
+        "sampled_frame": 14,
+        "original_frame": 40
+      },
+      {
+        "sampled_frame": 15,
+        "original_frame": 43
+      },
+      {
+        "sampled_frame": 16,
+        "original_frame": 46
+      },
+      {
+        "sampled_frame": 17,
+        "original_frame": 49
+      },
+      {
+        "sampled_frame": 18,
+        "original_frame": 52
+      },
+      {
+        "sampled_frame": 19,
+        "original_frame": 55
+      },
+      {
+        "sampled_frame": 20,
+        "original_frame": 57
+      },
+      {
+        "sampled_frame": 21,
+        "original_frame": 60
+      },
+      {
+        "sampled_frame": 22,
+        "original_frame": 63
+      },
+      {
+        "sampled_frame": 23,
+        "original_frame": 66
+      },
+      {
+        "sampled_frame": 24,
+        "original_frame": 69
+      },
+      {
+        "sampled_frame": 25,
+        "original_frame": 72
+      },
+      {
+        "sampled_frame": 26,
+        "original_frame": 75
+      },
+      {
+        "sampled_frame": 27,
+        "original_frame": 78
+      },
+      {
+        "sampled_frame": 28,
+        "original_frame": 80
+      },
+      {
+        "sampled_frame": 29,
+        "original_frame": 83
+      },
+      {
+        "sampled_frame": 30,
+        "original_frame": 86
+      },
+      {
+        "sampled_frame": 31,
+        "original_frame": 89
+      }
+    ]
+  },
+  "status": "complete",
+  "d4rt_used": true,
+  "final_answer": {
+    "kind": "text",
+    "text": "C: Moving backward-right. The displacement projected onto the paraglider's own facing axis was -0.0055 (backward) against 0.1034 lateral (right) and -0.0141 vertical (math_1), so the motion is primarily rightward relative to its own orientation.",
+    "evidence_ids": [
+      "d4rt_1",
+      "d4rt_2",
+      "d4rt_3",
+      "math_1"
+    ],
+    "limitations": "The facing axis was derived from two grounded torso points in frame 0 and assumed constant; if the paraglider turned during the clip the projection uses only the starting orientation."
+  },
+  "steps": 6,
+  "trace": [
+    {
+      "step": 1,
+      "kind": "model_action",
+      "raw_qwen_response": "To determine how the paraglider's location is moving relative to its starting orientation, I need to:\n\n1. Track the paraglider's 3D position over time to get its displacement vector.\n2. Determine the paraglider's initial facing direction (forward axis) by grounding two points on its body (e.g., chest and back) in the same frame.\n3. Project the displacement vector onto the paraglider's forward axis to determine if the motion is primarily forward, backward, left, or right relative to its own orientation.\n\nI will first query the paraglider's position at the start (frame 0) and end (frame 31) of the clip, using frame 0 as the viewpoint (`t_cam=0`) to get displacement in a fixed frame. Then, I will ground two points on the paraglider's body (chest and back) in frame 0 to establish its initial facing direction.\n\nFirst, I will query the paraglider's position at frame 0 and frame 31, with `t_cam=0` to get displacement in the camera's fixed frame.\n\n{\"action\":\"query_d4rt\",\"arguments\":{\"label\":\"paraglider\",\"bbox_2d_1000\":[500,500,600,650],\"t_src\":0,\"t_tgt\":[0,31],\"t_cam\":0,\"justification\":\"Query the paraglider's position at the start and end of the clip in the frame-0 camera basis to get its displacement in a fixed frame, with camera motion cancelled.\"}}",
+      "parsed_action": {
+        "action": "query_d4rt",
+        "arguments": {
+          "label": "paraglider",
+          "bbox_2d_1000": [
+            500.0,
+            500.0,
+            600.0,
+            650.0
+          ],
+          "t_src": 0,
+          "t_tgt": [
+            0,
+            31
+          ],
+          "t_cam": 0,
+          "justification": "Query the paraglider's position at the start and end of the clip in the frame-0 camera basis to get its displacement in a fixed frame, with camera motion cancelled."
+        }
+      },
+      "call_id": "d4rt_1",
+      "status": "ok",
+      "justification": "Query the paraglider's position at the start and end of the clip in the frame-0 camera basis to get its displacement in a fixed frame, with camera motion cancelled.",
+      "result": {
+        "backend": "live_d4rt_decoder",
+        "point_mode": "ensemble5",
+        "label": "paraglider",
+        "bbox_2d_1000": [
+          500.0,
+          500.0,
+          600.0,
+          650.0
+        ],
+        "bbox_pixel": [
+          639.5,
+          359.5,
+          767.4,
+          467.34999999999997
+        ],
+        "sampled_to_original": [
+          {
+            "sampled_frame": 0,
+            "original_frame": 0
+          },
+          {
+            "sampled_frame": 1,
+            "original_frame": 3
+          },
+          {
+            "sampled_frame": 2,
+            "original_frame": 6
+          },
+          {
+            "sampled_frame": 3,
+            "original_frame": 9
+          },
+          {
+            "sampled_frame": 4,
+            "original_frame": 11
+          },
+          {
+            "sampled_frame": 5,
+            "original_frame": 14
+          },
+          {
+            "sampled_frame": 6,
+            "original_frame": 17
+          },
+          {
+            "sampled_frame": 7,
+            "original_frame": 20
+          },
+          {
+            "sampled_frame": 8,
+            "original_frame": 23
+          },
+          {
+            "sampled_frame": 9,
+            "original_frame": 26
+          },
+          {
+            "sampled_frame": 10,
+            "original_frame": 29
+          },
+          {
+            "sampled_frame": 11,
+            "original_frame": 32
+          },
+          {
+            "sampled_frame": 12,
+            "original_frame": 34
+          },
+          {
+            "sampled_frame": 13,
+            "original_frame": 37
+          },
+          {
+            "sampled_frame": 14,
+            "original_frame": 40
+          },
+          {
+            "sampled_frame": 15,
+            "original_frame": 43
+          },
+          {
+            "sampled_frame": 16,
+            "original_frame": 46
+          },
+          {
+            "sampled_frame": 17,
+            "original_frame": 49
+          },
+          {
+            "sampled_frame": 18,
+            "original_frame": 52
+          },
+          {
+            "sampled_frame": 19,
+            "original_frame": 55
+          },
+          {
+            "sampled_frame": 20,
+            "original_frame": 57
+          },
+          {
+            "sampled_frame": 21,
+            "original_frame": 60
+          },
+          {
+            "sampled_frame": 22,
+            "original_frame": 63
+          },
+          {
+            "sampled_frame": 23,
+            "original_frame": 66
+          },
+          {
+            "sampled_frame": 24,
+            "original_frame": 69
+          },
+          {
+            "sampled_frame": 25,
+            "original_frame": 72
+          },
+          {
+            "sampled_frame": 26,
+            "original_frame": 75
+          },
+          {
+            "sampled_frame": 27,
+            "original_frame": 78
+          },
+          {
+            "sampled_frame": 28,
+            "original_frame": 80
+          },
+          {
+            "sampled_frame": 29,
+            "original_frame": 83
+          },
+          {
+            "sampled_frame": 30,
+            "original_frame": 86
+          },
+          {
+            "sampled_frame": 31,
+            "original_frame": 89
+          }
+        ],
+        "t_src": 0,
+        "original_t_src": 0,
+        "t_tgt": [
+          0,
+          31
+        ],
+        "original_t_tgt": [
+          0,
+          89
+        ],
+        "t_cam": 0,
+        "original_t_cam": 0,
+        "coordinate_frame": "Positions are expressed in the camera frame of sampled frame 0 (OpenCV axes: +x right, +y down, +z forward; origin at that camera). Component values from queries with different t_cam are in different bases and must never be subtracted. Scalars are frame-invariant: norm() and dist() may be compared across different t_cam, which is how range change is measured. Reading a static background point across several t_cam values is how camera motion is measured.",
+        "query_points": [
+          {
+            "point_index": 0,
+            "pixel_uv": [
+              703.45,
+              413.42499999999995
+            ],
+            "offset_px": [
+              0.0,
+              0.0
+            ],
+            "d4rt_uv_norm": [
+              0.55,
+              0.575
+            ]
+          },
+          {
+            "point_index": 1,
+            "pixel_uv": [
+              704.002215210622,
+              409.7840390750545
+            ],
+            "offset_px": [
+              0.5522152106219664,
+              -3.640960924945432
+            ],
+            "d4rt_uv_norm": [
+              0.5504317554422377,
+              0.5699360765995195
+            ]
+          },
+          {
+            "point_index": 2,
+            "pixel_uv": [
+              692.4605373797912,
+              417.865870405081
+            ],
+            "offset_px": [
+              -10.989462620208883,
+              4.440870405081057
+            ],
+            "d4rt_uv_norm": [
+              0.5414077696479993,
+              0.5811764539709054
+            ]
+          },
+          {
+            "point_index": 3,
+            "pixel_uv": [
+              710.0519968022037,
+              405.29986890503886
+            ],
+            "offset_px": [
+              6.601996802203644,
+              -8.125131094961091
+            ],
+            "d4rt_uv_norm": [
+              0.5551618426913242,
+              0.5636994004242544
+            ]
+          },
+          {
+            "point_index": 4,
+            "pixel_uv": [
+              699.9954221958269,
+              403.3622393372993
+            ],
+            "offset_px": [
+              -3.454577804173141,
+              -10.062760662700668
+            ],
+            "d4rt_uv_norm": [
+              0.5472990009349702,
+              0.5610045053369949
+            ]
+          }
+        ],
+        "predictions": [
+          {
+            "sampled_frame_index": 0,
+            "original_frame_index": 0,
+            "raw_xyz": [
+              0.524609375,
+              0.386328125,
+              7.35625
+            ],
+            "benchmark_aligned_xyz_m": [
+              0.524609375,
+              0.386328125,
+              7.35625
+            ],
+            "raw_xyz_std": [
+              0.04657455800246525,
+              0.03568183514584137,
+              0.13199195051214296
+            ],
+            "benchmark_aligned_xyz_std_m": [
+              0.04657455800246525,
+              0.03568183514584137,
+              0.13199195051214296
+            ],
+            "valid_count": 5,
+            "required_valid_count": 3,
+            "visible": true,
+            "confidence": 10.125,
+            "target_uv_norm": [
+              0.5578125,
+              0.5734375
+            ],
+            "target_uv_px": [
+              713.4421875,
+              412.30156250000005
+            ],
+            "individual_point_results": [
+              {
+                "point_index": 0,
+                "pixel_uv": [
+                  703.45,
+                  413.42499999999995
+                ],
+                "offset_px": [
+                  0.0,
+                  0.0
+                ],
+                "d4rt_uv_norm": [
+                  0.55,
+                  0.575
+                ],
+                "raw_xyz": [
+                  0.5390625,
+                  0.400390625,
+                  7.28125
+                ],
+                "benchmark_aligned_xyz_m": [
+                  0.5390625,
+                  0.400390625,
+                  7.28125
+                ],
+                "visibility_logit": 10.875,
+                "visibility_probability": 0.999981074851754,
+                "visible": true,
+                "confidence": 10.125,
+                "confidence_probability": 0.9999599363077709,
+                "target_uv_norm": [
+                  0.55859375,
+                  0.57421875
+                ],
+                "target_uv_px": [
+                  714.44140625,
+                  412.86328125
+                ],
+                "valid_for_policy_average": true
+              },
+              {
+                "point_index": 1,
+                "pixel_uv": [
+                  704.002215210622,
+                  409.7840390750545
+                ],
+                "offset_px": [
+                  0.5522152106219664,
+                  -3.640960924945432
+                ],
+                "d4rt_uv_norm": [
+                  0.5504317554422377,
+                  0.5699360765995195
+                ],
+                "raw_xyz": [
+                  0.5390625,
+                  0.380859375,
+                  7.34375
+                ],
+                "benchmark_aligned_xyz_m": [
+                  0.5390625,
+                  0.380859375,
+                  7.34375
+                ],
+                "visibility_logit": 11.4375,
+                "visibility_probability": 0.999989216687777,
+                "visible": true,
+                "confidence": 10.1875,
+                "confidence_probability": 0.9999623635528191,
+                "target_uv_norm": [
+                  0.55859375,
+                  0.57421875
+                ],
+                "target_uv_px": [
+                  714.44140625,
+                  412.86328125
+                ],
+                "valid_for_policy_average": true
+              },
+              {
+                "point_index": 2,
+                "pixel_uv": [
+                  692.4605373797912,
+                  417.865870405081
+                ],
+                "offset_px": [
+                  -10.989462620208883,
+                  4.440870405081057
+                ],
+                "d4rt_uv_norm": [
+                  0.5414077696479993,
+                  0.5811764539709054
+                ],
+                "raw_xyz": [
+                  0.455078125,
+                  0.447265625,
+                  7.15625
+                ],
+                "benchmark_aligned_xyz_m": [
+                  0.455078125,
+                  0.447265625,
+                  7.15625
+                ],
+                "visibility_logit": 10.625,
+                "visibility_probability": 0.9999756997592568,
+                "visible": true,
+                "confidence": 9.9375,
+                "confidence_probability": 0.9999516743618128,
+                "target_uv_norm": [
+                  0.55078125,
+                  0.58203125
+                ],
+                "target_uv_px": [
+                  704.44921875,
+                  418.48046875
+                ],
+                "valid_for_policy_average": true
+              },
+              {
+                "point_index": 3,
+                "pixel_uv": [
+                  710.0519968022037,
+                  405.29986890503886
+                ],
+                "offset_px": [
+                  6.601996802203644,
+                  -8.125131094961091
+                ],
+                "d4rt_uv_norm": [
+                  0.5551618426913242,
+                  0.5636994004242544
+                ],
+                "raw_xyz": [
+                  0.59375,
+                  0.349609375,
+                  7.5
+                ],
+                "benchmark_aligned_xyz_m": [
+                  0.59375,
+                  0.349609375,
+                  7.5
+                ],
+                "visibility_logit": 10.625,
+                "visibility_probability": 0.9999756997592568,
+                "visible": true,
+                "confidence": 10.125,
+                "confidence_probability": 0.9999599363077709,
+                "target_uv_norm": [
+                  0.56640625,
+                  0.5703125
+                ],
+                "target_uv_px": [
+                  724.43359375,
+                  410.0546875
+                ],
+                "valid_for_policy_average": true
+              },
+              {
+                "point_index": 4,
+                "pixel_uv": [
+                  699.9954221958269,
+                  403.3622393372993
+                ],
+                "offset_px": [
+                  -3.454577804173141,
+                  -10.062760662700668
+                ],
+                "d4rt_uv_norm": [
+                  0.5472990009349702,
+                  0.5610045053369949
+                ],
+                "raw_xyz": [
+                  0.49609375,
+                  0.353515625,
+                  7.5
+                ],
+                "benchmark_aligned_xyz_m": [
+                  0.49609375,
+                  0.353515625,
+                  7.5
+                ],
+                "visibility_logit": 10.4375,
+                "visibility_probability": 0.9999706884614404,
+                "visible": true,
+                "confidence": 10.25,
+                "confidence_probability": 0.9999646437492582,
+                "target_uv_norm": [
+                  0.5546875,
+                  0.56640625
+                ],
+                "target_uv_px": [
+                  709.4453125,
+                  407.24609375
+                ],
+                "valid_for_policy_average": true
+              }
+            ],
+            "math_xyz_aligned_m": [
+              0.524609375,
+              0.386328125,
+              7.35625
+            ]
+          },
+          {
+            "sampled_frame_index": 31,
+            "original_frame_index": 89,
+            "raw_xyz": [
+              0.49765625,
+              0.400390625,
+              7.25625
+            ],
+            "benchmark_aligned_xyz_m": [
+              0.49765625,
+              0.400390625,
+              7.25625
+            ],
+            "raw_xyz_std": [
+              0.0488890245223813,
+              0.03797309002973356,
+              0.12562344526401112
+            ],
+            "benchmark_aligned_xyz_std_m": [
+              0.0488890245223813,
+              0.03797309002973356,
+              0.12562344526401112
+            ],
+            "valid_count": 5,
+            "required_valid_count": 3,
+            "visible": true,
+            "confidence": 10.2,
+            "target_uv_norm": [
+              0.4375,
+              0.56796875
+            ],
+            "target_uv_px": [
+              559.5625,
+              408.36953125
+            ],
+            "individual_point_results": [
+              {
+                "point_index": 0,
+                "pixel_uv": [
+                  703.45,
+                  413.42499999999995
+                ],
+                "offset_px": [
+                  0.0,
+                  0.0
+                ],
+                "d4rt_uv_norm": [
+                  0.55,
+                  0.575
+                ],
+                "raw_xyz": [
+                  0.515625,
+                  0.416015625,
+                  7.1875
+                ],
+                "benchmark_aligned_xyz_m": [
+                  0.515625,
+                  0.416015625,
+                  7.1875
+                ],
+                "visibility_logit": 1.6953125,
+                "visibility_probability": 0.8449215283934065,
+                "visible": true,
+                "confidence": 10.1875,
+                "confidence_probability": 0.9999623635528191,
+                "target_uv_norm": [
+                  0.4375,
+                  0.5703125
+                ],
+                "target_uv_px": [
+                  559.5625,
+                  410.0546875
+                ],
+                "valid_for_policy_average": true
+              },
+              {
+                "point_index": 1,
+                "pixel_uv": [
+                  704.002215210622,
+                  409.7840390750545
+                ],
+                "offset_px": [
+                  0.5522152106219664,
+                  -3.640960924945432
+                ],
+                "d4rt_uv_norm": [
+                  0.5504317554422377,
+                  0.5699360765995195
+                ],
+                "raw_xyz": [
+                  0.515625,
+                  0.400390625,
+                  7.25
+                ],
+                "benchmark_aligned_xyz_m": [
+                  0.515625,
+                  0.400390625,
+                  7.25
+                ],
+                "visibility_logit": 1.8203125,
+                "visibility_probability": 0.8606036203346761,
+                "visible": true,
+                "confidence": 10.375,
+                "confidence_probability": 0.9999687980886061,
+                "target_uv_norm": [
+                  0.439453125,
+                  0.56640625
+                ],
+                "target_uv_px": [
+                  562.060546875,
+                  407.24609375
+                ],
+                "valid_for_policy_average": true
+              },
+              {
+                "point_index": 2,
+                "pixel_uv": [
+                  692.4605373797912,
+                  417.865870405081
+                ],
+                "offset_px": [
+                  -10.989462620208883,
+                  4.440870405081057
+                ],
+                "d4rt_uv_norm": [
+                  0.5414077696479993,
+                  0.5811764539709054
+                ],
+                "raw_xyz": [
+                  0.421875,
+                  0.462890625,
+                  7.0625
+                ],
+                "benchmark_aligned_xyz_m": [
+                  0.421875,
+                  0.462890625,
+                  7.0625
+                ],
+                "visibility_logit": 1.3203125,
+                "visibility_probability": 0.7892336936802291,
+                "visible": true,
+                "confidence": 9.875,
+                "confidence_probability": 0.9999485577862579,
+                "target_uv_norm": [
+                  0.431640625,
+                  0.578125
+                ],
+                "target_uv_px": [
+                  552.068359375,
+                  415.671875
+                ],
+                "valid_for_policy_average": true
+              },
+              {
+                "point_index": 3,
+                "pixel_uv": [
+                  710.0519968022037,
+                  405.29986890503886
+                ],
+                "offset_px": [
+                  6.601996802203644,
+                  -8.125131094961091
+                ],
+                "d4rt_uv_norm": [
+                  0.5551618426913242,
+                  0.5636994004242544
+                ],
+                "raw_xyz": [
+                  0.56640625,
+                  0.359375,
+                  7.375
+                ],
+                "benchmark_aligned_xyz_m": [
+                  0.56640625,
+                  0.359375,
+                  7.375
+                ],
+                "visibility_logit": 1.53125,
+                "visibility_probability": 0.8221891305219503,
+                "visible": true,
+                "confidence": 10.1875,
+                "confidence_probability": 0.9999623635528191,
+                "target_uv_norm": [
+                  0.443359375,
+                  0.5625
+                ],
+                "target_uv_px": [
+                  567.056640625,
+                  404.4375
+                ],
+                "valid_for_policy_average": true
+              },
+              {
+                "point_index": 4,
+                "pixel_uv": [
+                  699.9954221958269,
+                  403.3622393372993
+                ],
+                "offset_px": [
+                  -3.454577804173141,
+                  -10.062760662700668
+                ],
+                "d4rt_uv_norm": [
+                  0.5472990009349702,
+                  0.5610045053369949
+                ],
+                "raw_xyz": [
+                  0.46875,
+                  0.36328125,
+                  7.40625
+                ],
+                "benchmark_aligned_xyz_m": [
+                  0.46875,
+                  0.36328125,
+                  7.40625
+                ],
+                "visibility_logit": 1.5546875,
+                "visibility_probability": 0.8255897216692099,
+                "visible": true,
+                "confidence": 10.375,
+                "confidence_probability": 0.9999687980886061,
+                "target_uv_norm": [
+                  0.435546875,
+                  0.5625
+                ],
+                "target_uv_px": [
+                  557.064453125,
+                  404.4375
+                ],
+                "valid_for_policy_average": true
+              }
+            ],
+            "math_xyz_aligned_m": [
+              0.49765625,
+              0.400390625,
+              7.25625
+            ]
+          }
+        ],
+        "math_trajectory_aligned_xyz_m": [
+          [
+            0.524609375,
+            0.386328125,
+            7.35625
+          ],
+          [
+            0.49765625,
+            0.400390625,
+            7.25625
+          ]
+        ],
+        "math_visibility": [
+          true,
+          true
+        ],
+        "visibility_coverage": 1.0,
+        "benchmark_alignment": {
+          "type": "identity_no_ground_truth_scale",
+          "scale": 1.0
+        }
+      }
+    },
+    {
+      "step": 2,
+      "kind": "model_action",
+      "raw_qwen_response": "Now I will ground two points on the paraglider's body (chest and back) in frame 0 to establish its initial facing direction. I will use the same `t_cam=0` to ensure the points are measured in the same frame of reference.\n\n{\"action\":\"query_d4rt\",\"arguments\":{\"label\":\"paraglider's chest\",\"bbox_2d_1000\":[520,520,560,570],\"t_src\":0,\"t_tgt\":[0],\"t_cam\":0,\"justification\":\"Ground the paraglider's chest in frame 0 to establish one end of the facing axis.\"}}\n\n{\"action\":\"query_d4rt\",\"arguments\":{\"label\":\"paraglider's back\",\"bbox_2d_1000\":[480,520,520,570],\"t_src\":0,\"t_tgt\":[0],\"t_cam\":0,\"justification\":\"Ground the paraglider's back in frame 0 to establish the other end of the facing axis, so the vector from back to chest defines the forward direction.\"}}",
+      "parsed_action": {
+        "action": "query_d4rt",
+        "arguments": {
+          "label": "paraglider's chest",
+          "bbox_2d_1000": [
+            520.0,
+            520.0,
+            560.0,
+            570.0
+          ],
+          "t_src": 0,
+          "t_tgt": [
+            0
+          ],
+          "t_cam": 0,
+          "justification": "Ground the paraglider's chest in frame 0 to establish one end of the facing axis."
+        }
+      },
+      "call_id": "d4rt_2",
+      "status": "ok",
+      "justification": "Ground the paraglider's chest in frame 0 to establish one end of the facing axis.",
+      "result": {
+        "backend": "live_d4rt_decoder",
+        "point_mode": "ensemble5",
+        "label": "paraglider's chest",
+        "bbox_2d_1000": [
+          520.0,
+          520.0,
+          560.0,
+          570.0
+        ],
+        "bbox_pixel": [
+          665.0799999999999,
+          373.88,
+          716.24,
+          409.83
+        ],
+        "sampled_to_original": [
+          {
+            "sampled_frame": 0,
+            "original_frame": 0
+          },
+          {
+            "sampled_frame": 1,
+            "original_frame": 3
+          },
+          {
+            "sampled_frame": 2,
+            "original_frame": 6
+          },
+          {
+            "sampled_frame": 3,
+            "original_frame": 9
+          },
+          {
+            "sampled_frame": 4,
+            "original_frame": 11
+          },
+          {
+            "sampled_frame": 5,
+            "original_frame": 14
+          },
+          {
+            "sampled_frame": 6,
+            "original_frame": 17
+          },
+          {
+            "sampled_frame": 7,
+            "original_frame": 20
+          },
+          {
+            "sampled_frame": 8,
+            "original_frame": 23
+          },
+          {
+            "sampled_frame": 9,
+            "original_frame": 26
+          },
+          {
+            "sampled_frame": 10,
+            "original_frame": 29
+          },
+          {
+            "sampled_frame": 11,
+            "original_frame": 32
+          },
+          {
+            "sampled_frame": 12,
+            "original_frame": 34
+          },
+          {
+            "sampled_frame": 13,
+            "original_frame": 37
+          },
+          {
+            "sampled_frame": 14,
+            "original_frame": 40
+          },
+          {
+            "sampled_frame": 15,
+            "original_frame": 43
+          },
+          {
+            "sampled_frame": 16,
+            "original_frame": 46
+          },
+          {
+            "sampled_frame": 17,
+            "original_frame": 49
+          },
+          {
+            "sampled_frame": 18,
+            "original_frame": 52
+          },
+          {
+            "sampled_frame": 19,
+            "original_frame": 55
+          },
+          {
+            "sampled_frame": 20,
+            "original_frame": 57
+          },
+          {
+            "sampled_frame": 21,
+            "original_frame": 60
+          },
+          {
+            "sampled_frame": 22,
+            "original_frame": 63
+          },
+          {
+            "sampled_frame": 23,
+            "original_frame": 66
+          },
+          {
+            "sampled_frame": 24,
+            "original_frame": 69
+          },
+          {
+            "sampled_frame": 25,
+            "original_frame": 72
+          },
+          {
+            "sampled_frame": 26,
+            "original_frame": 75
+          },
+          {
+            "sampled_frame": 27,
+            "original_frame": 78
+          },
+          {
+            "sampled_frame": 28,
+            "original_frame": 80
+          },
+          {
+            "sampled_frame": 29,
+            "original_frame": 83
+          },
+          {
+            "sampled_frame": 30,
+            "original_frame": 86
+          },
+          {
+            "sampled_frame": 31,
+            "original_frame": 89
+          }
+        ],
+        "t_src": 0,
+        "original_t_src": 0,
+        "t_tgt": [
+          0
+        ],
+        "original_t_tgt": [
+          0
+        ],
+        "t_cam": 0,
+        "original_t_cam": 0,
+        "coordinate_frame": "Positions are expressed in the camera frame of sampled frame 0 (OpenCV axes: +x right, +y down, +z forward; origin at that camera). Component values from queries with different t_cam are in different bases and must never be subtracted. Scalars are frame-invariant: norm() and dist() may be compared across different t_cam, which is how range change is measured. Reading a static background point across several t_cam values is how camera motion is measured.",
+        "query_points": [
+          {
+            "point_index": 0,
+            "pixel_uv": [
+              690.66,
+              391.855
+            ],
+            "offset_px": [
+              0.0,
+              0.0
+            ],
+            "d4rt_uv_norm": [
+              0.5399999999999999,
+              0.545
+            ]
+          },
+          {
+            "point_index": 1,
+            "pixel_uv": [
+              691.2122152106219,
+              388.2140390750546
+            ],
+            "offset_px": [
+              0.5522152106219664,
+              -3.640960924945432
+            ],
+            "d4rt_uv_norm": [
+              0.5404317554422376,
+              0.5399360765995196
+            ]
+          },
+          {
+            "point_index": 2,
+            "pixel_uv": [
+              679.6705373797911,
+              396.2958704050811
+            ],
+            "offset_px": [
+              -10.989462620208883,
+              4.440870405081057
+            ],
+            "d4rt_uv_norm": [
+              0.5314077696479993,
+              0.5511764539709055
+            ]
+          },
+          {
+            "point_index": 3,
+            "pixel_uv": [
+              697.2619968022036,
+              383.7298689050389
+            ],
+            "offset_px": [
+              6.601996802203644,
+              -8.125131094961091
+            ],
+            "d4rt_uv_norm": [
+              0.5451618426913242,
+              0.5336994004242545
+            ]
+          },
+          {
+            "point_index": 4,
+            "pixel_uv": [
+              687.2054221958268,
+              381.79223933729935
+            ],
+            "offset_px": [
+              -3.454577804173141,
+              -10.062760662700668
+            ],
+            "d4rt_uv_norm": [
+              0.5372990009349702,
+              0.531004505336995
+            ]
+          }
+        ],
+        "predictions": [
+          {
+            "sampled_frame_index": 0,
+            "original_frame_index": 0,
+            "raw_xyz": [
+              0.43203125,
+              0.21796875,
+              8.2
+            ],
+            "benchmark_aligned_xyz_m": [
+              0.43203125,
+              0.21796875,
+              8.2
+            ],
+            "raw_xyz_std": [
+              0.06059599821770412,
+              0.04759136848728126,
+              0.2626487673681337
+            ],
+            "benchmark_aligned_xyz_std_m": [
+              0.06059599821770412,
+              0.04759136848728126,
+              0.2626487673681337
+            ],
+            "valid_count": 5,
+            "required_valid_count": 3,
+            "visible": true,
+            "confidence": 10.0875,
+            "target_uv_norm": [
+              0.54453125,
+              0.54453125
+            ],
+            "target_uv_px": [
+              696.45546875,
+              391.51796875
+            ],
+            "individual_point_results": [
+              {
+                "point_index": 0,
+                "pixel_uv": [
+                  690.66,
+                  391.855
+                ],
+                "offset_px": [
+                  0.0,
+                  0.0
+                ],
+                "d4rt_uv_norm": [
+                  0.5399999999999999,
+                  0.545
+                ],
+                "raw_xyz": [
+                  0.4375,
+                  0.255859375,
+                  7.96875
+                ],
+                "benchmark_aligned_xyz_m": [
+                  0.4375,
+                  0.255859375,
+                  7.96875
+                ],
+                "visibility_logit": 10.4375,
+                "visibility_probability": 0.9999706884614404,
+                "visible": true,
+                "confidence": 10.125,
+                "confidence_probability": 0.9999599363077709,
+                "target_uv_norm": [
+                  0.546875,
+                  0.55078125
+                ],
+                "target_uv_px": [
+                  699.453125,
+                  396.01171875
+                ],
+                "valid_for_policy_average": true
+              },
+              {
+                "point_index": 1,
+                "pixel_uv": [
+                  691.2122152106219,
+                  388.2140390750546
+                ],
+                "offset_px": [
+                  0.5522152106219664,
+                  -3.640960924945432
+                ],
+                "d4rt_uv_norm": [
+                  0.5404317554422376,
+                  0.5399360765995196
+                ],
+                "raw_xyz": [
+                  0.4296875,
+                  0.2080078125,
+                  8.25
+                ],
+                "benchmark_aligned_xyz_m": [
+                  0.4296875,
+                  0.2080078125,
+                  8.25
+                ],
+                "visibility_logit": 11.0,
+                "visibility_probability": 0.999983298578152,
+                "visible": true,
+                "confidence": 10.0625,
+                "confidence_probability": 0.9999573525318144,
+                "target_uv_norm": [
+                  0.54296875,
+                  0.54296875
+                ],
+                "target_uv_px": [
+                  694.45703125,
+                  390.39453125
+                ],
+                "valid_for_policy_average": true
+              },
+              {
+                "point_index": 2,
+                "pixel_uv": [
+                  679.6705373797911,
+                  396.2958704050811
+                ],
+                "offset_px": [
+                  -10.989462620208883,
+                  4.440870405081057
+                ],
+                "d4rt_uv_norm": [
+                  0.5314077696479993,
+                  0.5511764539709055
+                ],
+                "raw_xyz": [
+                  0.3359375,
+                  0.287109375,
+                  7.84375
+                ],
+                "benchmark_aligned_xyz_m": [
+                  0.3359375,
+                  0.287109375,
+                  7.84375
+                ],
+                "visibility_logit": 10.1875,
+                "visibility_probability": 0.9999623635528191,
+                "visible": true,
+                "confidence": 10.1875,
+                "confidence_probability": 0.9999623635528191,
+                "target_uv_norm": [
+                  0.5390625,
+                  0.5546875
+                ],
+                "target_uv_px": [
+                  689.4609375,
+                  398.8203125
+                ],
+                "valid_for_policy_average": true
+              },
+              {
+                "point_index": 3,
+                "pixel_uv": [
+                  697.2619968022036,
+                  383.7298689050389
+                ],
+                "offset_px": [
+                  6.601996802203644,
+                  -8.125131094961091
+                ],
+                "d4rt_uv_norm": [
+                  0.5451618426913242,
+                  0.5336994004242545
+                ],
+                "raw_xyz": [
+                  0.52734375,
+                  0.181640625,
+                  8.375
+                ],
+                "benchmark_aligned_xyz_m": [
+                  0.52734375,
+                  0.181640625,
+                  8.375
+                ],
+                "visibility_logit": 10.25,
+                "visibility_probability": 0.9999646437492582,
+                "visible": true,
+                "confidence": 10.0625,
+                "confidence_probability": 0.9999573525318144,
+                "target_uv_norm": [
+                  0.55078125,
+                  0.5390625
+                ],
+                "target_uv_px": [
+                  704.44921875,
+                  387.5859375
+                ],
+                "valid_for_policy_average": true
+              },
+              {
+                "point_index": 4,
+                "pixel_uv": [
+                  687.2054221958268,
+                  381.79223933729935
+                ],
+                "offset_px": [
+                  -3.454577804173141,
+                  -10.062760662700668
+                ],
+                "d4rt_uv_norm": [
+                  0.5372990009349702,
+                  0.531004505336995
+                ],
+                "raw_xyz": [
+                  0.4296875,
+                  0.1572265625,
+                  8.5625
+                ],
+                "benchmark_aligned_xyz_m": [
+                  0.4296875,
+                  0.1572265625,
+                  8.5625
+                ],
+                "visibility_logit": 10.1875,
+                "visibility_probability": 0.9999623635528191,
+                "visible": true,
+                "confidence": 10.0,
+                "confidence_probability": 0.9999546021312976,
+                "target_uv_norm": [
+                  0.54296875,
+                  0.53515625
+                ],
+                "target_uv_px": [
+                  694.45703125,
+                  384.77734375
+                ],
+                "valid_for_policy_average": true
+              }
+            ],
+            "math_xyz_aligned_m": [
+              0.43203125,
+              0.21796875,
+              8.2
+            ]
+          }
+        ],
+        "math_trajectory_aligned_xyz_m": [
+          [
+            0.43203125,
+            0.21796875,
+            8.2
+          ]
+        ],
+        "math_visibility": [
+          true
+        ],
+        "visibility_coverage": 1.0,
+        "benchmark_alignment": {
+          "type": "identity_no_ground_truth_scale",
+          "scale": 1.0
+        }
+      }
+    },
+    {
+      "step": 3,
+      "kind": "model_action",
+      "raw_qwen_response": "Now I will query the paraglider's back in frame 0 to establish the other end of the facing axis.\n\n{\"action\":\"query_d4rt\",\"arguments\":{\"label\":\"paraglider's back\",\"bbox_2d_1000\":[480,520,520,570],\"t_src\":0,\"t_tgt\":[0],\"t_cam\":0,\"justification\":\"Ground the paraglider's back in frame 0 to establish the other end of the facing axis, so the vector from back to chest defines the forward direction.\"}}",
+      "parsed_action": {
+        "action": "query_d4rt",
+        "arguments": {
+          "label": "paraglider's back",
+          "bbox_2d_1000": [
+            480.0,
+            520.0,
+            520.0,
+            570.0
+          ],
+          "t_src": 0,
+          "t_tgt": [
+            0
+          ],
+          "t_cam": 0,
+          "justification": "Ground the paraglider's back in frame 0 to establish the other end of the facing axis, so the vector from back to chest defines the forward direction."
+        }
+      },
+      "call_id": "d4rt_3",
+      "status": "ok",
+      "justification": "Ground the paraglider's back in frame 0 to establish the other end of the facing axis, so the vector from back to chest defines the forward direction.",
+      "result": {
+        "backend": "live_d4rt_decoder",
+        "point_mode": "ensemble5",
+        "label": "paraglider's back",
+        "bbox_2d_1000": [
+          480.0,
+          520.0,
+          520.0,
+          570.0
+        ],
+        "bbox_pixel": [
+          613.92,
+          373.88,
+          665.0799999999999,
+          409.83
+        ],
+        "sampled_to_original": [
+          {
+            "sampled_frame": 0,
+            "original_frame": 0
+          },
+          {
+            "sampled_frame": 1,
+            "original_frame": 3
+          },
+          {
+            "sampled_frame": 2,
+            "original_frame": 6
+          },
+          {
+            "sampled_frame": 3,
+            "original_frame": 9
+          },
+          {
+            "sampled_frame": 4,
+            "original_frame": 11
+          },
+          {
+            "sampled_frame": 5,
+            "original_frame": 14
+          },
+          {
+            "sampled_frame": 6,
+            "original_frame": 17
+          },
+          {
+            "sampled_frame": 7,
+            "original_frame": 20
+          },
+          {
+            "sampled_frame": 8,
+            "original_frame": 23
+          },
+          {
+            "sampled_frame": 9,
+            "original_frame": 26
+          },
+          {
+            "sampled_frame": 10,
+            "original_frame": 29
+          },
+          {
+            "sampled_frame": 11,
+            "original_frame": 32
+          },
+          {
+            "sampled_frame": 12,
+            "original_frame": 34
+          },
+          {
+            "sampled_frame": 13,
+            "original_frame": 37
+          },
+          {
+            "sampled_frame": 14,
+            "original_frame": 40
+          },
+          {
+            "sampled_frame": 15,
+            "original_frame": 43
+          },
+          {
+            "sampled_frame": 16,
+            "original_frame": 46
+          },
+          {
+            "sampled_frame": 17,
+            "original_frame": 49
+          },
+          {
+            "sampled_frame": 18,
+            "original_frame": 52
+          },
+          {
+            "sampled_frame": 19,
+            "original_frame": 55
+          },
+          {
+            "sampled_frame": 20,
+            "original_frame": 57
+          },
+          {
+            "sampled_frame": 21,
+            "original_frame": 60
+          },
+          {
+            "sampled_frame": 22,
+            "original_frame": 63
+          },
+          {
+            "sampled_frame": 23,
+            "original_frame": 66
+          },
+          {
+            "sampled_frame": 24,
+            "original_frame": 69
+          },
+          {
+            "sampled_frame": 25,
+            "original_frame": 72
+          },
+          {
+            "sampled_frame": 26,
+            "original_frame": 75
+          },
+          {
+            "sampled_frame": 27,
+            "original_frame": 78
+          },
+          {
+            "sampled_frame": 28,
+            "original_frame": 80
+          },
+          {
+            "sampled_frame": 29,
+            "original_frame": 83
+          },
+          {
+            "sampled_frame": 30,
+            "original_frame": 86
+          },
+          {
+            "sampled_frame": 31,
+            "original_frame": 89
+          }
+        ],
+        "t_src": 0,
+        "original_t_src": 0,
+        "t_tgt": [
+          0
+        ],
+        "original_t_tgt": [
+          0
+        ],
+        "t_cam": 0,
+        "original_t_cam": 0,
+        "coordinate_frame": "Positions are expressed in the camera frame of sampled frame 0 (OpenCV axes: +x right, +y down, +z forward; origin at that camera). Component values from queries with different t_cam are in different bases and must never be subtracted. Scalars are frame-invariant: norm() and dist() may be compared across different t_cam, which is how range change is measured. Reading a static background point across several t_cam values is how camera motion is measured.",
+        "query_points": [
+          {
+            "point_index": 0,
+            "pixel_uv": [
+              639.5,
+              391.855
+            ],
+            "offset_px": [
+              0.0,
+              0.0
+            ],
+            "d4rt_uv_norm": [
+              0.5,
+              0.545
+            ]
+          },
+          {
+            "point_index": 1,
+            "pixel_uv": [
+              640.052215210622,
+              388.2140390750546
+            ],
+            "offset_px": [
+              0.5522152106219664,
+              -3.640960924945432
+            ],
+            "d4rt_uv_norm": [
+              0.5004317554422376,
+              0.5399360765995196
+            ]
+          },
+          {
+            "point_index": 2,
+            "pixel_uv": [
+              628.5105373797911,
+              396.2958704050811
+            ],
+            "offset_px": [
+              -10.989462620208883,
+              4.440870405081057
+            ],
+            "d4rt_uv_norm": [
+              0.4914077696479993,
+              0.5511764539709055
+            ]
+          },
+          {
+            "point_index": 3,
+            "pixel_uv": [
+              646.1019968022036,
+              383.7298689050389
+            ],
+            "offset_px": [
+              6.601996802203644,
+              -8.125131094961091
+            ],
+            "d4rt_uv_norm": [
+              0.5051618426913242,
+              0.5336994004242545
+            ]
+          },
+          {
+            "point_index": 4,
+            "pixel_uv": [
+              636.0454221958269,
+              381.79223933729935
+            ],
+            "offset_px": [
+              -3.454577804173141,
+              -10.062760662700668
+            ],
+            "d4rt_uv_norm": [
+              0.4972990009349702,
+              0.531004505336995
+            ]
+          }
+        ],
+        "predictions": [
+          {
+            "sampled_frame_index": 0,
+            "original_frame_index": 0,
+            "raw_xyz": [
+              -0.09580078125,
+              0.224609375,
+              8.3125
+            ],
+            "benchmark_aligned_xyz_m": [
+              -0.09580078125,
+              0.224609375,
+              8.3125
+            ],
+            "raw_xyz_std": [
+              0.045378538219702835,
+              0.050373967692586515,
+              0.2304886114323222
+            ],
+            "benchmark_aligned_xyz_std_m": [
+              0.045378538219702835,
+              0.050373967692586515,
+              0.2304886114323222
+            ],
+            "valid_count": 5,
+            "required_valid_count": 3,
+            "visible": true,
+            "confidence": 10.1375,
+            "target_uv_norm": [
+              0.501953125,
+              0.54453125
+            ],
+            "target_uv_px": [
+              641.998046875,
+              391.51796875
+            ],
+            "individual_point_results": [
+              {
+                "point_index": 0,
+                "pixel_uv": [
+                  639.5,
+                  391.855
+                ],
+                "offset_px": [
+                  0.0,
+                  0.0
+                ],
+                "d4rt_uv_norm": [
+                  0.5,
+                  0.545
+                ],
+                "raw_xyz": [
+                  -0.07275390625,
+                  0.26953125,
+                  8.125
+                ],
+                "benchmark_aligned_xyz_m": [
+                  -0.07275390625,
+                  0.26953125,
+                  8.125
+                ],
+                "visibility_logit": 9.8125,
+                "visibility_probability": 0.9999452402301955,
+                "visible": true,
+                "confidence": 10.1875,
+                "confidence_probability": 0.9999623635528191,
+                "target_uv_norm": [
+                  0.50390625,
+                  0.55078125
+                ],
+                "target_uv_px": [
+                  644.49609375,
+                  396.01171875
+                ],
+                "valid_for_policy_average": true
+              },
+              {
+                "point_index": 1,
+                "pixel_uv": [
+                  640.052215210622,
+                  388.2140390750546
+                ],
+                "offset_px": [
+                  0.5522152106219664,
+                  -3.640960924945432
+                ],
+                "d4rt_uv_norm": [
+                  0.5004317554422376,
+                  0.5399360765995196
+                ],
+                "raw_xyz": [
+                  -0.0791015625,
+                  0.212890625,
+                  8.3125
+                ],
+                "benchmark_aligned_xyz_m": [
+                  -0.0791015625,
+                  0.212890625,
+                  8.3125
+                ],
+                "visibility_logit": 10.0,
+                "visibility_probability": 0.9999546021312976,
+                "visible": true,
+                "confidence": 10.1875,
+                "confidence_probability": 0.9999623635528191,
+                "target_uv_norm": [
+                  0.50390625,
+                  0.54296875
+                ],
+                "target_uv_px": [
+                  644.49609375,
+                  390.39453125
+                ],
+                "valid_for_policy_average": true
+              },
+              {
+                "point_index": 2,
+                "pixel_uv": [
+                  628.5105373797911,
+                  396.2958704050811
+                ],
+                "offset_px": [
+                  -10.989462620208883,
+                  4.440870405081057
+                ],
+                "d4rt_uv_norm": [
+                  0.4914077696479993,
+                  0.5511764539709055
+                ],
+                "raw_xyz": [
+                  -0.1630859375,
+                  0.294921875,
+                  8.0
+                ],
+                "benchmark_aligned_xyz_m": [
+                  -0.1630859375,
+                  0.294921875,
+                  8.0
+                ],
+                "visibility_logit": 10.5,
+                "visibility_probability": 0.9999724643088853,
+                "visible": true,
+                "confidence": 10.125,
+                "confidence_probability": 0.9999599363077709,
+                "target_uv_norm": [
+                  0.49609375,
+                  0.5546875
+                ],
+                "target_uv_px": [
+                  634.50390625,
+                  398.8203125
+                ],
+                "valid_for_policy_average": true
+              },
+              {
+                "point_index": 3,
+                "pixel_uv": [
+                  646.1019968022036,
+                  383.7298689050389
+                ],
+                "offset_px": [
+                  6.601996802203644,
+                  -8.125131094961091
+                ],
+                "d4rt_uv_norm": [
+                  0.5051618426913242,
+                  0.5336994004242545
+                ],
+                "raw_xyz": [
+                  -0.0341796875,
+                  0.18359375,
+                  8.5
+                ],
+                "benchmark_aligned_xyz_m": [
+                  -0.0341796875,
+                  0.18359375,
+                  8.5
+                ],
+                "visibility_logit": 10.0,
+                "visibility_probability": 0.9999546021312976,
+                "visible": true,
+                "confidence": 10.125,
+                "confidence_probability": 0.9999599363077709,
+                "target_uv_norm": [
+                  0.5078125,
+                  0.5390625
+                ],
+                "target_uv_px": [
+                  649.4921875,
+                  387.5859375
+                ],
+                "valid_for_policy_average": true
+              },
+              {
+                "point_index": 4,
+                "pixel_uv": [
+                  636.0454221958269,
+                  381.79223933729935
+                ],
+                "offset_px": [
+                  -3.454577804173141,
+                  -10.062760662700668
+                ],
+                "d4rt_uv_norm": [
+                  0.4972990009349702,
+                  0.531004505336995
+                ],
+                "raw_xyz": [
+                  -0.1298828125,
+                  0.162109375,
+                  8.625
+                ],
+                "benchmark_aligned_xyz_m": [
+                  -0.1298828125,
+                  0.162109375,
+                  8.625
+                ],
+                "visibility_logit": 9.625,
+                "visibility_probability": 0.9999339478551454,
+                "visible": true,
+                "confidence": 10.0625,
+                "confidence_probability": 0.9999573525318144,
+                "target_uv_norm": [
+                  0.498046875,
+                  0.53515625
+                ],
+                "target_uv_px": [
+                  637.001953125,
+                  384.77734375
+                ],
+                "valid_for_policy_average": true
+              }
+            ],
+            "math_xyz_aligned_m": [
+              -0.09580078125,
+              0.224609375,
+              8.3125
+            ]
+          }
+        ],
+        "math_trajectory_aligned_xyz_m": [
+          [
+            -0.09580078125,
+            0.224609375,
+            8.3125
+          ]
+        ],
+        "math_visibility": [
+          true
+        ],
+        "visibility_coverage": 1.0,
+        "benchmark_alignment": {
+          "type": "identity_no_ground_truth_scale",
+          "scale": 1.0
+        }
+      }
+    },
+    {
+      "step": 4,
+      "kind": "model_action",
+      "raw_qwen_response": "Now I have the positions for the paraglider's chest and back in frame 0. I will calculate the forward direction vector (from back to chest) and then project the displacement vector (from start to end) onto this forward axis to determine the direction of motion relative to the paraglider's orientation.\n\nFirst, I will extract the positions:\n\n- Start position (frame 0): [0.524609375, 0.386328125, 7.35625] (from d4rt_1)\n- End position (frame 31): [0.49765625, 0.400390625, 7.25625] (from d4rt_1)\n- Chest position (frame 0): [0.43203125, 0.21796875, 8.2] (from d4rt_2)\n- Back position (frame 0): [-0.09580078125, 0.224609375, 8.3125] (from d4rt_3)\n\nNow I will calculate the forward direction vector (from back to chest):\n\nfx = chest[0] - back[0] = 0.43203125 - (-0.09580078125) = 0.52783203125\nfz = chest[2] - back[2] = 8.2 - 8.3125 = -0.1125\n\nThen I will calculate the displacement vector (from start to end):\n\ndx = end[0] - start[0] = 0.49765625 - 0.524609375 = -0.026953125\ndz = end[2] - start[2] = 7.25625 - 7.35625 = -0.1\n\nThen I will calculate the forward component of the displacement:\n\nfn = sqrt(fx^2 + fz^2) = sqrt(0.52783203125^2 + (-0.1125)^2) = sqrt(0.27857 + 0.01265625) = sqrt(0.29122625) \u2248 0.5397\n\nalong = (dx * fx + dz * fz) / fn = (-0.026953125 * 0.52783203125 + (-0.1) * (-0.1125)) / 0.5397 = (-0.01424 + 0.01125) / 0.5397 = (-0.00299) / 0.5397 \u2248 -0.00554\n\nThe negative value for \"along\" indicates the motion is primarily backward relative to the paraglider's facing direction.\n\nNow I will calculate the lateral component to determine if there is any left/right motion:\n\nlateral = (dx * fz - dz * fx) / fn = (-0.026953125 * (-0.1125) - (-",
+      "status": "rejected",
+      "error": "Qwen did not emit one JSON action: \"Now I have the positions for the paraglider's chest and back in frame 0. I will calculate the forward direction vector (from back to chest) and then project the displacement vector (from start to end) onto this forward axis to determine the direction of motion relative to the paraglider's orientation.\\n\\nFirst, I will extract the positions:\\n\\n- Start position (frame 0): [0.524609375, 0.386328125, 7.35625] (from d4rt_1)\\n- End position (frame 31): [0.49765625, 0.400390625, 7.25625] (from d4rt_1)\\n- Ch\""
+    },
+    {
+      "step": 5,
+      "kind": "model_action",
+      "raw_qwen_response": "{\"action\":\"python_math\",\"arguments\":{\"bindings\":{\"start\":{\"evidence_id\":\"d4rt_1\",\"path\":[\"predictions\",0,\"benchmark_aligned_xyz_m\"]},\"end\":{\"evidence_id\":\"d4rt_1\",\"path\":[\"predictions\",1,\"benchmark_aligned_xyz_m\"]},\"front\":{\"evidence_id\":\"d4rt_2\",\"path\":[\"predictions\",0,\"benchmark_aligned_xyz_m\"]},\"rear\":{\"evidence_id\":\"d4rt_3\",\"path\":[\"predictions\",0,\"benchmark_aligned_xyz_m\"]}},\"code\":\"fx = front[0] - rear[0]\\nfz = front[2] - rear[2]\\ndx = end[0] - start[0]\\ndz = end[2] - start[2]\\nfn = sqrt(fx*fx + fz*fz)\\nalong = (dx*fx + dz*fz) / fn\\nlateral = (dx*fz - dz*fx) / fn\\nup = start[1] - end[1]\",\"justification\":\"Project the paraglider's displacement onto its own measured forward axis to separate forward-back from left-right motion.\"}}",
+      "parsed_action": {
+        "action": "python_math",
+        "arguments": {
+          "bindings": {
+            "start": {
+              "evidence_id": "d4rt_1",
+              "path": [
+                "predictions",
+                0,
+                "benchmark_aligned_xyz_m"
+              ]
+            },
+            "end": {
+              "evidence_id": "d4rt_1",
+              "path": [
+                "predictions",
+                1,
+                "benchmark_aligned_xyz_m"
+              ]
+            },
+            "front": {
+              "evidence_id": "d4rt_2",
+              "path": [
+                "predictions",
+                0,
+                "benchmark_aligned_xyz_m"
+              ]
+            },
+            "rear": {
+              "evidence_id": "d4rt_3",
+              "path": [
+                "predictions",
+                0,
+                "benchmark_aligned_xyz_m"
+              ]
+            }
+          },
+          "code": "fx = front[0] - rear[0]\nfz = front[2] - rear[2]\ndx = end[0] - start[0]\ndz = end[2] - start[2]\nfn = sqrt(fx*fx + fz*fz)\nalong = (dx*fx + dz*fz) / fn\nlateral = (dx*fz - dz*fx) / fn\nup = start[1] - end[1]",
+          "justification": "Project the paraglider's displacement onto its own measured forward axis to separate forward-back from left-right motion."
+        }
+      },
+      "call_id": "math_1",
+      "status": "ok",
+      "justification": "Project the paraglider's displacement onto its own measured forward axis to separate forward-back from left-right motion.",
+      "result": {
+        "bindings": {
+          "start": {
+            "evidence_id": "d4rt_1",
+            "path": [
+              "predictions",
+              0,
+              "benchmark_aligned_xyz_m"
+            ]
+          },
+          "end": {
+            "evidence_id": "d4rt_1",
+            "path": [
+              "predictions",
+              1,
+              "benchmark_aligned_xyz_m"
+            ]
+          },
+          "front": {
+            "evidence_id": "d4rt_2",
+            "path": [
+              "predictions",
+              0,
+              "benchmark_aligned_xyz_m"
+            ]
+          },
+          "rear": {
+            "evidence_id": "d4rt_3",
+            "path": [
+              "predictions",
+              0,
+              "benchmark_aligned_xyz_m"
+            ]
+          }
+        },
+        "resolved_bindings": {
+          "start": [
+            0.524609375,
+            0.386328125,
+            7.35625
+          ],
+          "end": [
+            0.49765625,
+            0.400390625,
+            7.25625
+          ],
+          "front": [
+            0.43203125,
+            0.21796875,
+            8.2
+          ],
+          "rear": [
+            -0.09580078125,
+            0.224609375,
+            8.3125
+          ]
+        },
+        "code": "fx = front[0] - rear[0]\nfz = front[2] - rear[2]\ndx = end[0] - start[0]\ndz = end[2] - start[2]\nfn = sqrt(fx*fx + fz*fz)\nalong = (dx*fx + dz*fz) / fn\nlateral = (dx*fz - dz*fx) / fn\nup = start[1] - end[1]",
+        "outputs": {
+          "fx": 0.52783203125,
+          "fz": -0.11250000000000071,
+          "dx": -0.026953125000000022,
+          "dz": -0.10000000000000053,
+          "fn": 0.5396877830871301,
+          "along": -0.00551563850539203,
+          "lateral": 0.10342170313403068,
+          "up": -0.014062499999999978
+        }
+      }
+    },
+    {
+      "step": 6,
+      "kind": "model_action",
+      "raw_qwen_response": "The calculation shows that the paraglider's motion has a small backward component (along = -0.0055) and a significant lateral component to the right (lateral = 0.1034). Since the lateral component is much larger than the backward component, the motion is primarily to the right relative to the paraglider's facing direction.\n\nTherefore, the correct option is C: Moving backward-right.\n\n{\"action\":\"final_answer\",\"arguments\":{\"kind\":\"text\",\"text\":\"C: Moving backward-right. The displacement projected onto the paraglider's own facing axis was -0.0055 (backward) against 0.1034 lateral (right) and -0.0141 vertical (math_1), so the motion is primarily rightward relative to its own orientation.\",\"evidence_ids\":[\"d4rt_1\",\"d4rt_2\",\"d4rt_3\",\"math_1\"],\"limitations\":\"The facing axis was derived from two grounded torso points in frame 0 and assumed constant; if the paraglider turned during the clip the projection uses only the starting orientation.\"}}",
+      "parsed_action": {
+        "action": "final_answer",
+        "arguments": {
+          "kind": "text",
+          "text": "C: Moving backward-right. The displacement projected onto the paraglider's own facing axis was -0.0055 (backward) against 0.1034 lateral (right) and -0.0141 vertical (math_1), so the motion is primarily rightward relative to its own orientation.",
+          "evidence_ids": [
+            "d4rt_1",
+            "d4rt_2",
+            "d4rt_3",
+            "math_1"
+          ],
+          "limitations": "The facing axis was derived from two grounded torso points in frame 0 and assumed constant; if the paraglider turned during the clip the projection uses only the starting orientation."
+        }
+      },
+      "call_id": "final_1",
+      "status": "ok",
+      "result": {
+        "kind": "text",
+        "text": "C: Moving backward-right. The displacement projected onto the paraglider's own facing axis was -0.0055 (backward) against 0.1034 lateral (right) and -0.0141 vertical (math_1), so the motion is primarily rightward relative to its own orientation.",
+        "evidence_ids": [
+          "d4rt_1",
+          "d4rt_2",
+          "d4rt_3",
+          "math_1"
+        ],
+        "limitations": "The facing axis was derived from two grounded torso points in frame 0 and assumed constant; if the paraglider turned during the clip the projection uses only the starting orientation."
+      }
+    }
+  ],
+  "evidence": {
+    "d4rt_1": {
+      "backend": "live_d4rt_decoder",
+      "point_mode": "ensemble5",
+      "label": "paraglider",
+      "bbox_2d_1000": [
+        500.0,
+        500.0,
+        600.0,
+        650.0
+      ],
+      "bbox_pixel": [
+        639.5,
+        359.5,
+        767.4,
+        467.34999999999997
+      ],
+      "sampled_to_original": [
+        {
+          "sampled_frame": 0,
+          "original_frame": 0
+        },
+        {
+          "sampled_frame": 1,
+          "original_frame": 3
+        },
+        {
+          "sampled_frame": 2,
+          "original_frame": 6
+        },
+        {
+          "sampled_frame": 3,
+          "original_frame": 9
+        },
+        {
+          "sampled_frame": 4,
+          "original_frame": 11
+        },
+        {
+          "sampled_frame": 5,
+          "original_frame": 14
+        },
+        {
+          "sampled_frame": 6,
+          "original_frame": 17
+        },
+        {
+          "sampled_frame": 7,
+          "original_frame": 20
+        },
+        {
+          "sampled_frame": 8,
+          "original_frame": 23
+        },
+        {
+          "sampled_frame": 9,
+          "original_frame": 26
+        },
+        {
+          "sampled_frame": 10,
+          "original_frame": 29
+        },
+        {
+          "sampled_frame": 11,
+          "original_frame": 32
+        },
+        {
+          "sampled_frame": 12,
+          "original_frame": 34
+        },
+        {
+          "sampled_frame": 13,
+          "original_frame": 37
+        },
+        {
+          "sampled_frame": 14,
+          "original_frame": 40
+        },
+        {
+          "sampled_frame": 15,
+          "original_frame": 43
+        },
+        {
+          "sampled_frame": 16,
+          "original_frame": 46
+        },
+        {
+          "sampled_frame": 17,
+          "original_frame": 49
+        },
+        {
+          "sampled_frame": 18,
+          "original_frame": 52
+        },
+        {
+          "sampled_frame": 19,
+          "original_frame": 55
+        },
+        {
+          "sampled_frame": 20,
+          "original_frame": 57
+        },
+        {
+          "sampled_frame": 21,
+          "original_frame": 60
+        },
+        {
+          "sampled_frame": 22,
+          "original_frame": 63
+        },
+        {
+          "sampled_frame": 23,
+          "original_frame": 66
+        },
+        {
+          "sampled_frame": 24,
+          "original_frame": 69
+        },
+        {
+          "sampled_frame": 25,
+          "original_frame": 72
+        },
+        {
+          "sampled_frame": 26,
+          "original_frame": 75
+        },
+        {
+          "sampled_frame": 27,
+          "original_frame": 78
+        },
+        {
+          "sampled_frame": 28,
+          "original_frame": 80
+        },
+        {
+          "sampled_frame": 29,
+          "original_frame": 83
+        },
+        {
+          "sampled_frame": 30,
+          "original_frame": 86
+        },
+        {
+          "sampled_frame": 31,
+          "original_frame": 89
+        }
+      ],
+      "t_src": 0,
+      "original_t_src": 0,
+      "t_tgt": [
+        0,
+        31
+      ],
+      "original_t_tgt": [
+        0,
+        89
+      ],
+      "t_cam": 0,
+      "original_t_cam": 0,
+      "coordinate_frame": "Positions are expressed in the camera frame of sampled frame 0 (OpenCV axes: +x right, +y down, +z forward; origin at that camera). Component values from queries with different t_cam are in different bases and must never be subtracted. Scalars are frame-invariant: norm() and dist() may be compared across different t_cam, which is how range change is measured. Reading a static background point across several t_cam values is how camera motion is measured.",
+      "query_points": [
+        {
+          "point_index": 0,
+          "pixel_uv": [
+            703.45,
+            413.42499999999995
+          ],
+          "offset_px": [
+            0.0,
+            0.0
+          ],
+          "d4rt_uv_norm": [
+            0.55,
+            0.575
+          ]
+        },
+        {
+          "point_index": 1,
+          "pixel_uv": [
+            704.002215210622,
+            409.7840390750545
+          ],
+          "offset_px": [
+            0.5522152106219664,
+            -3.640960924945432
+          ],
+          "d4rt_uv_norm": [
+            0.5504317554422377,
+            0.5699360765995195
+          ]
+        },
+        {
+          "point_index": 2,
+          "pixel_uv": [
+            692.4605373797912,
+            417.865870405081
+          ],
+          "offset_px": [
+            -10.989462620208883,
+            4.440870405081057
+          ],
+          "d4rt_uv_norm": [
+            0.5414077696479993,
+            0.5811764539709054
+          ]
+        },
+        {
+          "point_index": 3,
+          "pixel_uv": [
+            710.0519968022037,
+            405.29986890503886
+          ],
+          "offset_px": [
+            6.601996802203644,
+            -8.125131094961091
+          ],
+          "d4rt_uv_norm": [
+            0.5551618426913242,
+            0.5636994004242544
+          ]
+        },
+        {
+          "point_index": 4,
+          "pixel_uv": [
+            699.9954221958269,
+            403.3622393372993
+          ],
+          "offset_px": [
+            -3.454577804173141,
+            -10.062760662700668
+          ],
+          "d4rt_uv_norm": [
+            0.5472990009349702,
+            0.5610045053369949
+          ]
+        }
+      ],
+      "predictions": [
+        {
+          "sampled_frame_index": 0,
+          "original_frame_index": 0,
+          "raw_xyz": [
+            0.524609375,
+            0.386328125,
+            7.35625
+          ],
+          "benchmark_aligned_xyz_m": [
+            0.524609375,
+            0.386328125,
+            7.35625
+          ],
+          "raw_xyz_std": [
+            0.04657455800246525,
+            0.03568183514584137,
+            0.13199195051214296
+          ],
+          "benchmark_aligned_xyz_std_m": [
+            0.04657455800246525,
+            0.03568183514584137,
+            0.13199195051214296
+          ],
+          "valid_count": 5,
+          "required_valid_count": 3,
+          "visible": true,
+          "confidence": 10.125,
+          "target_uv_norm": [
+            0.5578125,
+            0.5734375
+          ],
+          "target_uv_px": [
+            713.4421875,
+            412.30156250000005
+          ],
+          "individual_point_results": [
+            {
+              "point_index": 0,
+              "pixel_uv": [
+                703.45,
+                413.42499999999995
+              ],
+              "offset_px": [
+                0.0,
+                0.0
+              ],
+              "d4rt_uv_norm": [
+                0.55,
+                0.575
+              ],
+              "raw_xyz": [
+                0.5390625,
+                0.400390625,
+                7.28125
+              ],
+              "benchmark_aligned_xyz_m": [
+                0.5390625,
+                0.400390625,
+                7.28125
+              ],
+              "visibility_logit": 10.875,
+              "visibility_probability": 0.999981074851754,
+              "visible": true,
+              "confidence": 10.125,
+              "confidence_probability": 0.9999599363077709,
+              "target_uv_norm": [
+                0.55859375,
+                0.57421875
+              ],
+              "target_uv_px": [
+                714.44140625,
+                412.86328125
+              ],
+              "valid_for_policy_average": true
+            },
+            {
+              "point_index": 1,
+              "pixel_uv": [
+                704.002215210622,
+                409.7840390750545
+              ],
+              "offset_px": [
+                0.5522152106219664,
+                -3.640960924945432
+              ],
+              "d4rt_uv_norm": [
+                0.5504317554422377,
+                0.5699360765995195
+              ],
+              "raw_xyz": [
+                0.5390625,
+                0.380859375,
+                7.34375
+              ],
+              "benchmark_aligned_xyz_m": [
+                0.5390625,
+                0.380859375,
+                7.34375
+              ],
+              "visibility_logit": 11.4375,
+              "visibility_probability": 0.999989216687777,
+              "visible": true,
+              "confidence": 10.1875,
+              "confidence_probability": 0.9999623635528191,
+              "target_uv_norm": [
+                0.55859375,
+                0.57421875
+              ],
+              "target_uv_px": [
+                714.44140625,
+                412.86328125
+              ],
+              "valid_for_policy_average": true
+            },
+            {
+              "point_index": 2,
+              "pixel_uv": [
+                692.4605373797912,
+                417.865870405081
+              ],
+              "offset_px": [
+                -10.989462620208883,
+                4.440870405081057
+              ],
+              "d4rt_uv_norm": [
+                0.5414077696479993,
+                0.5811764539709054
+              ],
+              "raw_xyz": [
+                0.455078125,
+                0.447265625,
+                7.15625
+              ],
+              "benchmark_aligned_xyz_m": [
+                0.455078125,
+                0.447265625,
+                7.15625
+              ],
+              "visibility_logit": 10.625,
+              "visibility_probability": 0.9999756997592568,
+              "visible": true,
+              "confidence": 9.9375,
+              "confidence_probability": 0.9999516743618128,
+              "target_uv_norm": [
+                0.55078125,
+                0.58203125
+              ],
+              "target_uv_px": [
+                704.44921875,
+                418.48046875
+              ],
+              "valid_for_policy_average": true
+            },
+            {
+              "point_index": 3,
+              "pixel_uv": [
+                710.0519968022037,
+                405.29986890503886
+              ],
+              "offset_px": [
+                6.601996802203644,
+                -8.125131094961091
+              ],
+              "d4rt_uv_norm": [
+                0.5551618426913242,
+                0.5636994004242544
+              ],
+              "raw_xyz": [
+                0.59375,
+                0.349609375,
+                7.5
+              ],
+              "benchmark_aligned_xyz_m": [
+                0.59375,
+                0.349609375,
+                7.5
+              ],
+              "visibility_logit": 10.625,
+              "visibility_probability": 0.9999756997592568,
+              "visible": true,
+              "confidence": 10.125,
+              "confidence_probability": 0.9999599363077709,
+              "target_uv_norm": [
+                0.56640625,
+                0.5703125
+              ],
+              "target_uv_px": [
+                724.43359375,
+                410.0546875
+              ],
+              "valid_for_policy_average": true
+            },
+            {
+              "point_index": 4,
+              "pixel_uv": [
+                699.9954221958269,
+                403.3622393372993
+              ],
+              "offset_px": [
+                -3.454577804173141,
+                -10.062760662700668
+              ],
+              "d4rt_uv_norm": [
+                0.5472990009349702,
+                0.5610045053369949
+              ],
+              "raw_xyz": [
+                0.49609375,
+                0.353515625,
+                7.5
+              ],
+              "benchmark_aligned_xyz_m": [
+                0.49609375,
+                0.353515625,
+                7.5
+              ],
+              "visibility_logit": 10.4375,
+              "visibility_probability": 0.9999706884614404,
+              "visible": true,
+              "confidence": 10.25,
+              "confidence_probability": 0.9999646437492582,
+              "target_uv_norm": [
+                0.5546875,
+                0.56640625
+              ],
+              "target_uv_px": [
+                709.4453125,
+                407.24609375
+              ],
+              "valid_for_policy_average": true
+            }
+          ],
+          "math_xyz_aligned_m": [
+            0.524609375,
+            0.386328125,
+            7.35625
+          ]
+        },
+        {
+          "sampled_frame_index": 31,
+          "original_frame_index": 89,
+          "raw_xyz": [
+            0.49765625,
+            0.400390625,
+            7.25625
+          ],
+          "benchmark_aligned_xyz_m": [
+            0.49765625,
+            0.400390625,
+            7.25625
+          ],
+          "raw_xyz_std": [
+            0.0488890245223813,
+            0.03797309002973356,
+            0.12562344526401112
+          ],
+          "benchmark_aligned_xyz_std_m": [
+            0.0488890245223813,
+            0.03797309002973356,
+            0.12562344526401112
+          ],
+          "valid_count": 5,
+          "required_valid_count": 3,
+          "visible": true,
+          "confidence": 10.2,
+          "target_uv_norm": [
+            0.4375,
+            0.56796875
+          ],
+          "target_uv_px": [
+            559.5625,
+            408.36953125
+          ],
+          "individual_point_results": [
+            {
+              "point_index": 0,
+              "pixel_uv": [
+                703.45,
+                413.42499999999995
+              ],
+              "offset_px": [
+                0.0,
+                0.0
+              ],
+              "d4rt_uv_norm": [
+                0.55,
+                0.575
+              ],
+              "raw_xyz": [
+                0.515625,
+                0.416015625,
+                7.1875
+              ],
+              "benchmark_aligned_xyz_m": [
+                0.515625,
+                0.416015625,
+                7.1875
+              ],
+              "visibility_logit": 1.6953125,
+              "visibility_probability": 0.8449215283934065,
+              "visible": true,
+              "confidence": 10.1875,
+              "confidence_probability": 0.9999623635528191,
+              "target_uv_norm": [
+                0.4375,
+                0.5703125
+              ],
+              "target_uv_px": [
+                559.5625,
+                410.0546875
+              ],
+              "valid_for_policy_average": true
+            },
+            {
+              "point_index": 1,
+              "pixel_uv": [
+                704.002215210622,
+                409.7840390750545
+              ],
+              "offset_px": [
+                0.5522152106219664,
+                -3.640960924945432
+              ],
+              "d4rt_uv_norm": [
+                0.5504317554422377,
+                0.5699360765995195
+              ],
+              "raw_xyz": [
+                0.515625,
+                0.400390625,
+                7.25
+              ],
+              "benchmark_aligned_xyz_m": [
+                0.515625,
+                0.400390625,
+                7.25
+              ],
+              "visibility_logit": 1.8203125,
+              "visibility_probability": 0.8606036203346761,
+              "visible": true,
+              "confidence": 10.375,
+              "confidence_probability": 0.9999687980886061,
+              "target_uv_norm": [
+                0.439453125,
+                0.56640625
+              ],
+              "target_uv_px": [
+                562.060546875,
+                407.24609375
+              ],
+              "valid_for_policy_average": true
+            },
+            {
+              "point_index": 2,
+              "pixel_uv": [
+                692.4605373797912,
+                417.865870405081
+              ],
+              "offset_px": [
+                -10.989462620208883,
+                4.440870405081057
+              ],
+              "d4rt_uv_norm": [
+                0.5414077696479993,
+                0.5811764539709054
+              ],
+              "raw_xyz": [
+                0.421875,
+                0.462890625,
+                7.0625
+              ],
+              "benchmark_aligned_xyz_m": [
+                0.421875,
+                0.462890625,
+                7.0625
+              ],
+              "visibility_logit": 1.3203125,
+              "visibility_probability": 0.7892336936802291,
+              "visible": true,
+              "confidence": 9.875,
+              "confidence_probability": 0.9999485577862579,
+              "target_uv_norm": [
+                0.431640625,
+                0.578125
+              ],
+              "target_uv_px": [
+                552.068359375,
+                415.671875
+              ],
+              "valid_for_policy_average": true
+            },
+            {
+              "point_index": 3,
+              "pixel_uv": [
+                710.0519968022037,
+                405.29986890503886
+              ],
+              "offset_px": [
+                6.601996802203644,
+                -8.125131094961091
+              ],
+              "d4rt_uv_norm": [
+                0.5551618426913242,
+                0.5636994004242544
+              ],
+              "raw_xyz": [
+                0.56640625,
+                0.359375,
+                7.375
+              ],
+              "benchmark_aligned_xyz_m": [
+                0.56640625,
+                0.359375,
+                7.375
+              ],
+              "visibility_logit": 1.53125,
+              "visibility_probability": 0.8221891305219503,
+              "visible": true,
+              "confidence": 10.1875,
+              "confidence_probability": 0.9999623635528191,
+              "target_uv_norm": [
+                0.443359375,
+                0.5625
+              ],
+              "target_uv_px": [
+                567.056640625,
+                404.4375
+              ],
+              "valid_for_policy_average": true
+            },
+            {
+              "point_index": 4,
+              "pixel_uv": [
+                699.9954221958269,
+                403.3622393372993
+              ],
+              "offset_px": [
+                -3.454577804173141,
+                -10.062760662700668
+              ],
+              "d4rt_uv_norm": [
+                0.5472990009349702,
+                0.5610045053369949
+              ],
+              "raw_xyz": [
+                0.46875,
+                0.36328125,
+                7.40625
+              ],
+              "benchmark_aligned_xyz_m": [
+                0.46875,
+                0.36328125,
+                7.40625
+              ],
+              "visibility_logit": 1.5546875,
+              "visibility_probability": 0.8255897216692099,
+              "visible": true,
+              "confidence": 10.375,
+              "confidence_probability": 0.9999687980886061,
+              "target_uv_norm": [
+                0.435546875,
+                0.5625
+              ],
+              "target_uv_px": [
+                557.064453125,
+                404.4375
+              ],
+              "valid_for_policy_average": true
+            }
+          ],
+          "math_xyz_aligned_m": [
+            0.49765625,
+            0.400390625,
+            7.25625
+          ]
+        }
+      ],
+      "math_trajectory_aligned_xyz_m": [
+        [
+          0.524609375,
+          0.386328125,
+          7.35625
+        ],
+        [
+          0.49765625,
+          0.400390625,
+          7.25625
+        ]
+      ],
+      "math_visibility": [
+        true,
+        true
+      ],
+      "visibility_coverage": 1.0,
+      "benchmark_alignment": {
+        "type": "identity_no_ground_truth_scale",
+        "scale": 1.0
+      }
+    },
+    "d4rt_2": {
+      "backend": "live_d4rt_decoder",
+      "point_mode": "ensemble5",
+      "label": "paraglider's chest",
+      "bbox_2d_1000": [
+        520.0,
+        520.0,
+        560.0,
+        570.0
+      ],
+      "bbox_pixel": [
+        665.0799999999999,
+        373.88,
+        716.24,
+        409.83
+      ],
+      "sampled_to_original": [
+        {
+          "sampled_frame": 0,
+          "original_frame": 0
+        },
+        {
+          "sampled_frame": 1,
+          "original_frame": 3
+        },
+        {
+          "sampled_frame": 2,
+          "original_frame": 6
+        },
+        {
+          "sampled_frame": 3,
+          "original_frame": 9
+        },
+        {
+          "sampled_frame": 4,
+          "original_frame": 11
+        },
+        {
+          "sampled_frame": 5,
+          "original_frame": 14
+        },
+        {
+          "sampled_frame": 6,
+          "original_frame": 17
+        },
+        {
+          "sampled_frame": 7,
+          "original_frame": 20
+        },
+        {
+          "sampled_frame": 8,
+          "original_frame": 23
+        },
+        {
+          "sampled_frame": 9,
+          "original_frame": 26
+        },
+        {
+          "sampled_frame": 10,
+          "original_frame": 29
+        },
+        {
+          "sampled_frame": 11,
+          "original_frame": 32
+        },
+        {
+          "sampled_frame": 12,
+          "original_frame": 34
+        },
+        {
+          "sampled_frame": 13,
+          "original_frame": 37
+        },
+        {
+          "sampled_frame": 14,
+          "original_frame": 40
+        },
+        {
+          "sampled_frame": 15,
+          "original_frame": 43
+        },
+        {
+          "sampled_frame": 16,
+          "original_frame": 46
+        },
+        {
+          "sampled_frame": 17,
+          "original_frame": 49
+        },
+        {
+          "sampled_frame": 18,
+          "original_frame": 52
+        },
+        {
+          "sampled_frame": 19,
+          "original_frame": 55
+        },
+        {
+          "sampled_frame": 20,
+          "original_frame": 57
+        },
+        {
+          "sampled_frame": 21,
+          "original_frame": 60
+        },
+        {
+          "sampled_frame": 22,
+          "original_frame": 63
+        },
+        {
+          "sampled_frame": 23,
+          "original_frame": 66
+        },
+        {
+          "sampled_frame": 24,
+          "original_frame": 69
+        },
+        {
+          "sampled_frame": 25,
+          "original_frame": 72
+        },
+        {
+          "sampled_frame": 26,
+          "original_frame": 75
+        },
+        {
+          "sampled_frame": 27,
+          "original_frame": 78
+        },
+        {
+          "sampled_frame": 28,
+          "original_frame": 80
+        },
+        {
+          "sampled_frame": 29,
+          "original_frame": 83
+        },
+        {
+          "sampled_frame": 30,
+          "original_frame": 86
+        },
+        {
+          "sampled_frame": 31,
+          "original_frame": 89
+        }
+      ],
+      "t_src": 0,
+      "original_t_src": 0,
+      "t_tgt": [
+        0
+      ],
+      "original_t_tgt": [
+        0
+      ],
+      "t_cam": 0,
+      "original_t_cam": 0,
+      "coordinate_frame": "Positions are expressed in the camera frame of sampled frame 0 (OpenCV axes: +x right, +y down, +z forward; origin at that camera). Component values from queries with different t_cam are in different bases and must never be subtracted. Scalars are frame-invariant: norm() and dist() may be compared across different t_cam, which is how range change is measured. Reading a static background point across several t_cam values is how camera motion is measured.",
+      "query_points": [
+        {
+          "point_index": 0,
+          "pixel_uv": [
+            690.66,
+            391.855
+          ],
+          "offset_px": [
+            0.0,
+            0.0
+          ],
+          "d4rt_uv_norm": [
+            0.5399999999999999,
+            0.545
+          ]
+        },
+        {
+          "point_index": 1,
+          "pixel_uv": [
+            691.2122152106219,
+            388.2140390750546
+          ],
+          "offset_px": [
+            0.5522152106219664,
+            -3.640960924945432
+          ],
+          "d4rt_uv_norm": [
+            0.5404317554422376,
+            0.5399360765995196
+          ]
+        },
+        {
+          "point_index": 2,
+          "pixel_uv": [
+            679.6705373797911,
+            396.2958704050811
+          ],
+          "offset_px": [
+            -10.989462620208883,
+            4.440870405081057
+          ],
+          "d4rt_uv_norm": [
+            0.5314077696479993,
+            0.5511764539709055
+          ]
+        },
+        {
+          "point_index": 3,
+          "pixel_uv": [
+            697.2619968022036,
+            383.7298689050389
+          ],
+          "offset_px": [
+            6.601996802203644,
+            -8.125131094961091
+          ],
+          "d4rt_uv_norm": [
+            0.5451618426913242,
+            0.5336994004242545
+          ]
+        },
+        {
+          "point_index": 4,
+          "pixel_uv": [
+            687.2054221958268,
+            381.79223933729935
+          ],
+          "offset_px": [
+            -3.454577804173141,
+            -10.062760662700668
+          ],
+          "d4rt_uv_norm": [
+            0.5372990009349702,
+            0.531004505336995
+          ]
+        }
+      ],
+      "predictions": [
+        {
+          "sampled_frame_index": 0,
+          "original_frame_index": 0,
+          "raw_xyz": [
+            0.43203125,
+            0.21796875,
+            8.2
+          ],
+          "benchmark_aligned_xyz_m": [
+            0.43203125,
+            0.21796875,
+            8.2
+          ],
+          "raw_xyz_std": [
+            0.06059599821770412,
+            0.04759136848728126,
+            0.2626487673681337
+          ],
+          "benchmark_aligned_xyz_std_m": [
+            0.06059599821770412,
+            0.04759136848728126,
+            0.2626487673681337
+          ],
+          "valid_count": 5,
+          "required_valid_count": 3,
+          "visible": true,
+          "confidence": 10.0875,
+          "target_uv_norm": [
+            0.54453125,
+            0.54453125
+          ],
+          "target_uv_px": [
+            696.45546875,
+            391.51796875
+          ],
+          "individual_point_results": [
+            {
+              "point_index": 0,
+              "pixel_uv": [
+                690.66,
+                391.855
+              ],
+              "offset_px": [
+                0.0,
+                0.0
+              ],
+              "d4rt_uv_norm": [
+                0.5399999999999999,
+                0.545
+              ],
+              "raw_xyz": [
+                0.4375,
+                0.255859375,
+                7.96875
+              ],
+              "benchmark_aligned_xyz_m": [
+                0.4375,
+                0.255859375,
+                7.96875
+              ],
+              "visibility_logit": 10.4375,
+              "visibility_probability": 0.9999706884614404,
+              "visible": true,
+              "confidence": 10.125,
+              "confidence_probability": 0.9999599363077709,
+              "target_uv_norm": [
+                0.546875,
+                0.55078125
+              ],
+              "target_uv_px": [
+                699.453125,
+                396.01171875
+              ],
+              "valid_for_policy_average": true
+            },
+            {
+              "point_index": 1,
+              "pixel_uv": [
+                691.2122152106219,
+                388.2140390750546
+              ],
+              "offset_px": [
+                0.5522152106219664,
+                -3.640960924945432
+              ],
+              "d4rt_uv_norm": [
+                0.5404317554422376,
+                0.5399360765995196
+              ],
+              "raw_xyz": [
+                0.4296875,
+                0.2080078125,
+                8.25
+              ],
+              "benchmark_aligned_xyz_m": [
+                0.4296875,
+                0.2080078125,
+                8.25
+              ],
+              "visibility_logit": 11.0,
+              "visibility_probability": 0.999983298578152,
+              "visible": true,
+              "confidence": 10.0625,
+              "confidence_probability": 0.9999573525318144,
+              "target_uv_norm": [
+                0.54296875,
+                0.54296875
+              ],
+              "target_uv_px": [
+                694.45703125,
+                390.39453125
+              ],
+              "valid_for_policy_average": true
+            },
+            {
+              "point_index": 2,
+              "pixel_uv": [
+                679.6705373797911,
+                396.2958704050811
+              ],
+              "offset_px": [
+                -10.989462620208883,
+                4.440870405081057
+              ],
+              "d4rt_uv_norm": [
+                0.5314077696479993,
+                0.5511764539709055
+              ],
+              "raw_xyz": [
+                0.3359375,
+                0.287109375,
+                7.84375
+              ],
+              "benchmark_aligned_xyz_m": [
+                0.3359375,
+                0.287109375,
+                7.84375
+              ],
+              "visibility_logit": 10.1875,
+              "visibility_probability": 0.9999623635528191,
+              "visible": true,
+              "confidence": 10.1875,
+              "confidence_probability": 0.9999623635528191,
+              "target_uv_norm": [
+                0.5390625,
+                0.5546875
+              ],
+              "target_uv_px": [
+                689.4609375,
+                398.8203125
+              ],
+              "valid_for_policy_average": true
+            },
+            {
+              "point_index": 3,
+              "pixel_uv": [
+                697.2619968022036,
+                383.7298689050389
+              ],
+              "offset_px": [
+                6.601996802203644,
+                -8.125131094961091
+              ],
+              "d4rt_uv_norm": [
+                0.5451618426913242,
+                0.5336994004242545
+              ],
+              "raw_xyz": [
+                0.52734375,
+                0.181640625,
+                8.375
+              ],
+              "benchmark_aligned_xyz_m": [
+                0.52734375,
+                0.181640625,
+                8.375
+              ],
+              "visibility_logit": 10.25,
+              "visibility_probability": 0.9999646437492582,
+              "visible": true,
+              "confidence": 10.0625,
+              "confidence_probability": 0.9999573525318144,
+              "target_uv_norm": [
+                0.55078125,
+                0.5390625
+              ],
+              "target_uv_px": [
+                704.44921875,
+                387.5859375
+              ],
+              "valid_for_policy_average": true
+            },
+            {
+              "point_index": 4,
+              "pixel_uv": [
+                687.2054221958268,
+                381.79223933729935
+              ],
+              "offset_px": [
+                -3.454577804173141,
+                -10.062760662700668
+              ],
+              "d4rt_uv_norm": [
+                0.5372990009349702,
+                0.531004505336995
+              ],
+              "raw_xyz": [
+                0.4296875,
+                0.1572265625,
+                8.5625
+              ],
+              "benchmark_aligned_xyz_m": [
+                0.4296875,
+                0.1572265625,
+                8.5625
+              ],
+              "visibility_logit": 10.1875,
+              "visibility_probability": 0.9999623635528191,
+              "visible": true,
+              "confidence": 10.0,
+              "confidence_probability": 0.9999546021312976,
+              "target_uv_norm": [
+                0.54296875,
+                0.53515625
+              ],
+              "target_uv_px": [
+                694.45703125,
+                384.77734375
+              ],
+              "valid_for_policy_average": true
+            }
+          ],
+          "math_xyz_aligned_m": [
+            0.43203125,
+            0.21796875,
+            8.2
+          ]
+        }
+      ],
+      "math_trajectory_aligned_xyz_m": [
+        [
+          0.43203125,
+          0.21796875,
+          8.2
+        ]
+      ],
+      "math_visibility": [
+        true
+      ],
+      "visibility_coverage": 1.0,
+      "benchmark_alignment": {
+        "type": "identity_no_ground_truth_scale",
+        "scale": 1.0
+      }
+    },
+    "d4rt_3": {
+      "backend": "live_d4rt_decoder",
+      "point_mode": "ensemble5",
+      "label": "paraglider's back",
+      "bbox_2d_1000": [
+        480.0,
+        520.0,
+        520.0,
+        570.0
+      ],
+      "bbox_pixel": [
+        613.92,
+        373.88,
+        665.0799999999999,
+        409.83
+      ],
+      "sampled_to_original": [
+        {
+          "sampled_frame": 0,
+          "original_frame": 0
+        },
+        {
+          "sampled_frame": 1,
+          "original_frame": 3
+        },
+        {
+          "sampled_frame": 2,
+          "original_frame": 6
+        },
+        {
+          "sampled_frame": 3,
+          "original_frame": 9
+        },
+        {
+          "sampled_frame": 4,
+          "original_frame": 11
+        },
+        {
+          "sampled_frame": 5,
+          "original_frame": 14
+        },
+        {
+          "sampled_frame": 6,
+          "original_frame": 17
+        },
+        {
+          "sampled_frame": 7,
+          "original_frame": 20
+        },
+        {
+          "sampled_frame": 8,
+          "original_frame": 23
+        },
+        {
+          "sampled_frame": 9,
+          "original_frame": 26
+        },
+        {
+          "sampled_frame": 10,
+          "original_frame": 29
+        },
+        {
+          "sampled_frame": 11,
+          "original_frame": 32
+        },
+        {
+          "sampled_frame": 12,
+          "original_frame": 34
+        },
+        {
+          "sampled_frame": 13,
+          "original_frame": 37
+        },
+        {
+          "sampled_frame": 14,
+          "original_frame": 40
+        },
+        {
+          "sampled_frame": 15,
+          "original_frame": 43
+        },
+        {
+          "sampled_frame": 16,
+          "original_frame": 46
+        },
+        {
+          "sampled_frame": 17,
+          "original_frame": 49
+        },
+        {
+          "sampled_frame": 18,
+          "original_frame": 52
+        },
+        {
+          "sampled_frame": 19,
+          "original_frame": 55
+        },
+        {
+          "sampled_frame": 20,
+          "original_frame": 57
+        },
+        {
+          "sampled_frame": 21,
+          "original_frame": 60
+        },
+        {
+          "sampled_frame": 22,
+          "original_frame": 63
+        },
+        {
+          "sampled_frame": 23,
+          "original_frame": 66
+        },
+        {
+          "sampled_frame": 24,
+          "original_frame": 69
+        },
+        {
+          "sampled_frame": 25,
+          "original_frame": 72
+        },
+        {
+          "sampled_frame": 26,
+          "original_frame": 75
+        },
+        {
+          "sampled_frame": 27,
+          "original_frame": 78
+        },
+        {
+          "sampled_frame": 28,
+          "original_frame": 80
+        },
+        {
+          "sampled_frame": 29,
+          "original_frame": 83
+        },
+        {
+          "sampled_frame": 30,
+          "original_frame": 86
+        },
+        {
+          "sampled_frame": 31,
+          "original_frame": 89
+        }
+      ],
+      "t_src": 0,
+      "original_t_src": 0,
+      "t_tgt": [
+        0
+      ],
+      "original_t_tgt": [
+        0
+      ],
+      "t_cam": 0,
+      "original_t_cam": 0,
+      "coordinate_frame": "Positions are expressed in the camera frame of sampled frame 0 (OpenCV axes: +x right, +y down, +z forward; origin at that camera). Component values from queries with different t_cam are in different bases and must never be subtracted. Scalars are frame-invariant: norm() and dist() may be compared across different t_cam, which is how range change is measured. Reading a static background point across several t_cam values is how camera motion is measured.",
+      "query_points": [
+        {
+          "point_index": 0,
+          "pixel_uv": [
+            639.5,
+            391.855
+          ],
+          "offset_px": [
+            0.0,
+            0.0
+          ],
+          "d4rt_uv_norm": [
+            0.5,
+            0.545
+          ]
+        },
+        {
+          "point_index": 1,
+          "pixel_uv": [
+            640.052215210622,
+            388.2140390750546
+          ],
+          "offset_px": [
+            0.5522152106219664,
+            -3.640960924945432
+          ],
+          "d4rt_uv_norm": [
+            0.5004317554422376,
+            0.5399360765995196
+          ]
+        },
+        {
+          "point_index": 2,
+          "pixel_uv": [
+            628.5105373797911,
+            396.2958704050811
+          ],
+          "offset_px": [
+            -10.989462620208883,
+            4.440870405081057
+          ],
+          "d4rt_uv_norm": [
+            0.4914077696479993,
+            0.5511764539709055
+          ]
+        },
+        {
+          "point_index": 3,
+          "pixel_uv": [
+            646.1019968022036,
+            383.7298689050389
+          ],
+          "offset_px": [
+            6.601996802203644,
+            -8.125131094961091
+          ],
+          "d4rt_uv_norm": [
+            0.5051618426913242,
+            0.5336994004242545
+          ]
+        },
+        {
+          "point_index": 4,
+          "pixel_uv": [
+            636.0454221958269,
+            381.79223933729935
+          ],
+          "offset_px": [
+            -3.454577804173141,
+            -10.062760662700668
+          ],
+          "d4rt_uv_norm": [
+            0.4972990009349702,
+            0.531004505336995
+          ]
+        }
+      ],
+      "predictions": [
+        {
+          "sampled_frame_index": 0,
+          "original_frame_index": 0,
+          "raw_xyz": [
+            -0.09580078125,
+            0.224609375,
+            8.3125
+          ],
+          "benchmark_aligned_xyz_m": [
+            -0.09580078125,
+            0.224609375,
+            8.3125
+          ],
+          "raw_xyz_std": [
+            0.045378538219702835,
+            0.050373967692586515,
+            0.2304886114323222
+          ],
+          "benchmark_aligned_xyz_std_m": [
+            0.045378538219702835,
+            0.050373967692586515,
+            0.2304886114323222
+          ],
+          "valid_count": 5,
+          "required_valid_count": 3,
+          "visible": true,
+          "confidence": 10.1375,
+          "target_uv_norm": [
+            0.501953125,
+            0.54453125
+          ],
+          "target_uv_px": [
+            641.998046875,
+            391.51796875
+          ],
+          "individual_point_results": [
+            {
+              "point_index": 0,
+              "pixel_uv": [
+                639.5,
+                391.855
+              ],
+              "offset_px": [
+                0.0,
+                0.0
+              ],
+              "d4rt_uv_norm": [
+                0.5,
+                0.545
+              ],
+              "raw_xyz": [
+                -0.07275390625,
+                0.26953125,
+                8.125
+              ],
+              "benchmark_aligned_xyz_m": [
+                -0.07275390625,
+                0.26953125,
+                8.125
+              ],
+              "visibility_logit": 9.8125,
+              "visibility_probability": 0.9999452402301955,
+              "visible": true,
+              "confidence": 10.1875,
+              "confidence_probability": 0.9999623635528191,
+              "target_uv_norm": [
+                0.50390625,
+                0.55078125
+              ],
+              "target_uv_px": [
+                644.49609375,
+                396.01171875
+              ],
+              "valid_for_policy_average": true
+            },
+            {
+              "point_index": 1,
+              "pixel_uv": [
+                640.052215210622,
+                388.2140390750546
+              ],
+              "offset_px": [
+                0.5522152106219664,
+                -3.640960924945432
+              ],
+              "d4rt_uv_norm": [
+                0.5004317554422376,
+                0.5399360765995196
+              ],
+              "raw_xyz": [
+                -0.0791015625,
+                0.212890625,
+                8.3125
+              ],
+              "benchmark_aligned_xyz_m": [
+                -0.0791015625,
+                0.212890625,
+                8.3125
+              ],
+              "visibility_logit": 10.0,
+              "visibility_probability": 0.9999546021312976,
+              "visible": true,
+              "confidence": 10.1875,
+              "confidence_probability": 0.9999623635528191,
+              "target_uv_norm": [
+                0.50390625,
+                0.54296875
+              ],
+              "target_uv_px": [
+                644.49609375,
+                390.39453125
+              ],
+              "valid_for_policy_average": true
+            },
+            {
+              "point_index": 2,
+              "pixel_uv": [
+                628.5105373797911,
+                396.2958704050811
+              ],
+              "offset_px": [
+                -10.989462620208883,
+                4.440870405081057
+              ],
+              "d4rt_uv_norm": [
+                0.4914077696479993,
+                0.5511764539709055
+              ],
+              "raw_xyz": [
+                -0.1630859375,
+                0.294921875,
+                8.0
+              ],
+              "benchmark_aligned_xyz_m": [
+                -0.1630859375,
+                0.294921875,
+                8.0
+              ],
+              "visibility_logit": 10.5,
+              "visibility_probability": 0.9999724643088853,
+              "visible": true,
+              "confidence": 10.125,
+              "confidence_probability": 0.9999599363077709,
+              "target_uv_norm": [
+                0.49609375,
+                0.5546875
+              ],
+              "target_uv_px": [
+                634.50390625,
+                398.8203125
+              ],
+              "valid_for_policy_average": true
+            },
+            {
+              "point_index": 3,
+              "pixel_uv": [
+                646.1019968022036,
+                383.7298689050389
+              ],
+              "offset_px": [
+                6.601996802203644,
+                -8.125131094961091
+              ],
+              "d4rt_uv_norm": [
+                0.5051618426913242,
+                0.5336994004242545
+              ],
+              "raw_xyz": [
+                -0.0341796875,
+                0.18359375,
+                8.5
+              ],
+              "benchmark_aligned_xyz_m": [
+                -0.0341796875,
+                0.18359375,
+                8.5
+              ],
+              "visibility_logit": 10.0,
+              "visibility_probability": 0.9999546021312976,
+              "visible": true,
+              "confidence": 10.125,
+              "confidence_probability": 0.9999599363077709,
+              "target_uv_norm": [
+                0.5078125,
+                0.5390625
+              ],
+              "target_uv_px": [
+                649.4921875,
+                387.5859375
+              ],
+              "valid_for_policy_average": true
+            },
+            {
+              "point_index": 4,
+              "pixel_uv": [
+                636.0454221958269,
+                381.79223933729935
+              ],
+              "offset_px": [
+                -3.454577804173141,
+                -10.062760662700668
+              ],
+              "d4rt_uv_norm": [
+                0.4972990009349702,
+                0.531004505336995
+              ],
+              "raw_xyz": [
+                -0.1298828125,
+                0.162109375,
+                8.625
+              ],
+              "benchmark_aligned_xyz_m": [
+                -0.1298828125,
+                0.162109375,
+                8.625
+              ],
+              "visibility_logit": 9.625,
+              "visibility_probability": 0.9999339478551454,
+              "visible": true,
+              "confidence": 10.0625,
+              "confidence_probability": 0.9999573525318144,
+              "target_uv_norm": [
+                0.498046875,
+                0.53515625
+              ],
+              "target_uv_px": [
+                637.001953125,
+                384.77734375
+              ],
+              "valid_for_policy_average": true
+            }
+          ],
+          "math_xyz_aligned_m": [
+            -0.09580078125,
+            0.224609375,
+            8.3125
+          ]
+        }
+      ],
+      "math_trajectory_aligned_xyz_m": [
+        [
+          -0.09580078125,
+          0.224609375,
+          8.3125
+        ]
+      ],
+      "math_visibility": [
+        true
+      ],
+      "visibility_coverage": 1.0,
+      "benchmark_alignment": {
+        "type": "identity_no_ground_truth_scale",
+        "scale": 1.0
+      }
+    },
+    "math_1": {
+      "bindings": {
+        "start": {
+          "evidence_id": "d4rt_1",
+          "path": [
+            "predictions",
+            0,
+            "benchmark_aligned_xyz_m"
+          ]
+        },
+        "end": {
+          "evidence_id": "d4rt_1",
+          "path": [
+            "predictions",
+            1,
+            "benchmark_aligned_xyz_m"
+          ]
+        },
+        "front": {
+          "evidence_id": "d4rt_2",
+          "path": [
+            "predictions",
+            0,
+            "benchmark_aligned_xyz_m"
+          ]
+        },
+        "rear": {
+          "evidence_id": "d4rt_3",
+          "path": [
+            "predictions",
+            0,
+            "benchmark_aligned_xyz_m"
+          ]
+        }
+      },
+      "resolved_bindings": {
+        "start": [
+          0.524609375,
+          0.386328125,
+          7.35625
+        ],
+        "end": [
+          0.49765625,
+          0.400390625,
+          7.25625
+        ],
+        "front": [
+          0.43203125,
+          0.21796875,
+          8.2
+        ],
+        "rear": [
+          -0.09580078125,
+          0.224609375,
+          8.3125
+        ]
+      },
+      "code": "fx = front[0] - rear[0]\nfz = front[2] - rear[2]\ndx = end[0] - start[0]\ndz = end[2] - start[2]\nfn = sqrt(fx*fx + fz*fz)\nalong = (dx*fx + dz*fz) / fn\nlateral = (dx*fz - dz*fx) / fn\nup = start[1] - end[1]",
+      "outputs": {
+        "fx": 0.52783203125,
+        "fz": -0.11250000000000071,
+        "dx": -0.026953125000000022,
+        "dz": -0.10000000000000053,
+        "fn": 0.5396877830871301,
+        "along": -0.00551563850539203,
+        "lateral": 0.10342170313403068,
+        "up": -0.014062499999999978
+      }
+    }
+  },
+  "wall_seconds": 92.88
+}

@@ -1,0 +1,169 @@
+{
+  "phase": "dsi_bench_baseline",
+  "created_at": "2026-07-22T00:08:22.635853+00:00",
+  "question_id": "llava178k_c1_videos_youtube_video_2024_ytb_pzg1hdiwfyk_video-scene-00002_fb3c4084",
+  "dataset": "llava178k",
+  "cate": 1,
+  "category_name": "Obj:moving cam",
+  "relative_path": "llava178k/0_30_s_youtube_v0_1/liwei_youtube_videos/videos/youtube_video_2024/ytb_PZg1hDiWFYk/video-scene-00002.mp4",
+  "video_slug": "videos_youtube_video_2024_ytb_pzg1hdiwfyk_video-scene-00002_fb3c4084",
+  "question": "In this video clip, how is the man's location moving in the 3D scene relative to his/her/its starting orientation and location?",
+  "options": {
+    "A": "Moving downward",
+    "B": "Moving upward",
+    "C": "Moving backward",
+    "D": "Basically unchange"
+  },
+  "option_letters": [
+    "A",
+    "B",
+    "C",
+    "D"
+  ],
+  "gt": "A",
+  "qwen_model": "/cluster/work/igp_psr/spanwar/hf_cache/hub/models--Qwen--Qwen3-VL-8B-Instruct/snapshots/0c351dd01ed87e9c1b53cbc748cba10e6187ff3b",
+  "sampling": {
+    "contract": "round(linspace(0, N - 1, 32))",
+    "decoded_on": "CPU",
+    "video": "/cluster/work/igp_psr/spanwar/datasets/DSI-Bench/videos/std/llava178k/0_30_s_youtube_v0_1/liwei_youtube_videos/videos/youtube_video_2024/ytb_PZg1hDiWFYk/video-scene-00002.mp4",
+    "total_original_frames": 107,
+    "num_sampled_frames": 32,
+    "fps": 30.0,
+    "width": 406,
+    "height": 720,
+    "sampled_to_original": [
+      {
+        "sampled_frame": 0,
+        "original_frame": 0
+      },
+      {
+        "sampled_frame": 1,
+        "original_frame": 3
+      },
+      {
+        "sampled_frame": 2,
+        "original_frame": 7
+      },
+      {
+        "sampled_frame": 3,
+        "original_frame": 10
+      },
+      {
+        "sampled_frame": 4,
+        "original_frame": 14
+      },
+      {
+        "sampled_frame": 5,
+        "original_frame": 17
+      },
+      {
+        "sampled_frame": 6,
+        "original_frame": 21
+      },
+      {
+        "sampled_frame": 7,
+        "original_frame": 24
+      },
+      {
+        "sampled_frame": 8,
+        "original_frame": 27
+      },
+      {
+        "sampled_frame": 9,
+        "original_frame": 31
+      },
+      {
+        "sampled_frame": 10,
+        "original_frame": 34
+      },
+      {
+        "sampled_frame": 11,
+        "original_frame": 38
+      },
+      {
+        "sampled_frame": 12,
+        "original_frame": 41
+      },
+      {
+        "sampled_frame": 13,
+        "original_frame": 44
+      },
+      {
+        "sampled_frame": 14,
+        "original_frame": 48
+      },
+      {
+        "sampled_frame": 15,
+        "original_frame": 51
+      },
+      {
+        "sampled_frame": 16,
+        "original_frame": 55
+      },
+      {
+        "sampled_frame": 17,
+        "original_frame": 58
+      },
+      {
+        "sampled_frame": 18,
+        "original_frame": 62
+      },
+      {
+        "sampled_frame": 19,
+        "original_frame": 65
+      },
+      {
+        "sampled_frame": 20,
+        "original_frame": 68
+      },
+      {
+        "sampled_frame": 21,
+        "original_frame": 72
+      },
+      {
+        "sampled_frame": 22,
+        "original_frame": 75
+      },
+      {
+        "sampled_frame": 23,
+        "original_frame": 79
+      },
+      {
+        "sampled_frame": 24,
+        "original_frame": 82
+      },
+      {
+        "sampled_frame": 25,
+        "original_frame": 85
+      },
+      {
+        "sampled_frame": 26,
+        "original_frame": 89
+      },
+      {
+        "sampled_frame": 27,
+        "original_frame": 92
+      },
+      {
+        "sampled_frame": 28,
+        "original_frame": 96
+      },
+      {
+        "sampled_frame": 29,
+        "original_frame": 99
+      },
+      {
+        "sampled_frame": 30,
+        "original_frame": 103
+      },
+      {
+        "sampled_frame": 31,
+        "original_frame": 106
+      }
+    ]
+  },
+  "status": "complete",
+  "raw_response": "<B>",
+  "parsed_letter": null,
+  "wall_seconds": 3.09
+}

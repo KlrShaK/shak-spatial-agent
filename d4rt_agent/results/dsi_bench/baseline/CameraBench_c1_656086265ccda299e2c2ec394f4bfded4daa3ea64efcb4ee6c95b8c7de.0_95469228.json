@@ -1,0 +1,169 @@
+{
+  "phase": "dsi_bench_baseline",
+  "created_at": "2026-07-22T00:07:39.304876+00:00",
+  "question_id": "CameraBench_c1_656086265ccda299e2c2ec394f4bfded4daa3ea64efcb4ee6c95b8c7de.0_95469228",
+  "dataset": "CameraBench",
+  "cate": 1,
+  "category_name": "Obj:moving cam",
+  "relative_path": "CameraBench/99f927656086265ccda299e2c2ec394f4bfded4daa3ea64efcb4ee6c95b8c7de.0.mp4",
+  "video_slug": "656086265ccda299e2c2ec394f4bfded4daa3ea64efcb4ee6c95b8c7de.0_95469228",
+  "question": "In this video clip, how is the people's location moving in the 3D scene relative to his/her/its starting orientation and location?",
+  "options": {
+    "A": "Moving left",
+    "B": "Moving right",
+    "C": "Moving forward",
+    "D": "Moving backward"
+  },
+  "option_letters": [
+    "A",
+    "B",
+    "C",
+    "D"
+  ],
+  "gt": "C",
+  "qwen_model": "/cluster/work/igp_psr/spanwar/hf_cache/hub/models--Qwen--Qwen3-VL-8B-Instruct/snapshots/0c351dd01ed87e9c1b53cbc748cba10e6187ff3b",
+  "sampling": {
+    "contract": "round(linspace(0, N - 1, 32))",
+    "decoded_on": "CPU",
+    "video": "/cluster/work/igp_psr/spanwar/datasets/DSI-Bench/videos/std/CameraBench/99f927656086265ccda299e2c2ec394f4bfded4daa3ea64efcb4ee6c95b8c7de.0.mp4",
+    "total_original_frames": 489,
+    "num_sampled_frames": 32,
+    "fps": 14.0,
+    "width": 480,
+    "height": 270,
+    "sampled_to_original": [
+      {
+        "sampled_frame": 0,
+        "original_frame": 0
+      },
+      {
+        "sampled_frame": 1,
+        "original_frame": 16
+      },
+      {
+        "sampled_frame": 2,
+        "original_frame": 31
+      },
+      {
+        "sampled_frame": 3,
+        "original_frame": 47
+      },
+      {
+        "sampled_frame": 4,
+        "original_frame": 63
+      },
+      {
+        "sampled_frame": 5,
+        "original_frame": 79
+      },
+      {
+        "sampled_frame": 6,
+        "original_frame": 94
+      },
+      {
+        "sampled_frame": 7,
+        "original_frame": 110
+      },
+      {
+        "sampled_frame": 8,
+        "original_frame": 126
+      },
+      {
+        "sampled_frame": 9,
+        "original_frame": 142
+      },
+      {
+        "sampled_frame": 10,
+        "original_frame": 157
+      },
+      {
+        "sampled_frame": 11,
+        "original_frame": 173
+      },
+      {
+        "sampled_frame": 12,
+        "original_frame": 189
+      },
+      {
+        "sampled_frame": 13,
+        "original_frame": 205
+      },
+      {
+        "sampled_frame": 14,
+        "original_frame": 220
+      },
+      {
+        "sampled_frame": 15,
+        "original_frame": 236
+      },
+      {
+        "sampled_frame": 16,
+        "original_frame": 252
+      },
+      {
+        "sampled_frame": 17,
+        "original_frame": 268
+      },
+      {
+        "sampled_frame": 18,
+        "original_frame": 283
+      },
+      {
+        "sampled_frame": 19,
+        "original_frame": 299
+      },
+      {
+        "sampled_frame": 20,
+        "original_frame": 315
+      },
+      {
+        "sampled_frame": 21,
+        "original_frame": 331
+      },
+      {
+        "sampled_frame": 22,
+        "original_frame": 346
+      },
+      {
+        "sampled_frame": 23,
+        "original_frame": 362
+      },
+      {
+        "sampled_frame": 24,
+        "original_frame": 378
+      },
+      {
+        "sampled_frame": 25,
+        "original_frame": 394
+      },
+      {
+        "sampled_frame": 26,
+        "original_frame": 409
+      },
+      {
+        "sampled_frame": 27,
+        "original_frame": 425
+      },
+      {
+        "sampled_frame": 28,
+        "original_frame": 441
+      },
+      {
+        "sampled_frame": 29,
+        "original_frame": 457
+      },
+      {
+        "sampled_frame": 30,
+        "original_frame": 472
+      },
+      {
+        "sampled_frame": 31,
+        "original_frame": 488
+      }
+    ]
+  },
+  "status": "complete",
+  "raw_response": "<C>",
+  "parsed_letter": null,
+  "wall_seconds": 0.68
+}

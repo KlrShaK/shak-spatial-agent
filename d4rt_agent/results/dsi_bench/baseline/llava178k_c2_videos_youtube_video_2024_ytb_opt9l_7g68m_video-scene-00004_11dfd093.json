@@ -1,0 +1,169 @@
+{
+  "phase": "dsi_bench_baseline",
+  "created_at": "2026-07-22T00:08:25.866640+00:00",
+  "question_id": "llava178k_c2_videos_youtube_video_2024_ytb_opt9l_7g68m_video-scene-00004_11dfd093",
+  "dataset": "llava178k",
+  "cate": 2,
+  "category_name": "Cam:static scene",
+  "relative_path": "llava178k/0_30_s_youtube_v0_1/liwei_youtube_videos/videos/youtube_video_2024/ytb_OpT9L_7g68M/video-scene-00004.mp4",
+  "video_slug": "videos_youtube_video_2024_ytb_opt9l_7g68m_video-scene-00004_11dfd093",
+  "question": "In this video clip, relative to its starting orientation and location, how is the observer's location moving?",
+  "options": {
+    "A": "Orbiting clockwise",
+    "B": "Orbiting counterclockwise",
+    "C": "Moving forward",
+    "D": "Moving forward-right"
+  },
+  "option_letters": [
+    "A",
+    "B",
+    "C",
+    "D"
+  ],
+  "gt": "B",
+  "qwen_model": "/cluster/work/igp_psr/spanwar/hf_cache/hub/models--Qwen--Qwen3-VL-8B-Instruct/snapshots/0c351dd01ed87e9c1b53cbc748cba10e6187ff3b",
+  "sampling": {
+    "contract": "round(linspace(0, N - 1, 32))",
+    "decoded_on": "CPU",
+    "video": "/cluster/work/igp_psr/spanwar/datasets/DSI-Bench/videos/std/llava178k/0_30_s_youtube_v0_1/liwei_youtube_videos/videos/youtube_video_2024/ytb_OpT9L_7g68M/video-scene-00004.mp4",
+    "total_original_frames": 180,
+    "num_sampled_frames": 32,
+    "fps": 60.0,
+    "width": 406,
+    "height": 720,
+    "sampled_to_original": [
+      {
+        "sampled_frame": 0,
+        "original_frame": 0
+      },
+      {
+        "sampled_frame": 1,
+        "original_frame": 6
+      },
+      {
+        "sampled_frame": 2,
+        "original_frame": 12
+      },
+      {
+        "sampled_frame": 3,
+        "original_frame": 17
+      },
+      {
+        "sampled_frame": 4,
+        "original_frame": 23
+      },
+      {
+        "sampled_frame": 5,
+        "original_frame": 29
+      },
+      {
+        "sampled_frame": 6,
+        "original_frame": 35
+      },
+      {
+        "sampled_frame": 7,
+        "original_frame": 40
+      },
+      {
+        "sampled_frame": 8,
+        "original_frame": 46
+      },
+      {
+        "sampled_frame": 9,
+        "original_frame": 52
+      },
+      {
+        "sampled_frame": 10,
+        "original_frame": 58
+      },
+      {
+        "sampled_frame": 11,
+        "original_frame": 64
+      },
+      {
+        "sampled_frame": 12,
+        "original_frame": 69
+      },
+      {
+        "sampled_frame": 13,
+        "original_frame": 75
+      },
+      {
+        "sampled_frame": 14,
+        "original_frame": 81
+      },
+      {
+        "sampled_frame": 15,
+        "original_frame": 87
+      },
+      {
+        "sampled_frame": 16,
+        "original_frame": 92
+      },
+      {
+        "sampled_frame": 17,
+        "original_frame": 98
+      },
+      {
+        "sampled_frame": 18,
+        "original_frame": 104
+      },
+      {
+        "sampled_frame": 19,
+        "original_frame": 110
+      },
+      {
+        "sampled_frame": 20,
+        "original_frame": 115
+      },
+      {
+        "sampled_frame": 21,
+        "original_frame": 121
+      },
+      {
+        "sampled_frame": 22,
+        "original_frame": 127
+      },
+      {
+        "sampled_frame": 23,
+        "original_frame": 133
+      },
+      {
+        "sampled_frame": 24,
+        "original_frame": 139
+      },
+      {
+        "sampled_frame": 25,
+        "original_frame": 144
+      },
+      {
+        "sampled_frame": 26,
+        "original_frame": 150
+      },
+      {
+        "sampled_frame": 27,
+        "original_frame": 156
+      },
+      {
+        "sampled_frame": 28,
+        "original_frame": 162
+      },
+      {
+        "sampled_frame": 29,
+        "original_frame": 167
+      },
+      {
+        "sampled_frame": 30,
+        "original_frame": 173
+      },
+      {
+        "sampled_frame": 31,
+        "original_frame": 179
+      }
+    ]
+  },
+  "status": "complete",
+  "raw_response": "<B>",
+  "parsed_letter": null,
+  "wall_seconds": 1.46
+}

@@ -1,0 +1,698 @@
+{
+  "benchmark": "DSI-Bench",
+  "split": "std",
+  "created_at": "2026-07-21T23:12:43.937965+00:00",
+  "dsi_root": "/cluster/work/igp_psr/spanwar/datasets/DSI-Bench",
+  "csv_path": "/cluster/work/igp_psr/spanwar/datasets/DSI-Bench/metadatas/std.csv",
+  "csv_sha256": "31f72ebee86b6f900bae1499f5ceb65809230d9fb0f56dac8ca689077c1fda09",
+  "video_root": "/cluster/work/igp_psr/spanwar/datasets/DSI-Bench/videos/std",
+  "sampling": {
+    "design": "latin_rectangle",
+    "description": "dataset i takes categories {i, i+1, i+2, i+3, i+4} mod 6; one question per cell, all videos distinct",
+    "requested_seed": 20260721,
+    "seed": 20260725,
+    "gt_balanced": true,
+    "gt_balance_band": [
+      5,
+      8
+    ],
+    "total_source_questions": 1769,
+    "total_selected": 25
+  },
+  "counts": {
+    "per_dataset": {
+      "CameraBench": 5,
+      "SynFMC": 5,
+      "internet": 5,
+      "k700": 5,
+      "llava178k": 5
+    },
+    "per_category": {
+      "Obj:static cam": 4,
+      "Obj:moving cam": 4,
+      "Cam:static scene": 4,
+      "Cam:dynamic scene": 4,
+      "Obj-Cam distance": 5,
+      "Obj-Cam orientation": 4
+    },
+    "gt_histogram": {
+      "A": 6,
+      "B": 8,
+      "C": 5,
+      "D": 6
+    }
+  },
+  "caveat": "Balanced by design: each task carries 4-5 questions while the full benchmark is 33% 'Obj:moving cam' and 31% 'Cam:dynamic scene'. Read these results as a diagnostic across tasks, not as an estimate of DSI-Bench accuracy.",
+  "questions": [
+    {
+      "cate": 0,
+      "dataset": "CameraBench",
+      "relative_path": "CameraBench/M0jmSsQ5ptw.3.12.mp4",
+      "video_type": "1.0",
+      "question": "In this video clip, how is the runner's location moving in the 3D scene relative to his/her/its starting orientation and location?",
+      "options": {
+        "A": "Moving backward",
+        "B": "Moving forward",
+        "C": "Moving left",
+        "D": "Moving right"
+      },
+      "gt": "B",
+      "others": "",
+      "csv_row_index": 51,
+      "category_name": "Obj:static cam",
+      "option_letters": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "question_id": "CameraBench_c0_camerabench_m0jmssq5ptw.3.12_ccd85243",
+      "video_slug": "camerabench_m0jmssq5ptw.3.12_ccd85243",
+      "video_path": "/cluster/work/igp_psr/spanwar/datasets/DSI-Bench/videos/std/CameraBench/M0jmSsQ5ptw.3.12.mp4"
+    },
+    {
+      "cate": 1,
+      "dataset": "CameraBench",
+      "relative_path": "CameraBench/99f927656086265ccda299e2c2ec394f4bfded4daa3ea64efcb4ee6c95b8c7de.0.mp4",
+      "video_type": "1.0",
+      "question": "In this video clip, how is the people's location moving in the 3D scene relative to his/her/its starting orientation and location?",
+      "options": {
+        "A": "Moving left",
+        "B": "Moving right",
+        "C": "Moving forward",
+        "D": "Moving backward"
+      },
+      "gt": "C",
+      "others": "",
+      "csv_row_index": 37,
+      "category_name": "Obj:moving cam",
+      "option_letters": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "question_id": "CameraBench_c1_656086265ccda299e2c2ec394f4bfded4daa3ea64efcb4ee6c95b8c7de.0_95469228",
+      "video_slug": "656086265ccda299e2c2ec394f4bfded4daa3ea64efcb4ee6c95b8c7de.0_95469228",
+      "video_path": "/cluster/work/igp_psr/spanwar/datasets/DSI-Bench/videos/std/CameraBench/99f927656086265ccda299e2c2ec394f4bfded4daa3ea64efcb4ee6c95b8c7de.0.mp4"
+    },
+    {
+      "cate": 2,
+      "dataset": "CameraBench",
+      "relative_path": "CameraBench/u35WIs62R2M.1.4.mp4",
+      "video_type": "1.0",
+      "question": "In this video clip, relative to its starting orientation and location, how is the observer's location moving?",
+      "options": {
+        "A": "Moving forward",
+        "B": "Moving upward",
+        "C": "Moving downward",
+        "D": "Moving backward"
+      },
+      "gt": "C",
+      "others": "reverse moving left",
+      "csv_row_index": 876,
+      "category_name": "Cam:static scene",
+      "option_letters": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "question_id": "CameraBench_c2_camerabench_u35wis62r2m.1.4_8c093924",
+      "video_slug": "camerabench_u35wis62r2m.1.4_8c093924",
+      "video_path": "/cluster/work/igp_psr/spanwar/datasets/DSI-Bench/videos/std/CameraBench/u35WIs62R2M.1.4.mp4"
+    },
+    {
+      "cate": 3,
+      "dataset": "CameraBench",
+      "relative_path": "CameraBench/3m-ME9AXCTo.1.1.mp4",
+      "video_type": "1.0",
+      "question": "In this video clip, relative to its starting orientation and location, how is the observer's location moving?",
+      "options": {
+        "A": "Orbiting clockwise",
+        "B": "Turning backward-left",
+        "C": "Moving backward-left",
+        "D": "Orbiting counterclockwise"
+      },
+      "gt": "D",
+      "others": "",
+      "csv_row_index": 798,
+      "category_name": "Cam:dynamic scene",
+      "option_letters": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "question_id": "CameraBench_c3_camerabench_3m-me9axcto.1.1_60268455",
+      "video_slug": "camerabench_3m-me9axcto.1.1_60268455",
+      "video_path": "/cluster/work/igp_psr/spanwar/datasets/DSI-Bench/videos/std/CameraBench/3m-ME9AXCTo.1.1.mp4"
+    },
+    {
+      "cate": 4,
+      "dataset": "CameraBench",
+      "relative_path": "CameraBench/-2uIa-XMJC0.5.3.mp4",
+      "video_type": "0.0",
+      "question": "How does the distance between the observer and the character change in this video?",
+      "options": {
+        "A": "Get farther",
+        "B": "Get closer",
+        "C": "Remain unchanged",
+        "D": "Cannot be determined"
+      },
+      "gt": "A",
+      "others": "",
+      "csv_row_index": 1546,
+      "category_name": "Obj-Cam distance",
+      "option_letters": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "question_id": "CameraBench_c4_camerabench_-2uia-xmjc0.5.3_877d2d07",
+      "video_slug": "camerabench_-2uia-xmjc0.5.3_877d2d07",
+      "video_path": "/cluster/work/igp_psr/spanwar/datasets/DSI-Bench/videos/std/CameraBench/-2uIa-XMJC0.5.3.mp4"
+    },
+    {
+      "cate": 1,
+      "dataset": "SynFMC",
+      "relative_path": "SynFMC/Rendered_Traj_Results/dynamic/6/video_480p.mp4",
+      "video_type": "0.0",
+      "question": "In this video clip, how is the character's location moving in the 3D scene relative to his/her/its starting orientation and location?",
+      "options": {
+        "A": "Moving backward and turning left",
+        "B": "Moving forward and turning right",
+        "C": "Moving backward and turning right",
+        "D": "Moving forward and turning left"
+      },
+      "gt": "D",
+      "others": "",
+      "csv_row_index": 134,
+      "category_name": "Obj:moving cam",
+      "option_letters": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "question_id": "SynFMC_c1_synfmc_rendered_traj_results_dynamic_6_video_480p_728b5ef1",
+      "video_slug": "synfmc_rendered_traj_results_dynamic_6_video_480p_728b5ef1",
+      "video_path": "/cluster/work/igp_psr/spanwar/datasets/DSI-Bench/videos/std/SynFMC/Rendered_Traj_Results/dynamic/6/video_480p.mp4"
+    },
+    {
+      "cate": 2,
+      "dataset": "SynFMC",
+      "relative_path": "SynFMC/Rendered_Traj_Results/dynamic/450/video_480p.mp4",
+      "video_type": "0.0",
+      "question": "In this video clip, relative to its starting orientation and location, how is the observer's location moving?",
+      "options": {
+        "A": "Orbiting clockwise",
+        "B": "Moving backward",
+        "C": "Moving forward",
+        "D": "Orbiting counterclockwise"
+      },
+      "gt": "A",
+      "others": "",
+      "csv_row_index": 914,
+      "category_name": "Cam:static scene",
+      "option_letters": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "question_id": "SynFMC_c2_synfmc_rendered_traj_results_dynamic_450_video_480p_868f34a5",
+      "video_slug": "synfmc_rendered_traj_results_dynamic_450_video_480p_868f34a5",
+      "video_path": "/cluster/work/igp_psr/spanwar/datasets/DSI-Bench/videos/std/SynFMC/Rendered_Traj_Results/dynamic/450/video_480p.mp4"
+    },
+    {
+      "cate": 3,
+      "dataset": "SynFMC",
+      "relative_path": "SynFMC/Rendered_Traj_Results/dynamic/45/video_480p.mp4",
+      "video_type": "0.0",
+      "question": "In this video clip, relative to its starting orientation and location, how is the observer's location moving?",
+      "options": {
+        "A": "Moving upward",
+        "B": "Moving downward",
+        "C": "Orbiting counterclockwise",
+        "D": "Moving right"
+      },
+      "gt": "A",
+      "others": "",
+      "csv_row_index": 913,
+      "category_name": "Cam:dynamic scene",
+      "option_letters": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "question_id": "SynFMC_c3_synfmc_rendered_traj_results_dynamic_45_video_480p_0fd58550",
+      "video_slug": "synfmc_rendered_traj_results_dynamic_45_video_480p_0fd58550",
+      "video_path": "/cluster/work/igp_psr/spanwar/datasets/DSI-Bench/videos/std/SynFMC/Rendered_Traj_Results/dynamic/45/video_480p.mp4"
+    },
+    {
+      "cate": 4,
+      "dataset": "SynFMC",
+      "relative_path": "SynFMC/Rendered_Traj_Results/dynamic/183/video_480p.mp4",
+      "video_type": "0.0",
+      "question": "How does the distance between the observer and the character change in this video?",
+      "options": {
+        "A": "Cannot be determined",
+        "B": "Get farther",
+        "C": "Remain unchanged",
+        "D": "Get closer"
+      },
+      "gt": "B",
+      "others": "",
+      "csv_row_index": 1573,
+      "category_name": "Obj-Cam distance",
+      "option_letters": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "question_id": "SynFMC_c4_synfmc_rendered_traj_results_dynamic_183_video_480p_e9b12cbc",
+      "video_slug": "synfmc_rendered_traj_results_dynamic_183_video_480p_e9b12cbc",
+      "video_path": "/cluster/work/igp_psr/spanwar/datasets/DSI-Bench/videos/std/SynFMC/Rendered_Traj_Results/dynamic/183/video_480p.mp4"
+    },
+    {
+      "cate": 5,
+      "dataset": "SynFMC",
+      "relative_path": "SynFMC/Rendered_Traj_Results/dynamic/14/video_480p.mp4",
+      "video_type": "0.0",
+      "question": "In this video, how does the observer's position change relative to the man's own orientation?",
+      "options": {
+        "A": "from man's left to right",
+        "B": "from man's right to front",
+        "C": "from man's right to back",
+        "D": "from man's left to back"
+      },
+      "gt": "C",
+      "others": "",
+      "csv_row_index": 1700,
+      "category_name": "Obj-Cam orientation",
+      "option_letters": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "question_id": "SynFMC_c5_synfmc_rendered_traj_results_dynamic_14_video_480p_72d9da62",
+      "video_slug": "synfmc_rendered_traj_results_dynamic_14_video_480p_72d9da62",
+      "video_path": "/cluster/work/igp_psr/spanwar/datasets/DSI-Bench/videos/std/SynFMC/Rendered_Traj_Results/dynamic/14/video_480p.mp4"
+    },
+    {
+      "cate": 2,
+      "dataset": "internet",
+      "relative_path": "internet/2d0iWOhbSjU/video-scene-00020.mp4",
+      "video_type": "0.0",
+      "question": "In this video clip, relative to its starting orientation and location, how is the observer's location moving?",
+      "options": {
+        "A": "Moving forward-left",
+        "B": "Moving upward",
+        "C": "Moving downward",
+        "D": "Moving forward-right"
+      },
+      "gt": "B",
+      "others": "",
+      "csv_row_index": 1203,
+      "category_name": "Cam:static scene",
+      "option_letters": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "question_id": "internet_c2_internet_2d0iwohbsju_video-scene-00020_fdbaa511",
+      "video_slug": "internet_2d0iwohbsju_video-scene-00020_fdbaa511",
+      "video_path": "/cluster/work/igp_psr/spanwar/datasets/DSI-Bench/videos/std/internet/2d0iWOhbSjU/video-scene-00020.mp4"
+    },
+    {
+      "cate": 3,
+      "dataset": "internet",
+      "relative_path": "internet/4cZ3OQlfupM/video-scene-00023.mp4",
+      "video_type": "1.0",
+      "question": "In this video clip, relative to its starting orientation and location, how is the observer's location moving?",
+      "options": {
+        "A": "Moving downward",
+        "B": "Turning forward-right",
+        "C": "Moving upward",
+        "D": "Turning forward-left"
+      },
+      "gt": "C",
+      "others": "0-4",
+      "csv_row_index": 1214,
+      "category_name": "Cam:dynamic scene",
+      "option_letters": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "question_id": "internet_c3_internet_4cz3oqlfupm_video-scene-00023_6ef46874",
+      "video_slug": "internet_4cz3oqlfupm_video-scene-00023_6ef46874",
+      "video_path": "/cluster/work/igp_psr/spanwar/datasets/DSI-Bench/videos/std/internet/4cZ3OQlfupM/video-scene-00023.mp4"
+    },
+    {
+      "cate": 4,
+      "dataset": "internet",
+      "relative_path": "internet/AN2SZ4H4Qzk/video-scene-00048.mp4",
+      "video_type": "1.0",
+      "question": "How does the distance between the observer and the horse change in this video?",
+      "options": {
+        "A": "Cannot be determined",
+        "B": "Remain unchanged",
+        "C": "Get closer",
+        "D": "Get farther"
+      },
+      "gt": "D",
+      "others": "",
+      "csv_row_index": 1645,
+      "category_name": "Obj-Cam distance",
+      "option_letters": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "question_id": "internet_c4_internet_an2sz4h4qzk_video-scene-00048_265c8450",
+      "video_slug": "internet_an2sz4h4qzk_video-scene-00048_265c8450",
+      "video_path": "/cluster/work/igp_psr/spanwar/datasets/DSI-Bench/videos/std/internet/AN2SZ4H4Qzk/video-scene-00048.mp4"
+    },
+    {
+      "cate": 5,
+      "dataset": "internet",
+      "relative_path": "internet/0kNwUIP85a8/video-scene-00009.mp4",
+      "video_type": "1.0",
+      "question": "In this video, how does the observer's position change relative to the car's own orientation?",
+      "options": {
+        "A": "from car's left to back",
+        "B": "from car's front to left",
+        "C": "from car's back to right",
+        "D": "from car's front to back"
+      },
+      "gt": "D",
+      "others": "0-2",
+      "csv_row_index": 1756,
+      "category_name": "Obj-Cam orientation",
+      "option_letters": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "question_id": "internet_c5_internet_0knwuip85a8_video-scene-00009_39b26678",
+      "video_slug": "internet_0knwuip85a8_video-scene-00009_39b26678",
+      "video_path": "/cluster/work/igp_psr/spanwar/datasets/DSI-Bench/videos/std/internet/0kNwUIP85a8/video-scene-00009.mp4"
+    },
+    {
+      "cate": 0,
+      "dataset": "internet",
+      "relative_path": "internet/FopBvLLXKZ0/video-scene-00033.mp4",
+      "video_type": "0",
+      "question": "In this video clip, how is the car's location moving in the 3D scene relative to his/her/its own starting orientation and location?",
+      "options": {
+        "A": "Orbiting clockwise",
+        "B": "Orbiting counterclockwise",
+        "C": "Basically unchange",
+        "D": "Basically unchange"
+      },
+      "gt": "B",
+      "others": "",
+      "csv_row_index": 731,
+      "category_name": "Obj:static cam",
+      "option_letters": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "question_id": "internet_c0_internet_fopbvllxkz0_video-scene-00033_c8413d28",
+      "video_slug": "internet_fopbvllxkz0_video-scene-00033_c8413d28",
+      "video_path": "/cluster/work/igp_psr/spanwar/datasets/DSI-Bench/videos/std/internet/FopBvLLXKZ0/video-scene-00033.mp4"
+    },
+    {
+      "cate": 3,
+      "dataset": "k700",
+      "relative_path": "k700/skiing mono/rQFNdqdK5nY_000080_000090/video-scene-00000.mp4",
+      "video_type": "1.0",
+      "question": "In this video clip, relative to its starting orientation and location, how is the observer's location moving?",
+      "options": {
+        "A": "Moving left",
+        "B": "Moving forward",
+        "C": "Moving backward",
+        "D": "Moving right"
+      },
+      "gt": "B",
+      "others": "3-7",
+      "csv_row_index": 1014,
+      "category_name": "Cam:dynamic scene",
+      "option_letters": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "question_id": "k700_c3_k700_skiing_mono_rqfndqdk5ny_000080_000090_video-scene-00000_fd807178",
+      "video_slug": "k700_skiing_mono_rqfndqdk5ny_000080_000090_video-scene-00000_fd807178",
+      "video_path": "/cluster/work/igp_psr/spanwar/datasets/DSI-Bench/videos/std/k700/skiing mono/rQFNdqdK5nY_000080_000090/video-scene-00000.mp4"
+    },
+    {
+      "cate": 4,
+      "dataset": "k700",
+      "relative_path": "k700/jogging/QY8RJBxbLnA_000116_000126/video-scene-00001.mp4",
+      "video_type": "1.0",
+      "question": "How does the distance between the observer and the man change in this video?",
+      "options": {
+        "A": "Remain unchanged",
+        "B": "Get farther",
+        "C": "Cannot be determined",
+        "D": "Get closer"
+      },
+      "gt": "A",
+      "others": "",
+      "csv_row_index": 1589,
+      "category_name": "Obj-Cam distance",
+      "option_letters": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "question_id": "k700_c4_k700_jogging_qy8rjbxblna_000116_000126_video-scene-00001_ab85ad6e",
+      "video_slug": "k700_jogging_qy8rjbxblna_000116_000126_video-scene-00001_ab85ad6e",
+      "video_path": "/cluster/work/igp_psr/spanwar/datasets/DSI-Bench/videos/std/k700/jogging/QY8RJBxbLnA_000116_000126/video-scene-00001.mp4"
+    },
+    {
+      "cate": 5,
+      "dataset": "k700",
+      "relative_path": "k700/snowboarding/9o2tVONLRMU_000003_000013/video-scene-00000.mp4",
+      "video_type": "1.0",
+      "question": "In this video, how does the observer's position change relative to the skier's own orientation?",
+      "options": {
+        "A": "from skier's front to left",
+        "B": "from skier's back to front",
+        "C": "from skier's left to right",
+        "D": "from skier's front to right"
+      },
+      "gt": "C",
+      "others": "2-4",
+      "csv_row_index": 1716,
+      "category_name": "Obj-Cam orientation",
+      "option_letters": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "question_id": "k700_c5_700_snowboarding_9o2tvonlrmu_000003_000013_video-scene-00000_227e207a",
+      "video_slug": "700_snowboarding_9o2tvonlrmu_000003_000013_video-scene-00000_227e207a",
+      "video_path": "/cluster/work/igp_psr/spanwar/datasets/DSI-Bench/videos/std/k700/snowboarding/9o2tVONLRMU_000003_000013/video-scene-00000.mp4"
+    },
+    {
+      "cate": 0,
+      "dataset": "k700",
+      "relative_path": "k700/paragliding/95Df0yxIGbw_000076_000086/video-scene-00000.mp4",
+      "video_type": "1.0",
+      "question": "In this video clip, how is the paragliding's location moving in the 3D scene relative to his/her/its starting orientation and location?",
+      "options": {
+        "A": "Moving forward-right",
+        "B": "Moving backward-left",
+        "C": "Moving backward-right",
+        "D": "Moving forward-left"
+      },
+      "gt": "A",
+      "others": "1-3",
+      "csv_row_index": 190,
+      "category_name": "Obj:static cam",
+      "option_letters": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "question_id": "k700_c0_k700_paragliding_95df0yxigbw_000076_000086_video-scene-00000_a1d4095b",
+      "video_slug": "k700_paragliding_95df0yxigbw_000076_000086_video-scene-00000_a1d4095b",
+      "video_path": "/cluster/work/igp_psr/spanwar/datasets/DSI-Bench/videos/std/k700/paragliding/95Df0yxIGbw_000076_000086/video-scene-00000.mp4"
+    },
+    {
+      "cate": 1,
+      "dataset": "k700",
+      "relative_path": "k700/playing polo/J7j8_hz_hx8_000018_000028/video-scene-00001.mp4",
+      "video_type": "1.0",
+      "question": "In this video clip, how is the horse's location moving in the 3D scene relative to his/her/its starting orientation and location?",
+      "options": {
+        "A": "Moving backward",
+        "B": "Moving right",
+        "C": "Moving left",
+        "D": "Moving forward"
+      },
+      "gt": "D",
+      "others": "0-3s",
+      "csv_row_index": 197,
+      "category_name": "Obj:moving cam",
+      "option_letters": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "question_id": "k700_c1_700_playing_polo_j7j8_hz_hx8_000018_000028_video-scene-00001_68f048f4",
+      "video_slug": "700_playing_polo_j7j8_hz_hx8_000018_000028_video-scene-00001_68f048f4",
+      "video_path": "/cluster/work/igp_psr/spanwar/datasets/DSI-Bench/videos/std/k700/playing polo/J7j8_hz_hx8_000018_000028/video-scene-00001.mp4"
+    },
+    {
+      "cate": 4,
+      "dataset": "llava178k",
+      "relative_path": "llava178k/0_30_s_youtube_v0_1/liwei_youtube_videos/videos/youtube_video_2024/ytb_PCj0xJV7GI0/video-scene-00002.mp4",
+      "video_type": "1.0",
+      "question": "How does the distance between the observer and the car change in this video?",
+      "options": {
+        "A": "Get farther",
+        "B": "Remain unchanged",
+        "C": "Cannot be determined",
+        "D": "Get closer"
+      },
+      "gt": "D",
+      "others": "",
+      "csv_row_index": 1614,
+      "category_name": "Obj-Cam distance",
+      "option_letters": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "question_id": "llava178k_c4_videos_youtube_video_2024_ytb_pcj0xjv7gi0_video-scene-00002_b63a5bf6",
+      "video_slug": "videos_youtube_video_2024_ytb_pcj0xjv7gi0_video-scene-00002_b63a5bf6",
+      "video_path": "/cluster/work/igp_psr/spanwar/datasets/DSI-Bench/videos/std/llava178k/0_30_s_youtube_v0_1/liwei_youtube_videos/videos/youtube_video_2024/ytb_PCj0xJV7GI0/video-scene-00002.mp4"
+    },
+    {
+      "cate": 5,
+      "dataset": "llava178k",
+      "relative_path": "llava178k/0_30_s_youtube_v0_1/liwei_youtube_videos/videos/youtube_video_2024/ytb_16mZjk4AOJs/video-scene-00000.mp4",
+      "video_type": "1.0",
+      "question": "In this video, how does the observer's position change relative to the harvester's own orientation?",
+      "options": {
+        "A": "from harvester's front to right",
+        "B": "from harvester's left to front",
+        "C": "from harvester's left to back",
+        "D": "from harvester's right to back"
+      },
+      "gt": "B",
+      "others": "",
+      "csv_row_index": 1720,
+      "category_name": "Obj-Cam orientation",
+      "option_letters": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "question_id": "llava178k_c5_videos_youtube_video_2024_ytb_16mzjk4aojs_video-scene-00000_b36d2eb1",
+      "video_slug": "videos_youtube_video_2024_ytb_16mzjk4aojs_video-scene-00000_b36d2eb1",
+      "video_path": "/cluster/work/igp_psr/spanwar/datasets/DSI-Bench/videos/std/llava178k/0_30_s_youtube_v0_1/liwei_youtube_videos/videos/youtube_video_2024/ytb_16mZjk4AOJs/video-scene-00000.mp4"
+    },
+    {
+      "cate": 0,
+      "dataset": "llava178k",
+      "relative_path": "llava178k/0_30_s_youtube_v0_1/liwei_youtube_videos/videos/youtube_video_2024/ytb_dJAUt-hx2iU/video-scene-00000.mp4",
+      "video_type": "1.0",
+      "question": "In this video clip, how is the car's location moving in the 3D scene relative to his/her/its starting orientation and location?",
+      "options": {
+        "A": "Moving left",
+        "B": "Moving forward",
+        "C": "Moving backward",
+        "D": "Moving right"
+      },
+      "gt": "B",
+      "others": "",
+      "csv_row_index": 304,
+      "category_name": "Obj:static cam",
+      "option_letters": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "question_id": "llava178k_c0_videos_youtube_video_2024_ytb_djaut-hx2iu_video-scene-00000_bf9d0572",
+      "video_slug": "videos_youtube_video_2024_ytb_djaut-hx2iu_video-scene-00000_bf9d0572",
+      "video_path": "/cluster/work/igp_psr/spanwar/datasets/DSI-Bench/videos/std/llava178k/0_30_s_youtube_v0_1/liwei_youtube_videos/videos/youtube_video_2024/ytb_dJAUt-hx2iU/video-scene-00000.mp4"
+    },
+    {
+      "cate": 1,
+      "dataset": "llava178k",
+      "relative_path": "llava178k/0_30_s_youtube_v0_1/liwei_youtube_videos/videos/youtube_video_2024/ytb_PZg1hDiWFYk/video-scene-00002.mp4",
+      "video_type": "1.0",
+      "question": "In this video clip, how is the man's location moving in the 3D scene relative to his/her/its starting orientation and location?",
+      "options": {
+        "A": "Moving downward",
+        "B": "Moving upward",
+        "C": "Moving backward",
+        "D": "Basically unchange"
+      },
+      "gt": "A",
+      "others": "",
+      "csv_row_index": 283,
+      "category_name": "Obj:moving cam",
+      "option_letters": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "question_id": "llava178k_c1_videos_youtube_video_2024_ytb_pzg1hdiwfyk_video-scene-00002_fb3c4084",
+      "video_slug": "videos_youtube_video_2024_ytb_pzg1hdiwfyk_video-scene-00002_fb3c4084",
+      "video_path": "/cluster/work/igp_psr/spanwar/datasets/DSI-Bench/videos/std/llava178k/0_30_s_youtube_v0_1/liwei_youtube_videos/videos/youtube_video_2024/ytb_PZg1hDiWFYk/video-scene-00002.mp4"
+    },
+    {
+      "cate": 2,
+      "dataset": "llava178k",
+      "relative_path": "llava178k/0_30_s_youtube_v0_1/liwei_youtube_videos/videos/youtube_video_2024/ytb_OpT9L_7g68M/video-scene-00004.mp4",
+      "video_type": "1.0",
+      "question": "In this video clip, relative to its starting orientation and location, how is the observer's location moving?",
+      "options": {
+        "A": "Orbiting clockwise",
+        "B": "Orbiting counterclockwise",
+        "C": "Moving forward",
+        "D": "Moving forward-right"
+      },
+      "gt": "B",
+      "others": "",
+      "csv_row_index": 1096,
+      "category_name": "Cam:static scene",
+      "option_letters": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "question_id": "llava178k_c2_videos_youtube_video_2024_ytb_opt9l_7g68m_video-scene-00004_11dfd093",
+      "video_slug": "videos_youtube_video_2024_ytb_opt9l_7g68m_video-scene-00004_11dfd093",
+      "video_path": "/cluster/work/igp_psr/spanwar/datasets/DSI-Bench/videos/std/llava178k/0_30_s_youtube_v0_1/liwei_youtube_videos/videos/youtube_video_2024/ytb_OpT9L_7g68M/video-scene-00004.mp4"
+    }
+  ]
+}
