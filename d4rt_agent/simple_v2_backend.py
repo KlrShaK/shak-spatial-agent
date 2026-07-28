@@ -22,6 +22,21 @@ DEFAULT_D4RT_DIR = Path("checkpoints/OpenD4RT_32CLIP_9Dataset_NoAUG")
 DEFAULT_D4RT_CONFIG = DEFAULT_D4RT_DIR / "model.yaml"
 DEFAULT_D4RT_CHECKPOINT = DEFAULT_D4RT_DIR / "opend4rt.ckpt"
 
+# How `benchmark_scale` was obtained.  The default describes the WorldTrack demo
+# bundles, whose scale comes from ground truth.  Benchmarks without ground truth
+# pass their own string rather than inherit a claim that is not true of them.
+DEFAULT_ALIGNMENT_TYPE = "gt_derived_global_median_scale"
+
+# Appended to every query result, so the frame a position lives in travels with
+# the position itself.  The default forbids all cross-frame combination, which is
+# right when every measurement is a displacement inside one frame.  Benchmarks
+# that must compare distances taken from different vantage points supply the
+# more precise scalar-versus-vector rule instead.
+DEFAULT_CROSS_FRAME_NOTE = (
+    "Do not combine these positions with positions from a query that used a "
+    "different t_cam."
+)
+
 
 def _json_vector(array: np.ndarray) -> list[float]:
     return [float(value) for value in np.asarray(array, dtype=np.float64).tolist()]
@@ -48,6 +63,8 @@ class LiveD4RTBackend:
         device: str = "cuda",
         dtype: str = "bfloat16",
         query_chunk_size: int = 256,
+        alignment_type: str = DEFAULT_ALIGNMENT_TYPE,
+        cross_frame_note: str = DEFAULT_CROSS_FRAME_NOTE,
     ) -> None:
         import torch
 
@@ -63,9 +80,14 @@ class LiveD4RTBackend:
 
         self.torch = torch
         self._run_model_for_queries = self._import_query_runner()
-        self.sampled_video = sampled_video
+        # Held on the instance so rebind_video can re-encode a new clip without
+        # re-importing, and without reloading the 14 GB checkpoint.
+        self._resize_video = _resize_video
+        self._encode_model_memory = _encode_model_memory
         self.point_mode = point_mode
         self.benchmark_scale = float(benchmark_scale)
+        self.alignment_type = str(alignment_type)
+        self.cross_frame_note = str(cross_frame_note)
         self.model_config_path = Path(model_config)
         self.checkpoint_path = Path(checkpoint)
         self.query_chunk_size = max(1, int(query_chunk_size))
@@ -128,27 +150,52 @@ class LiveD4RTBackend:
         if int(_model_clip_frames(self.model)) != NUM_SAMPLED_FRAMES:
             raise RuntimeError("loaded D4RT model does not expose a 32-frame query embedding")
 
-        resized = _resize_video(sampled_video.frames_rgb, image_hw=self.model_image_hw)
+        self.encoding_count = 0
+        self.rebind_video(sampled_video)
+
+    def rebind_video(self, sampled_video: SampledVideo) -> None:
+        """Point this backend at another clip, reusing the loaded model.
+
+        Encoding a new clip costs seconds; loading the checkpoint costs minutes,
+        so evaluating many videos in one process depends on this staying separate
+        from ``__init__``.  The previous encoding is released before the next one
+        is built, so peak memory never holds two.
+        """
+
+        if sampled_video.frames_rgb.shape[0] != NUM_SAMPLED_FRAMES:
+            raise ValueError("live D4RT backend requires exactly 32 sampled frames")
+
+        for attribute in ("memory", "video_tensor", "aspect_tensor"):
+            if hasattr(self, attribute):
+                delattr(self, attribute)
+        gc.collect()
+        if self.device.type == "cuda":
+            self.torch.cuda.empty_cache()
+
+        # Reassigned, not just re-encoded: query() reads width/height off this to
+        # turn a [0,1000] box into pixels, and clips differ in resolution.
+        self.sampled_video = sampled_video
+        resized = self._resize_video(sampled_video.frames_rgb, image_hw=self.model_image_hw)
         self.video_tensor = (
-            torch.from_numpy(resized)
+            self.torch.from_numpy(resized)
             .to(device=self.device, dtype=self.dtype)
             .permute(0, 3, 1, 2)
             .unsqueeze(0)
             / 255.0
         )
         aspect_value = float(sampled_video.width) / float(max(1, sampled_video.height))
-        self.aspect_tensor = torch.tensor(
+        self.aspect_tensor = self.torch.tensor(
             [[aspect_value]], device=self.device, dtype=self.dtype
         )
-        with torch.inference_mode(), self._autocast_context():
-            self.memory = _encode_model_memory(
+        with self.torch.inference_mode(), self._autocast_context():
+            self.memory = self._encode_model_memory(
                 model=self.model,
                 video_b=self.video_tensor,
                 aspect_b=self.aspect_tensor,
             )
         if self.memory is None:
             raise RuntimeError("D4RT model does not support cached video encoding")
-        self.encoding_count = 1
+        self.encoding_count += 1
 
     def _autocast_context(self):
         """Keep mixed-dtype Fourier/query layers valid during reduced-precision inference."""
@@ -175,7 +222,7 @@ class LiveD4RTBackend:
             "encoded_frames": NUM_SAMPLED_FRAMES,
             "encoding_count": self.encoding_count,
             "benchmark_alignment": {
-                "type": "gt_derived_global_median_scale",
+                "type": self.alignment_type,
                 "scale": self.benchmark_scale,
             },
             "checkpoint_load": self.load_diagnostics,
@@ -285,8 +332,7 @@ class LiveD4RTBackend:
             "coordinate_frame": (
                 f"Positions are expressed in the camera frame of sampled frame {int(t_cam)} "
                 "(OpenCV axes: +x right, +y down, +z forward; origin at that camera). "
-                "Do not combine these positions with positions from a query that used a "
-                "different t_cam."
+                f"{self.cross_frame_note}"
             ),
             "query_points": points,
             "predictions": predictions,
@@ -294,7 +340,7 @@ class LiveD4RTBackend:
             "math_visibility": visibility,
             "visibility_coverage": float(sum(visibility) / len(visibility)),
             "benchmark_alignment": {
-                "type": "gt_derived_global_median_scale",
+                "type": self.alignment_type,
                 "scale": self.benchmark_scale,
             },
         }

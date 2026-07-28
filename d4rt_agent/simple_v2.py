@@ -311,11 +311,36 @@ class SimpleV2Orchestrator:
         backend: LiveD4RTBackend,
         sampled_video: SampledVideo,
         max_steps: int = 12,
+        system_prompt: str | None = None,
     ) -> None:
         self.qwen = qwen
         self.backend = backend
         self.sampled_video = sampled_video
         self.max_steps = max(1, int(max_steps))
+        self.system_prompt = SYSTEM_PROMPT if system_prompt is None else system_prompt
+
+    def _validate_final(
+        self,
+        task: Mapping[str, Any],
+        arguments: dict[str, Any],
+        evidence: Mapping[str, dict[str, Any]],
+    ) -> None:
+        """Check a final answer against the evidence recorded for this task.
+
+        Subclasses serving other benchmarks override this to impose their own
+        evidence rules; the metric pipeline keeps the task-id-keyed rules.
+        """
+
+        _validate_final_evidence(task["id"], arguments, evidence)
+
+    def _step_notice(self, step: int) -> str | None:
+        """Optional message appended after each step, e.g. a remaining-step warning.
+
+        Returning ``None`` leaves the conversation untouched, which is the
+        behaviour every caller had before this hook existed.
+        """
+
+        return None
 
     def solve(self, task: dict[str, str]) -> dict[str, Any]:
         from PIL import Image
@@ -345,7 +370,7 @@ class SimpleV2Orchestrator:
             ),
         })
         messages: list[dict[str, Any]] = [
-            {"role": "system", "content": [{"type": "text", "text": SYSTEM_PROMPT}]},
+            {"role": "system", "content": [{"type": "text", "text": self.system_prompt}]},
             {"role": "user", "content": initial_content},
         ]
         trace: list[dict[str, Any]] = []
@@ -367,7 +392,7 @@ class SimpleV2Orchestrator:
                 name, arguments = validate_action(parsed)
                 attempt["parsed_action"] = {"action": name, "arguments": arguments}
                 if name == "final_answer":
-                    _validate_final_evidence(task["id"], arguments, evidence)
+                    self._validate_final(task, arguments, evidence)
                     counters["final"] += 1
                     call_id = f"final_{counters['final']}"
                     record = {
@@ -386,7 +411,7 @@ class SimpleV2Orchestrator:
                         "steps": step,
                     }
                 result, response_content, prefix = self._execute_action(
-                    name, arguments, evidence
+                    name, arguments, evidence, step=step
                 )
                 counters[prefix] += 1
                 call_id = f"{prefix}_{counters[prefix]}"
@@ -409,20 +434,24 @@ class SimpleV2Orchestrator:
                         "type": "text",
                         "text": f"Tool result {call_id}: {json.dumps(_redact_host_policy(result))}",
                     })
+                notice = self._step_notice(step)
+                if notice:
+                    response_content.append({"type": "text", "text": notice})
                 messages.append({"role": "user", "content": response_content})
             except (KeyError, TypeError, ValueError) as error:
                 attempt.update(status="rejected", error=str(error))
                 trace.append(attempt)
-                messages.append({
-                    "role": "user",
-                    "content": [{
-                        "type": "text",
-                        "text": (
-                            f"Action rejected: {error}. Return one corrected JSON action using "
-                            "only the supplied schemas."
-                        ),
-                    }],
-                })
+                rejection = [{
+                    "type": "text",
+                    "text": (
+                        f"Action rejected: {error}. Return one corrected JSON action using "
+                        "only the supplied schemas."
+                    ),
+                }]
+                notice = self._step_notice(step)
+                if notice:
+                    rejection.append({"type": "text", "text": notice})
+                messages.append({"role": "user", "content": rejection})
         raise OrchestrationError(
             f"Qwen did not produce a valid final answer in {self.max_steps} steps; "
             f"last trace entry: {trace[-1] if trace else 'none'}",
@@ -435,7 +464,10 @@ class SimpleV2Orchestrator:
         name: str,
         arguments: dict[str, Any],
         evidence: dict[str, dict[str, Any]],
+        step: int | None = None,
     ) -> tuple[dict[str, Any], list[dict[str, Any]] | None, str]:
+        """Run one tool call. ``step`` lets subclasses enforce a step budget."""
+
         if name == "query_d4rt":
             result = self.backend.query(
                 label=arguments["label"],
