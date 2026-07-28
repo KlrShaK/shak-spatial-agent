@@ -1,7 +1,7 @@
 """Matched ground truth, scoring, and aggregation for simple v2.
 
-Ground truth is loaded from the original WorldTrack NPZ.  This file never imports
-``DemoGeometry`` and never reads D4RT predictions from ``demo_data.json``.
+Ground truth is loaded from the original WorldTrack NPZ. Predicted trajectories
+from ``demo_data.json`` are never used for inference or scoring.
 """
 
 from __future__ import annotations
@@ -424,35 +424,6 @@ def aggregate_files(
             "centroid_error_m": c["absolute_error_m"],
             "ensemble5_error_m": e["absolute_error_m"],
         })
-    baseline_paths = {
-        "v1": Path("d4rt_agent/results/basketball_6/aggregate.json"),
-        "pure_qwen": Path("d4rt_agent/results/basketball_6/phase5_direct_vlm.json"),
-        "spatialstack": Path("d4rt_agent/results/basketball_6/phase6_spatialstack.json"),
-    }
-    baseline_records: dict[str, Any] = {}
-    if baseline_paths["v1"].exists():
-        artifact = json.loads(baseline_paths["v1"].read_text())
-        baseline_records["v1"] = {
-            item["id"]: {
-                "estimate_m": item["d4rt_m"],
-                "gt_m": item["gt_m"],
-                "absolute_error_m": item["absolute_error_m"],
-            }
-            for item in artifact.get("geometry_baseline", [])
-        }
-    for name in ("pure_qwen", "spatialstack"):
-        path = baseline_paths[name]
-        if path.exists():
-            artifact = json.loads(path.read_text())
-            baseline_records[name] = {
-                item["id"]: {
-                    "estimate_m": item.get("estimate_m"),
-                    "gt_m": item.get("gt_m"),
-                    "absolute_error_m": item.get("absolute_error_m"),
-                }
-                for item in artifact.get("questions", [])
-            }
-
     def _failures(artifact: dict[str, Any]) -> list[dict[str, Any]]:
         return [
             {
@@ -491,10 +462,6 @@ def aggregate_files(
         "inputs": {"centroid": str(centroid_path), "ensemble5": str(ensemble_path)},
         "sampling": centroid["sampling"],
         "comparison": rows,
-        "baselines": {
-            name: {"artifact": str(path), "results": baseline_records.get(name)}
-            for name, path in baseline_paths.items()
-        },
         "mode_diagnostics": {
             "centroid": {
                 "gpu": centroid.get("gpu"),
@@ -533,23 +500,6 @@ def aggregate_files(
             f"{row['ensemble5_d4rt_m']:.4f} m | {row['gt_m']:.4f} m | "
             f"{row['centroid_error_m']:.4f} m | {row['ensemble5_error_m']:.4f} m |"
         )
-    if baseline_records:
-        lines.extend([
-            "",
-            "## Historical baselines",
-            "",
-            "These use their original Phase 1/5/6 protocols and GT values; v2's primary "
-            "comparison above uses newly matched rounded-frame GT.",
-            "",
-            "| Task | V1 D4RT | Pure Qwen | SpatialStack |",
-            "|---|---:|---:|---:|",
-        ])
-        for task_id in ("endpoint_displacement", "distance_travelled"):
-            values = []
-            for name in ("v1", "pure_qwen", "spatialstack"):
-                value = baseline_records.get(name, {}).get(task_id, {}).get("estimate_m")
-                values.append("-" if value is None else f"{float(value):.4f} m")
-            lines.append(f"| {task_id} | {values[0]} | {values[1]} | {values[2]} |")
     lines.extend(["", result["caveat"], ""])
     report = Path(report_path)
     report.parent.mkdir(parents=True, exist_ok=True)

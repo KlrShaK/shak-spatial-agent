@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Reusable Phase 7 runner. Submit once per immutable host point policy:
+# Reusable live-agent runner. Submit once per immutable host point policy:
 #   sbatch --export=ALL,POINT_MODE=centroid scripts/run_simple_v2_a100.slurm
 #   sbatch --export=ALL,POINT_MODE=ensemble5 scripts/run_simple_v2_a100.slurm
 

@@ -1,4 +1,4 @@
-"""Simple offline Qwen -> live D4RT agent (Phase 7).
+"""Simple offline Qwen -> live D4RT agent.
 
 Examples::
 

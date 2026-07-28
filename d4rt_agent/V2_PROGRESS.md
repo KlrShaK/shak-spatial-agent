@@ -1,4 +1,4 @@
-# Phase 7: Live Qwen–D4RT agent progress
+# Live Qwen–D4RT agent progress
 
 ## Fixed experiment
 
@@ -18,17 +18,16 @@ records it at the run, question, and live-query levels.
 
 | Milestone | Status | Evidence |
 |---|---|---|
-| 7.1 sampling and contracts | implemented | `simple_v2_contracts.py`, CPU tests |
-| 7.2 live D4RT inference | implemented | cached `LiveD4RTBackend`, `--smoke` mode |
-| 7.3 Qwen orchestration | implemented | three-action evidence loop and CPU trace replay |
-| 7.4 two-job evaluation | implemented | reusable `run_simple_v2_a100.slurm` |
-| 7.5 aggregate results | pending GPU artifacts | `--aggregate` validates and compares both runs |
+| Sampling and contracts | implemented | `simple_v2_contracts.py`, CPU tests |
+| Live D4RT inference | implemented | cached `LiveD4RTBackend`, `--smoke` mode |
+| Qwen orchestration | implemented | three-action evidence loop and CPU trace replay |
+| Two-job evaluation | implemented | reusable `run_simple_v2_a100.slurm` |
+| Aggregate results | pending GPU artifacts | `--aggregate` validates and compares both runs |
 
 ## Safety and provenance
 
 - Live predictions come only from `model.encode_video` plus `model.decode_queries`.
-- V2 does not import v1 `DemoGeometry` and does not read predicted tracks from
-  `demo_data.json`.
+- Live inference does not read predicted tracks from `demo_data.json`.
 - Only the bounded metadata prefix is read to recover the existing GT-derived
   global scale. GT trajectories come directly from the WorldTrack NPZ and are
   recomputed at the 32 rounded source-frame indices.

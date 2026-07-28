@@ -1,8 +1,8 @@
 """Cached live D4RT decoder backend for :mod:`d4rt_agent.simple_v2`.
 
-Unlike v1, this module never reads predicted tracks from a demo bundle.  It loads
-the local model/checkpoint, encodes the shared 32-frame clip once, and serves every
-agent query from that cached video memory.
+This module never reads predicted tracks from a demo bundle. It loads the local
+model/checkpoint, encodes the shared 32-frame clip once, and serves every agent
+query from that cached video memory.
 """
 
 from __future__ import annotations

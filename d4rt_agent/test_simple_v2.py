@@ -788,8 +788,10 @@ class AggregateTest(unittest.TestCase):
             result = aggregate_files(centroid, ensemble, output, report)
             self.assertEqual(result["status"], "complete")
             self.assertEqual(len(result["comparison"]), 2)
+            self.assertNotIn("baselines", result)
             self.assertTrue(output.exists())
             self.assertIn("Centroid D4RT", report.read_text())
+            self.assertNotIn("Historical baselines", report.read_text())
 
     def test_unscored_answer_does_not_break_aggregation(self) -> None:
         """An open-ended question rides along without measurement diagnostics."""
