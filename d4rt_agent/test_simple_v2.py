@@ -35,9 +35,6 @@ from d4rt_agent.simple_v2_eval import (
     merge_d4rt_results,
     score_question,
 )
-from d4rt_agent.simple_v2_30b import QWEN_30B_MODEL_ID, prepare_30b_arguments
-
-
 class SamplingContractTest(unittest.TestCase):
     def test_exact_rounded_32_frame_contract(self) -> None:
         indices = uniform_sample_indices(64)
@@ -195,20 +192,6 @@ class ActionContractTest(unittest.TestCase):
             merge_d4rt_results([_result(0, 5), _result(25, 24)])
         with self.assertRaisesRegex(ValueError, "missing t_cam"):
             merge_d4rt_results([{"point_mode": "centroid", "t_tgt": [5], "predictions": []}])
-
-    def test_30b_entry_point_injects_and_enforces_model(self) -> None:
-        arguments = prepare_30b_arguments(["--point-mode", "ensemble5"])
-        self.assertEqual(arguments[-2:], ["--qwen-model", QWEN_30B_MODEL_ID])
-        cached = (
-            "/cache/models--Qwen--Qwen3-VL-30B-A3B-Instruct/"
-            "snapshots/revision"
-        )
-        self.assertEqual(
-            prepare_30b_arguments(["--qwen-model", cached]),
-            ["--qwen-model", cached],
-        )
-        with self.assertRaisesRegex(ValueError, "requires Qwen/Qwen3-VL-30B"):
-            prepare_30b_arguments(["--qwen-model", "Qwen/Qwen3-VL-8B-Instruct"])
 
     def test_qwen_cannot_emit_point_mode(self) -> None:
         with self.assertRaisesRegex(ValueError, "never select or emit"):

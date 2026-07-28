@@ -17,17 +17,6 @@ python -m d4rt_agent.simple_v2 --point-mode centroid
 python -m d4rt_agent.simple_v2 --point-mode ensemble5
 ```
 
-The dedicated 30B-A3B experiment reuses the same contracts while enforcing the
-larger model and direct CUDA placement:
-
-```bash
-python -m d4rt_agent.simple_v2_30b --point-mode ensemble5
-sbatch --export=ALL,POINT_MODE=ensemble5 scripts/run_simple_v2_30b_blackwell.slurm
-```
-
-Its logs and result artifacts use a `simple_v2_30b` prefix and cannot overwrite the
-8B experiment.
-
 Both modes use `round(linspace(0, N - 1, 32))`; sampled frames are numbered
 `0-31` for both Qwen and D4RT and every artifact preserves the mapping to original
 video frames. Videos shorter than 32 frames are rejected. The live backend encodes
