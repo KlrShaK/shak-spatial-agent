@@ -1,0 +1,190 @@
+{
+  "phase": "qwen_grounding_debug",
+  "created_at": "2026-07-28T13:40:17.739200+00:00",
+  "probe_id": "llava178k_c5_videos_youtube_video_2024_ytb_16mzjk4aojs_video-scene-00000_b36d2eb1_f00_435ac26d09cc",
+  "question_id": "llava178k_c5_videos_youtube_video_2024_ytb_16mzjk4aojs_video-scene-00000_b36d2eb1",
+  "dataset": "llava178k",
+  "category_name": "Obj-Cam orientation",
+  "video_path": "/cluster/work/igp_psr/spanwar/datasets/DSI-Bench/videos/std/llava178k/0_30_s_youtube_v0_1/liwei_youtube_videos/videos/youtube_video_2024/ytb_16mZjk4AOJs/video-scene-00000.mp4",
+  "sampling": {
+    "contract": "round(linspace(0, N - 1, 32))",
+    "decoded_on": "CPU",
+    "video": "/cluster/work/igp_psr/spanwar/datasets/DSI-Bench/videos/std/llava178k/0_30_s_youtube_v0_1/liwei_youtube_videos/videos/youtube_video_2024/ytb_16mZjk4AOJs/video-scene-00000.mp4",
+    "total_original_frames": 190,
+    "num_sampled_frames": 32,
+    "fps": 29.97002997002997,
+    "width": 360,
+    "height": 640,
+    "sampled_to_original": [
+      {
+        "sampled_frame": 0,
+        "original_frame": 0
+      },
+      {
+        "sampled_frame": 1,
+        "original_frame": 6
+      },
+      {
+        "sampled_frame": 2,
+        "original_frame": 12
+      },
+      {
+        "sampled_frame": 3,
+        "original_frame": 18
+      },
+      {
+        "sampled_frame": 4,
+        "original_frame": 24
+      },
+      {
+        "sampled_frame": 5,
+        "original_frame": 30
+      },
+      {
+        "sampled_frame": 6,
+        "original_frame": 37
+      },
+      {
+        "sampled_frame": 7,
+        "original_frame": 43
+      },
+      {
+        "sampled_frame": 8,
+        "original_frame": 49
+      },
+      {
+        "sampled_frame": 9,
+        "original_frame": 55
+      },
+      {
+        "sampled_frame": 10,
+        "original_frame": 61
+      },
+      {
+        "sampled_frame": 11,
+        "original_frame": 67
+      },
+      {
+        "sampled_frame": 12,
+        "original_frame": 73
+      },
+      {
+        "sampled_frame": 13,
+        "original_frame": 79
+      },
+      {
+        "sampled_frame": 14,
+        "original_frame": 85
+      },
+      {
+        "sampled_frame": 15,
+        "original_frame": 91
+      },
+      {
+        "sampled_frame": 16,
+        "original_frame": 98
+      },
+      {
+        "sampled_frame": 17,
+        "original_frame": 104
+      },
+      {
+        "sampled_frame": 18,
+        "original_frame": 110
+      },
+      {
+        "sampled_frame": 19,
+        "original_frame": 116
+      },
+      {
+        "sampled_frame": 20,
+        "original_frame": 122
+      },
+      {
+        "sampled_frame": 21,
+        "original_frame": 128
+      },
+      {
+        "sampled_frame": 22,
+        "original_frame": 134
+      },
+      {
+        "sampled_frame": 23,
+        "original_frame": 140
+      },
+      {
+        "sampled_frame": 24,
+        "original_frame": 146
+      },
+      {
+        "sampled_frame": 25,
+        "original_frame": 152
+      },
+      {
+        "sampled_frame": 26,
+        "original_frame": 159
+      },
+      {
+        "sampled_frame": 27,
+        "original_frame": 165
+      },
+      {
+        "sampled_frame": 28,
+        "original_frame": 171
+      },
+      {
+        "sampled_frame": 29,
+        "original_frame": 177
+      },
+      {
+        "sampled_frame": 30,
+        "original_frame": 183
+      },
+      {
+        "sampled_frame": 31,
+        "original_frame": 189
+      }
+    ]
+  },
+  "label": "back of harvester",
+  "t_src": 0,
+  "original_frame": 0,
+  "agent_bboxes_2d_1000": [
+    [
+      300.0,
+      300.0,
+      400.0,
+      400.0
+    ]
+  ],
+  "occurrence_ids": [
+    "llava178k_c5_videos_youtube_video_2024_ytb_16mzjk4aojs_video-scene-00000_b36d2eb1:step_03"
+  ],
+  "prompt": "Ground the target named \"back of harvester\" in this image inside one tight bounding box.\n\nReturn exactly one JSON object and no other text:\n{\"bbox_2d_1000\":[x_min,y_min,x_max,y_max]}\n\nFollow the agent's coordinate convention: normalize every bounding-box coordinate\nto an integer from 0 to 1000, with origin at the top-left of the image. If the\nnamed target is not visible, return {\"bbox_2d_1000\":null}.",
+  "qwen_model": "/cluster/work/igp_psr/spanwar/hf_cache/hub/models--Qwen--Qwen3-VL-8B-Instruct/snapshots/0c351dd01ed87e9c1b53cbc748cba10e6187ff3b",
+  "status": "complete",
+  "raw_qwen_response": "{\"bbox_2d_1000\": [388, 202, 875, 375]}",
+  "detected_bbox_2d_1000": [
+    388.0,
+    202.0,
+    875.0,
+    375.0
+  ],
+  "metrics": {
+    "comparisons": [
+      {
+        "agent_bbox_2d_1000": [
+          300.0,
+          300.0,
+          400.0,
+          400.0
+        ],
+        "iou": 0.009641032233184433,
+        "center_distance_1000": 288.1397230511614
+      }
+    ],
+    "max_iou": 0.009641032233184433,
+    "min_center_distance_1000": 288.1397230511614
+  },
+  "wall_seconds": 1.176
+}

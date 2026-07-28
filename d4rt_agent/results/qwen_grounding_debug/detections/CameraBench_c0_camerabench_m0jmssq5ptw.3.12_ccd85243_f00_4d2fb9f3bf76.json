@@ -1,0 +1,190 @@
+{
+  "phase": "qwen_grounding_debug",
+  "created_at": "2026-07-28T13:36:19.157923+00:00",
+  "probe_id": "CameraBench_c0_camerabench_m0jmssq5ptw.3.12_ccd85243_f00_4d2fb9f3bf76",
+  "question_id": "CameraBench_c0_camerabench_m0jmssq5ptw.3.12_ccd85243",
+  "dataset": "CameraBench",
+  "category_name": "Obj:static cam",
+  "video_path": "/cluster/work/igp_psr/spanwar/datasets/DSI-Bench/videos/std/CameraBench/M0jmSsQ5ptw.3.12.mp4",
+  "sampling": {
+    "contract": "round(linspace(0, N - 1, 32))",
+    "decoded_on": "CPU",
+    "video": "/cluster/work/igp_psr/spanwar/datasets/DSI-Bench/videos/std/CameraBench/M0jmSsQ5ptw.3.12.mp4",
+    "total_original_frames": 42,
+    "num_sampled_frames": 32,
+    "fps": 14.0,
+    "width": 480,
+    "height": 270,
+    "sampled_to_original": [
+      {
+        "sampled_frame": 0,
+        "original_frame": 0
+      },
+      {
+        "sampled_frame": 1,
+        "original_frame": 1
+      },
+      {
+        "sampled_frame": 2,
+        "original_frame": 3
+      },
+      {
+        "sampled_frame": 3,
+        "original_frame": 4
+      },
+      {
+        "sampled_frame": 4,
+        "original_frame": 5
+      },
+      {
+        "sampled_frame": 5,
+        "original_frame": 7
+      },
+      {
+        "sampled_frame": 6,
+        "original_frame": 8
+      },
+      {
+        "sampled_frame": 7,
+        "original_frame": 9
+      },
+      {
+        "sampled_frame": 8,
+        "original_frame": 11
+      },
+      {
+        "sampled_frame": 9,
+        "original_frame": 12
+      },
+      {
+        "sampled_frame": 10,
+        "original_frame": 13
+      },
+      {
+        "sampled_frame": 11,
+        "original_frame": 15
+      },
+      {
+        "sampled_frame": 12,
+        "original_frame": 16
+      },
+      {
+        "sampled_frame": 13,
+        "original_frame": 17
+      },
+      {
+        "sampled_frame": 14,
+        "original_frame": 19
+      },
+      {
+        "sampled_frame": 15,
+        "original_frame": 20
+      },
+      {
+        "sampled_frame": 16,
+        "original_frame": 21
+      },
+      {
+        "sampled_frame": 17,
+        "original_frame": 22
+      },
+      {
+        "sampled_frame": 18,
+        "original_frame": 24
+      },
+      {
+        "sampled_frame": 19,
+        "original_frame": 25
+      },
+      {
+        "sampled_frame": 20,
+        "original_frame": 26
+      },
+      {
+        "sampled_frame": 21,
+        "original_frame": 28
+      },
+      {
+        "sampled_frame": 22,
+        "original_frame": 29
+      },
+      {
+        "sampled_frame": 23,
+        "original_frame": 30
+      },
+      {
+        "sampled_frame": 24,
+        "original_frame": 32
+      },
+      {
+        "sampled_frame": 25,
+        "original_frame": 33
+      },
+      {
+        "sampled_frame": 26,
+        "original_frame": 34
+      },
+      {
+        "sampled_frame": 27,
+        "original_frame": 36
+      },
+      {
+        "sampled_frame": 28,
+        "original_frame": 37
+      },
+      {
+        "sampled_frame": 29,
+        "original_frame": 38
+      },
+      {
+        "sampled_frame": 30,
+        "original_frame": 40
+      },
+      {
+        "sampled_frame": 31,
+        "original_frame": 41
+      }
+    ]
+  },
+  "label": "runner",
+  "t_src": 0,
+  "original_frame": 0,
+  "agent_bboxes_2d_1000": [
+    [
+      480.0,
+      300.0,
+      540.0,
+      620.0
+    ]
+  ],
+  "occurrence_ids": [
+    "CameraBench_c0_camerabench_m0jmssq5ptw.3.12_ccd85243:step_01"
+  ],
+  "prompt": "Ground the target named \"runner\" in this image inside one tight bounding box.\n\nReturn exactly one JSON object and no other text:\n{\"bbox_2d_1000\":[x_min,y_min,x_max,y_max]}\n\nFollow the agent's coordinate convention: normalize every bounding-box coordinate\nto an integer from 0 to 1000, with origin at the top-left of the image. If the\nnamed target is not visible, return {\"bbox_2d_1000\":null}.",
+  "qwen_model": "/cluster/work/igp_psr/spanwar/hf_cache/hub/models--Qwen--Qwen3-VL-8B-Instruct/snapshots/0c351dd01ed87e9c1b53cbc748cba10e6187ff3b",
+  "status": "complete",
+  "raw_qwen_response": "{\"bbox_2d_1000\": [447, 350, 475, 440]}",
+  "detected_bbox_2d_1000": [
+    447.0,
+    350.0,
+    475.0,
+    440.0
+  ],
+  "metrics": {
+    "comparisons": [
+      {
+        "agent_bbox_2d_1000": [
+          480.0,
+          300.0,
+          540.0,
+          620.0
+        ],
+        "iou": 0.0,
+        "center_distance_1000": 81.40024569987489
+      }
+    ],
+    "max_iou": 0.0,
+    "min_center_distance_1000": 81.40024569987489
+  },
+  "wall_seconds": 123.709
+}

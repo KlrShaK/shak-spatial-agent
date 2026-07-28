@@ -1,0 +1,190 @@
+{
+  "phase": "qwen_grounding_debug",
+  "created_at": "2026-07-28T13:39:01.439084+00:00",
+  "probe_id": "SynFMC_c5_synfmc_rendered_traj_results_dynamic_14_video_480p_72d9da62_f00_7967041cf8a7",
+  "question_id": "SynFMC_c5_synfmc_rendered_traj_results_dynamic_14_video_480p_72d9da62",
+  "dataset": "SynFMC",
+  "category_name": "Obj-Cam orientation",
+  "video_path": "/cluster/work/igp_psr/spanwar/datasets/DSI-Bench/videos/std/SynFMC/Rendered_Traj_Results/dynamic/14/video_480p.mp4",
+  "sampling": {
+    "contract": "round(linspace(0, N - 1, 32))",
+    "decoded_on": "CPU",
+    "video": "/cluster/work/igp_psr/spanwar/datasets/DSI-Bench/videos/std/SynFMC/Rendered_Traj_Results/dynamic/14/video_480p.mp4",
+    "total_original_frames": 72,
+    "num_sampled_frames": 32,
+    "fps": 24.0,
+    "width": 720,
+    "height": 480,
+    "sampled_to_original": [
+      {
+        "sampled_frame": 0,
+        "original_frame": 0
+      },
+      {
+        "sampled_frame": 1,
+        "original_frame": 2
+      },
+      {
+        "sampled_frame": 2,
+        "original_frame": 5
+      },
+      {
+        "sampled_frame": 3,
+        "original_frame": 7
+      },
+      {
+        "sampled_frame": 4,
+        "original_frame": 9
+      },
+      {
+        "sampled_frame": 5,
+        "original_frame": 11
+      },
+      {
+        "sampled_frame": 6,
+        "original_frame": 14
+      },
+      {
+        "sampled_frame": 7,
+        "original_frame": 16
+      },
+      {
+        "sampled_frame": 8,
+        "original_frame": 18
+      },
+      {
+        "sampled_frame": 9,
+        "original_frame": 21
+      },
+      {
+        "sampled_frame": 10,
+        "original_frame": 23
+      },
+      {
+        "sampled_frame": 11,
+        "original_frame": 25
+      },
+      {
+        "sampled_frame": 12,
+        "original_frame": 27
+      },
+      {
+        "sampled_frame": 13,
+        "original_frame": 30
+      },
+      {
+        "sampled_frame": 14,
+        "original_frame": 32
+      },
+      {
+        "sampled_frame": 15,
+        "original_frame": 34
+      },
+      {
+        "sampled_frame": 16,
+        "original_frame": 37
+      },
+      {
+        "sampled_frame": 17,
+        "original_frame": 39
+      },
+      {
+        "sampled_frame": 18,
+        "original_frame": 41
+      },
+      {
+        "sampled_frame": 19,
+        "original_frame": 44
+      },
+      {
+        "sampled_frame": 20,
+        "original_frame": 46
+      },
+      {
+        "sampled_frame": 21,
+        "original_frame": 48
+      },
+      {
+        "sampled_frame": 22,
+        "original_frame": 50
+      },
+      {
+        "sampled_frame": 23,
+        "original_frame": 53
+      },
+      {
+        "sampled_frame": 24,
+        "original_frame": 55
+      },
+      {
+        "sampled_frame": 25,
+        "original_frame": 57
+      },
+      {
+        "sampled_frame": 26,
+        "original_frame": 60
+      },
+      {
+        "sampled_frame": 27,
+        "original_frame": 62
+      },
+      {
+        "sampled_frame": 28,
+        "original_frame": 64
+      },
+      {
+        "sampled_frame": 29,
+        "original_frame": 66
+      },
+      {
+        "sampled_frame": 30,
+        "original_frame": 69
+      },
+      {
+        "sampled_frame": 31,
+        "original_frame": 71
+      }
+    ]
+  },
+  "label": "man",
+  "t_src": 0,
+  "original_frame": 0,
+  "agent_bboxes_2d_1000": [
+    [
+      380.0,
+      300.0,
+      480.0,
+      620.0
+    ]
+  ],
+  "occurrence_ids": [
+    "SynFMC_c5_synfmc_rendered_traj_results_dynamic_14_video_480p_72d9da62:step_01"
+  ],
+  "prompt": "Ground the target named \"man\" in this image inside one tight bounding box.\n\nReturn exactly one JSON object and no other text:\n{\"bbox_2d_1000\":[x_min,y_min,x_max,y_max]}\n\nFollow the agent's coordinate convention: normalize every bounding-box coordinate\nto an integer from 0 to 1000, with origin at the top-left of the image. If the\nnamed target is not visible, return {\"bbox_2d_1000\":null}.",
+  "qwen_model": "/cluster/work/igp_psr/spanwar/hf_cache/hub/models--Qwen--Qwen3-VL-8B-Instruct/snapshots/0c351dd01ed87e9c1b53cbc748cba10e6187ff3b",
+  "status": "complete",
+  "raw_qwen_response": "{\"bbox_2d_1000\": [400, 296, 467, 585]}",
+  "detected_bbox_2d_1000": [
+    400.0,
+    296.0,
+    467.0,
+    585.0
+  ],
+  "metrics": {
+    "comparisons": [
+      {
+        "agent_bbox_2d_1000": [
+          380.0,
+          300.0,
+          480.0,
+          620.0
+        ],
+        "iou": 0.5917627370769802,
+        "center_distance_1000": 19.81161275615895
+      }
+    ],
+    "max_iou": 0.5917627370769802,
+    "min_center_distance_1000": 19.81161275615895
+  },
+  "wall_seconds": 1.195
+}

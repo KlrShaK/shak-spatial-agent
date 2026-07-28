@@ -1,0 +1,174 @@
+{
+  "phase": "qwen_grounding_debug",
+  "created_at": "2026-07-28T13:39:17.029836+00:00",
+  "probe_id": "internet_c3_internet_4cz3oqlfupm_video-scene-00023_6ef46874_f00_bfe1ef2aa6f3",
+  "question_id": "internet_c3_internet_4cz3oqlfupm_video-scene-00023_6ef46874",
+  "dataset": "internet",
+  "category_name": "Cam:dynamic scene",
+  "video_path": "/cluster/work/igp_psr/spanwar/datasets/DSI-Bench/videos/std/internet/4cZ3OQlfupM/video-scene-00023.mp4",
+  "sampling": {
+    "contract": "round(linspace(0, N - 1, 32))",
+    "decoded_on": "CPU",
+    "video": "/cluster/work/igp_psr/spanwar/datasets/DSI-Bench/videos/std/internet/4cZ3OQlfupM/video-scene-00023.mp4",
+    "total_original_frames": 96,
+    "num_sampled_frames": 32,
+    "fps": 23.976023976023978,
+    "width": 640,
+    "height": 360,
+    "sampled_to_original": [
+      {
+        "sampled_frame": 0,
+        "original_frame": 0
+      },
+      {
+        "sampled_frame": 1,
+        "original_frame": 3
+      },
+      {
+        "sampled_frame": 2,
+        "original_frame": 6
+      },
+      {
+        "sampled_frame": 3,
+        "original_frame": 9
+      },
+      {
+        "sampled_frame": 4,
+        "original_frame": 12
+      },
+      {
+        "sampled_frame": 5,
+        "original_frame": 15
+      },
+      {
+        "sampled_frame": 6,
+        "original_frame": 18
+      },
+      {
+        "sampled_frame": 7,
+        "original_frame": 21
+      },
+      {
+        "sampled_frame": 8,
+        "original_frame": 25
+      },
+      {
+        "sampled_frame": 9,
+        "original_frame": 28
+      },
+      {
+        "sampled_frame": 10,
+        "original_frame": 31
+      },
+      {
+        "sampled_frame": 11,
+        "original_frame": 34
+      },
+      {
+        "sampled_frame": 12,
+        "original_frame": 37
+      },
+      {
+        "sampled_frame": 13,
+        "original_frame": 40
+      },
+      {
+        "sampled_frame": 14,
+        "original_frame": 43
+      },
+      {
+        "sampled_frame": 15,
+        "original_frame": 46
+      },
+      {
+        "sampled_frame": 16,
+        "original_frame": 49
+      },
+      {
+        "sampled_frame": 17,
+        "original_frame": 52
+      },
+      {
+        "sampled_frame": 18,
+        "original_frame": 55
+      },
+      {
+        "sampled_frame": 19,
+        "original_frame": 58
+      },
+      {
+        "sampled_frame": 20,
+        "original_frame": 61
+      },
+      {
+        "sampled_frame": 21,
+        "original_frame": 64
+      },
+      {
+        "sampled_frame": 22,
+        "original_frame": 67
+      },
+      {
+        "sampled_frame": 23,
+        "original_frame": 70
+      },
+      {
+        "sampled_frame": 24,
+        "original_frame": 74
+      },
+      {
+        "sampled_frame": 25,
+        "original_frame": 77
+      },
+      {
+        "sampled_frame": 26,
+        "original_frame": 80
+      },
+      {
+        "sampled_frame": 27,
+        "original_frame": 83
+      },
+      {
+        "sampled_frame": 28,
+        "original_frame": 86
+      },
+      {
+        "sampled_frame": 29,
+        "original_frame": 89
+      },
+      {
+        "sampled_frame": 30,
+        "original_frame": 92
+      },
+      {
+        "sampled_frame": 31,
+        "original_frame": 95
+      }
+    ]
+  },
+  "label": "a tree in the center of the frame",
+  "t_src": 0,
+  "original_frame": 0,
+  "agent_bboxes_2d_1000": [
+    [
+      400.0,
+      200.0,
+      500.0,
+      300.0
+    ]
+  ],
+  "occurrence_ids": [
+    "internet_c3_internet_4cz3oqlfupm_video-scene-00023_6ef46874:step_11"
+  ],
+  "prompt": "Ground the target named \"a tree in the center of the frame\" in this image inside one tight bounding box.\n\nReturn exactly one JSON object and no other text:\n{\"bbox_2d_1000\":[x_min,y_min,x_max,y_max]}\n\nFollow the agent's coordinate convention: normalize every bounding-box coordinate\nto an integer from 0 to 1000, with origin at the top-left of the image. If the\nnamed target is not visible, return {\"bbox_2d_1000\":null}.",
+  "qwen_model": "/cluster/work/igp_psr/spanwar/hf_cache/hub/models--Qwen--Qwen3-VL-8B-Instruct/snapshots/0c351dd01ed87e9c1b53cbc748cba10e6187ff3b",
+  "status": "complete",
+  "raw_qwen_response": "{\"bbox_2d_1000\":null}",
+  "detected_bbox_2d_1000": null,
+  "metrics": {
+    "comparisons": [],
+    "max_iou": null,
+    "min_center_distance_1000": null
+  },
+  "wall_seconds": 0.553
+}

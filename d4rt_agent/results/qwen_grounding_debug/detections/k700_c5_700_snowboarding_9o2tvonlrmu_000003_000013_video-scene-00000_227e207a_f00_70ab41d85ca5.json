@@ -1,0 +1,190 @@
+{
+  "phase": "qwen_grounding_debug",
+  "created_at": "2026-07-28T13:40:07.491371+00:00",
+  "probe_id": "k700_c5_700_snowboarding_9o2tvonlrmu_000003_000013_video-scene-00000_227e207a_f00_70ab41d85ca5",
+  "question_id": "k700_c5_700_snowboarding_9o2tvonlrmu_000003_000013_video-scene-00000_227e207a",
+  "dataset": "k700",
+  "category_name": "Obj-Cam orientation",
+  "video_path": "/cluster/work/igp_psr/spanwar/datasets/DSI-Bench/videos/std/k700/snowboarding/9o2tVONLRMU_000003_000013/video-scene-00000.mp4",
+  "sampling": {
+    "contract": "round(linspace(0, N - 1, 32))",
+    "decoded_on": "CPU",
+    "video": "/cluster/work/igp_psr/spanwar/datasets/DSI-Bench/videos/std/k700/snowboarding/9o2tVONLRMU_000003_000013/video-scene-00000.mp4",
+    "total_original_frames": 90,
+    "num_sampled_frames": 32,
+    "fps": 29.97,
+    "width": 1280,
+    "height": 720,
+    "sampled_to_original": [
+      {
+        "sampled_frame": 0,
+        "original_frame": 0
+      },
+      {
+        "sampled_frame": 1,
+        "original_frame": 3
+      },
+      {
+        "sampled_frame": 2,
+        "original_frame": 6
+      },
+      {
+        "sampled_frame": 3,
+        "original_frame": 9
+      },
+      {
+        "sampled_frame": 4,
+        "original_frame": 11
+      },
+      {
+        "sampled_frame": 5,
+        "original_frame": 14
+      },
+      {
+        "sampled_frame": 6,
+        "original_frame": 17
+      },
+      {
+        "sampled_frame": 7,
+        "original_frame": 20
+      },
+      {
+        "sampled_frame": 8,
+        "original_frame": 23
+      },
+      {
+        "sampled_frame": 9,
+        "original_frame": 26
+      },
+      {
+        "sampled_frame": 10,
+        "original_frame": 29
+      },
+      {
+        "sampled_frame": 11,
+        "original_frame": 32
+      },
+      {
+        "sampled_frame": 12,
+        "original_frame": 34
+      },
+      {
+        "sampled_frame": 13,
+        "original_frame": 37
+      },
+      {
+        "sampled_frame": 14,
+        "original_frame": 40
+      },
+      {
+        "sampled_frame": 15,
+        "original_frame": 43
+      },
+      {
+        "sampled_frame": 16,
+        "original_frame": 46
+      },
+      {
+        "sampled_frame": 17,
+        "original_frame": 49
+      },
+      {
+        "sampled_frame": 18,
+        "original_frame": 52
+      },
+      {
+        "sampled_frame": 19,
+        "original_frame": 55
+      },
+      {
+        "sampled_frame": 20,
+        "original_frame": 57
+      },
+      {
+        "sampled_frame": 21,
+        "original_frame": 60
+      },
+      {
+        "sampled_frame": 22,
+        "original_frame": 63
+      },
+      {
+        "sampled_frame": 23,
+        "original_frame": 66
+      },
+      {
+        "sampled_frame": 24,
+        "original_frame": 69
+      },
+      {
+        "sampled_frame": 25,
+        "original_frame": 72
+      },
+      {
+        "sampled_frame": 26,
+        "original_frame": 75
+      },
+      {
+        "sampled_frame": 27,
+        "original_frame": 78
+      },
+      {
+        "sampled_frame": 28,
+        "original_frame": 80
+      },
+      {
+        "sampled_frame": 29,
+        "original_frame": 83
+      },
+      {
+        "sampled_frame": 30,
+        "original_frame": 86
+      },
+      {
+        "sampled_frame": 31,
+        "original_frame": 89
+      }
+    ]
+  },
+  "label": "skier's back",
+  "t_src": 0,
+  "original_frame": 0,
+  "agent_bboxes_2d_1000": [
+    [
+      400.0,
+      250.0,
+      450.0,
+      300.0
+    ]
+  ],
+  "occurrence_ids": [
+    "k700_c5_700_snowboarding_9o2tvonlrmu_000003_000013_video-scene-00000_227e207a:step_03"
+  ],
+  "prompt": "Ground the target named \"skier's back\" in this image inside one tight bounding box.\n\nReturn exactly one JSON object and no other text:\n{\"bbox_2d_1000\":[x_min,y_min,x_max,y_max]}\n\nFollow the agent's coordinate convention: normalize every bounding-box coordinate\nto an integer from 0 to 1000, with origin at the top-left of the image. If the\nnamed target is not visible, return {\"bbox_2d_1000\":null}.",
+  "qwen_model": "/cluster/work/igp_psr/spanwar/hf_cache/hub/models--Qwen--Qwen3-VL-8B-Instruct/snapshots/0c351dd01ed87e9c1b53cbc748cba10e6187ff3b",
+  "status": "complete",
+  "raw_qwen_response": "{\"bbox_2d_1000\": [483, 340, 557, 557]}",
+  "detected_bbox_2d_1000": [
+    483.0,
+    340.0,
+    557.0,
+    557.0
+  ],
+  "metrics": {
+    "comparisons": [
+      {
+        "agent_bbox_2d_1000": [
+          400.0,
+          250.0,
+          450.0,
+          300.0
+        ],
+        "iou": 0.0,
+        "center_distance_1000": 197.8060919183229
+      }
+    ],
+    "max_iou": 0.0,
+    "min_center_distance_1000": 197.8060919183229
+  },
+  "wall_seconds": 1.301
+}
