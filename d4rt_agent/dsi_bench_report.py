@@ -436,13 +436,34 @@ def _question_section(
     return lines
 
 
-def build_report(results_dir: Path, skip_media: bool = False) -> Path:
+def build_report(
+    results_dir: Path,
+    skip_media: bool = False,
+    *,
+    agent_created_after: str | None = None,
+    report_name: str = REPORT_NAME,
+    refresh_groundings: bool = False,
+) -> Path:
     results_dir = Path(results_dir)
     manifest = read_manifest(results_dir / "manifest.json")
     agent = _load_records(results_dir / "answers")
     baseline = _load_records(results_dir / "baseline")
+    if agent_created_after is not None:
+        agent = {
+            question_id: record
+            for question_id, record in agent.items()
+            if str(record.get("created_at", "")) >= agent_created_after
+        }
 
     lines = _header(manifest, agent, baseline)
+    if agent_created_after is not None:
+        lines[1:1] = [
+            "",
+            f"> **Intermediate report:** {len(agent)} / {len(manifest['questions'])} agent "
+            f"records created at or after `{agent_created_after}` are included. Questions "
+            "not yet overwritten by the active run are shown as not run; the baseline is "
+            "the committed control.",
+        ]
     lines += _index_table(manifest, agent, baseline)
     lines += ["## Questions", ""]
 
@@ -457,7 +478,11 @@ def build_report(results_dir: Path, skip_media: bool = False) -> Path:
             gif_path = results_dir / "gifs" / f"{slug}.gif"
             sheet_path = results_dir / "contact_sheets" / f"{slug}.jpg"
             grounding_path = results_dir / "groundings" / f"{slug}.jpg"
-            if not gif_path.exists() or not sheet_path.exists() or not grounding_path.exists():
+            needs_grounding = (
+                agent.get(entry["question_id"]) is not None
+                and (refresh_groundings or not grounding_path.exists())
+            )
+            if not gif_path.exists() or not sheet_path.exists() or needs_grounding:
                 # Re-sampled from the copy: the sampler is deterministic, so these
                 # are exactly the frames both models were shown.
                 sampled = sample_video_cpu(destination)
@@ -465,7 +490,7 @@ def build_report(results_dir: Path, skip_media: bool = False) -> Path:
                     build_gif(sampled.frames_rgb, gif_path)
                 if not sheet_path.exists():
                     build_contact_sheet(sampled.frames_rgb, sheet_path)
-                if not grounding_path.exists():
+                if needs_grounding:
                     build_grounding_sheet(
                         sampled.frames_rgb, agent.get(entry["question_id"]), grounding_path
                     )
@@ -475,7 +500,7 @@ def build_report(results_dir: Path, skip_media: bool = False) -> Path:
             index, entry, agent.get(entry["question_id"]), baseline.get(entry["question_id"])
         )
 
-    report_path = results_dir / REPORT_NAME
+    report_path = results_dir / report_name
     report_path.write_text("\n".join(lines), encoding="utf-8")
     return report_path
 
@@ -486,12 +511,32 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     parser.add_argument(
         "--skip-media", action="store_true", help="rebuild only the markdown, reusing existing media"
     )
+    parser.add_argument(
+        "--agent-created-after",
+        help="include only agent records whose ISO created_at is at or after this value",
+    )
+    parser.add_argument(
+        "--report-name",
+        default=REPORT_NAME,
+        help="output markdown filename inside the results directory",
+    )
+    parser.add_argument(
+        "--refresh-groundings",
+        action="store_true",
+        help="redraw grounding sheets for included agent records even when files exist",
+    )
     return parser.parse_args(argv)
 
 
 def main(argv: Sequence[str] | None = None) -> None:
     args = parse_args(argv)
-    path = build_report(args.results_dir, skip_media=args.skip_media)
+    path = build_report(
+        args.results_dir,
+        skip_media=args.skip_media,
+        agent_created_after=args.agent_created_after,
+        report_name=args.report_name,
+        refresh_groundings=args.refresh_groundings,
+    )
     print(f"Wrote: {path}")
 
 

@@ -428,6 +428,20 @@ class BlindQueryTest(unittest.TestCase):
 class SystemPromptTest(unittest.TestCase):
     PROMPT = SYSTEM_PROMPT_PATH.read_text(encoding="utf-8")
 
+    def test_prompt_requires_visual_grounding_before_queries(self) -> None:
+        self.assertIn("Mandatory visual grounding declaration", self.PROMPT)
+        self.assertIn("GROUNDING g1:", self.PROMPT)
+        self.assertIn("visual evidence", self.PROMPT)
+        self.assertIn("must match the immediately following", self.PROMPT)
+        self.assertIn("normalized 0–1000", self.PROMPT)
+        self.assertIn("exactly one JSON action", self.PROMPT)
+
+    def test_prompt_requires_explicit_grounding_reuse(self) -> None:
+        self.assertIn("REUSE GROUNDING g1:", self.PROMPT)
+        self.assertIn("Ground a unique `(label, t_src)` only once", self.PROMPT)
+        self.assertIn("Uses grounding g1.", self.PROMPT)
+        self.assertIn("not a host validation rule", self.PROMPT)
+
     def test_prompt_never_mentions_the_host_grounding_policy(self) -> None:
         self.assertNotIn("point_mode", self.PROMPT)
 

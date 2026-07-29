@@ -245,6 +245,42 @@ the object or objects involved, the frames you need and why, and the formula tha
 the returned positions into the answer. Then condense that reasoning into the action's
 `justification` field in one or two lines, so every tool call carries its own rationale.
 
+### Mandatory visual grounding declaration
+
+Choosing a label in prose is not enough. Before the first `query_d4rt` call for each unique
+`(label, t_src)` pair, inspect that exact sampled source image and write one declaration in
+this precise form:
+
+    GROUNDING g1: sampled frame 0; label "runner"; visual evidence "small person on the
+    dark runway near the center-left, immediately right of the white hangar wall";
+    bbox_2d_1000 [447,350,475,440].
+
+The declaration must do real visual work:
+
+- Name the sampled source frame and exact label that the tool call will use.
+- Describe the target's visible appearance, its image region, and at least one nearby
+  landmark that distinguishes it from other objects. For a body part, explain the
+  anatomical cue that makes it the front/chest or rear/back rather than the other part.
+- Derive a tight `[x_min,y_min,x_max,y_max]` box in the tool's normalized 0–1000 image
+  coordinates. The four numbers in the declaration must match the immediately following
+  `query_d4rt.bbox_2d_1000` **exactly**.
+- Emit exactly one JSON action after the declaration. Do not draft several tool calls in
+  one response.
+
+Assign grounding IDs in order (`g1`, `g2`, ...). Ground a unique `(label, t_src)` only once.
+If a later query uses that same label and source frame, do not invent or silently adjust
+the box. Explicitly cite it before the action:
+
+    REUSE GROUNDING g1: sampled frame 0; label "runner";
+    bbox_2d_1000 [447,350,475,440].
+
+The reused query must copy the same label, `t_src`, and box, and its `justification` must
+begin with `Uses grounding g1.` A first-use query's justification must likewise begin with
+its grounding ID. If the label or source frame changes, create a new grounding declaration.
+
+This is a reasoning protocol for you, not a host validation rule. Follow it even though the
+tool schema cannot enforce it.
+
 The response must end with exactly one JSON action and nothing after it:
 
 {"action":"ACTION_NAME","arguments":{...}}
@@ -302,13 +338,20 @@ that at frame 0 and at frame 31, each read from its own camera, so this is two q
 differing in `t_cam`. Norms are frame-invariant, so comparing them is legitimate. I ground
 the car once in frame 0 where it is clearest.
 
+GROUNDING g1: sampled frame 0; label "red car"; visual evidence "red four-door car in the
+lower-center of the image, bounded by the road below and the shop window behind";
+bbox_2d_1000 [380,420,560,610].
+
 First action example:
 
-{"action":"query_d4rt","arguments":{"label":"red car","bbox_2d_1000":[380,420,560,610],"t_src":0,"t_tgt":[0],"t_cam":0,"justification":"Range from the camera at the start of the clip, read as the norm in the frame-0 camera basis."}}
+{"action":"query_d4rt","arguments":{"label":"red car","bbox_2d_1000":[380,420,560,610],"t_src":0,"t_tgt":[0],"t_cam":0,"justification":"Uses grounding g1. Range from the camera at the start of the clip, read as the norm in the frame-0 camera basis."}}
 
 Second action example, the same grounding seen from the end of the clip:
 
-{"action":"query_d4rt","arguments":{"label":"red car","bbox_2d_1000":[380,420,560,610],"t_src":0,"t_tgt":[31],"t_cam":31,"justification":"Range from the camera at the end of the clip, for comparison against the frame-0 range."}}
+REUSE GROUNDING g1: sampled frame 0; label "red car";
+bbox_2d_1000 [380,420,560,610].
+
+{"action":"query_d4rt","arguments":{"label":"red car","bbox_2d_1000":[380,420,560,610],"t_src":0,"t_tgt":[31],"t_cam":31,"justification":"Uses grounding g1. Range from the camera at the end of the clip, for comparison against the frame-0 range."}}
 
 Calculation example, comparing the two ranges against the measurement spread:
 
@@ -330,13 +373,20 @@ static background point — the corner of the stone building, which cannot move 
 and read it in each frame's own basis by varying `t_cam`. Its apparent motion is the inverse
 of the camera's. I ground it once in frame 0 and query the two endpoints.
 
+GROUNDING g1: sampled frame 0; label "corner of the stone building"; visual evidence
+"sharp vertical corner of the stationary stone facade in the upper-left, directly above
+the low wall"; bbox_2d_1000 [120,180,190,300].
+
 First action example:
 
-{"action":"query_d4rt","arguments":{"label":"corner of the stone building","bbox_2d_1000":[120,180,190,300],"t_src":0,"t_tgt":[0],"t_cam":0,"justification":"Static background reference read in the frame-0 camera basis, as the baseline for camera egomotion."}}
+{"action":"query_d4rt","arguments":{"label":"corner of the stone building","bbox_2d_1000":[120,180,190,300],"t_src":0,"t_tgt":[0],"t_cam":0,"justification":"Uses grounding g1. Static background reference read in the frame-0 camera basis, as the baseline for camera egomotion."}}
 
 Second action example, identical grounding, later vantage point:
 
-{"action":"query_d4rt","arguments":{"label":"corner of the stone building","bbox_2d_1000":[120,180,190,300],"t_src":0,"t_tgt":[31],"t_cam":31,"justification":"Same static point in the frame-31 camera basis, so its apparent shift reports the camera's own motion."}}
+REUSE GROUNDING g1: sampled frame 0; label "corner of the stone building";
+bbox_2d_1000 [120,180,190,300].
+
+{"action":"query_d4rt","arguments":{"label":"corner of the stone building","bbox_2d_1000":[120,180,190,300],"t_src":0,"t_tgt":[31],"t_cam":31,"justification":"Uses grounding g1. Same static point in the frame-31 camera basis, so its apparent shift reports the camera's own motion."}}
 
 Calculation example:
 
@@ -360,15 +410,27 @@ already cancelled. For the facing I ground two parts of the character — chest 
 the same frame under the same `t_cam`, and the back-to-chest vector is forward. Then I
 project the displacement onto that axis.
 
+GROUNDING g1: sampled frame 0; label "character's torso"; visual evidence "full torso of
+the only character near the image center, from shoulders to waist and excluding the nearby
+background"; bbox_2d_1000 [430,300,540,620].
+
 First action example, the displacement:
 
-{"action":"query_d4rt","arguments":{"label":"character's torso","bbox_2d_1000":[430,300,540,620],"t_src":0,"t_tgt":[0,31],"t_cam":0,"justification":"Endpoint positions in one fixed frame, so the displacement is the character's motion through the scene with camera motion cancelled."}}
+{"action":"query_d4rt","arguments":{"label":"character's torso","bbox_2d_1000":[430,300,540,620],"t_src":0,"t_tgt":[0,31],"t_cam":0,"justification":"Uses grounding g1. Endpoint positions in one fixed frame, so the displacement is the character's motion through the scene with camera motion cancelled."}}
 
 Second action example, the facing axis, both parts under the same viewpoint:
 
-{"action":"query_d4rt","arguments":{"label":"character's chest, front of the torso","bbox_2d_1000":[470,330,520,430],"t_src":0,"t_tgt":[0],"t_cam":0,"justification":"Front reference point for the character's facing axis, grounded and viewed in the same frame as the displacement."}}
+GROUNDING g2: sampled frame 0; label "character's chest, front of the torso"; visual
+evidence "front-facing half of the character's upper torso, identified by the visible
+shirt front and lying just right of the torso centerline"; bbox_2d_1000 [470,330,520,430].
 
-{"action":"query_d4rt","arguments":{"label":"character's back, rear of the torso","bbox_2d_1000":[430,330,470,430],"t_src":0,"t_tgt":[0],"t_cam":0,"justification":"Rear reference point; the rear-to-front vector defines the character's own forward direction."}}
+{"action":"query_d4rt","arguments":{"label":"character's chest, front of the torso","bbox_2d_1000":[470,330,520,430],"t_src":0,"t_tgt":[0],"t_cam":0,"justification":"Uses grounding g2. Front reference point for the character's facing axis, grounded and viewed in the same frame as the displacement."}}
+
+GROUNDING g3: sampled frame 0; label "character's back, rear of the torso"; visual evidence
+"rear-facing half of the same upper torso, opposite the visible shirt front and immediately
+left of the torso centerline"; bbox_2d_1000 [430,330,470,430].
+
+{"action":"query_d4rt","arguments":{"label":"character's back, rear of the torso","bbox_2d_1000":[430,330,470,430],"t_src":0,"t_tgt":[0],"t_cam":0,"justification":"Uses grounding g3. Rear reference point; the rear-to-front vector defines the character's own forward direction."}}
 
 Calculation example:
 

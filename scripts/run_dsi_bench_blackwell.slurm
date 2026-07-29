@@ -72,8 +72,11 @@ fi
 if [[ -n "${LIMIT:-}" ]]; then
   EXTRA+=(--limit "$LIMIT")
 fi
+if [[ "${FORCE:-0}" == "1" ]]; then
+  EXTRA+=(--force)
+fi
 
-echo "MODE=$MODE  immutable POINT_MODE=$POINT_MODE  LIMIT=${LIMIT:-all}"
+echo "MODE=$MODE  immutable POINT_MODE=$POINT_MODE  LIMIT=${LIMIT:-all}  FORCE=${FORCE:-0}"
 echo "Results dir=$RESULTS_DIR"
 nvidia-smi --query-gpu=name,memory.total,memory.free --format=csv
 
