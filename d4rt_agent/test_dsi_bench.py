@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+import re
 import unittest
 
 from d4rt_agent.dsi_bench_data import (
@@ -427,6 +428,12 @@ class BlindQueryTest(unittest.TestCase):
 
 class SystemPromptTest(unittest.TestCase):
     PROMPT = SYSTEM_PROMPT_PATH.read_text(encoding="utf-8")
+    SIMPLE_PROMPT = (
+        SYSTEM_PROMPT_PATH.parent / "simple_v2_system.md"
+    ).read_text(encoding="utf-8")
+    TOOL_PROTOCOL = (
+        SYSTEM_PROMPT_PATH.parent / "tool_turn_protocol.md"
+    ).read_text(encoding="utf-8")
 
     def test_prompt_never_mentions_the_host_grounding_policy(self) -> None:
         self.assertNotIn("point_mode", self.PROMPT)
@@ -451,36 +458,101 @@ class SystemPromptTest(unittest.TestCase):
         self.assertIn("never make an invisible target visible", self.PROMPT)
         self.assertIn("math_visibility", self.PROMPT)
 
-    def test_tool_examples_are_valid_actions_that_measure_before_answering(self) -> None:
-        """Every worked example must show the calls it cites.
-
-        An example that jumps straight to an answer is one the model reproduces,
-        which is how the metric prompt lost its measurements (job 7985547).
-        """
-
-        examples = [
-            json.loads(line)
-            for line in self.PROMPT.splitlines()
-            if line.startswith('{"action":"') and "ACTION_NAME" not in line
+    @staticmethod
+    def _assistant_blocks(prompt: str) -> list[str]:
+        return [
+            match.group("body")
+            for match in re.finditer(
+                r"^ASSISTANT TURN \d+\n\n"
+                r"(?P<body>.*?)"
+                r"(?=^--- END ASSISTANT TURN; "
+                r"(?:STOP AND WAIT FOR HOST|TASK COMPLETE) ---$)",
+                prompt,
+                flags=re.MULTILINE | re.DOTALL,
+            )
         ]
-        self.assertEqual(len(examples), 13)
-        names = [validate_action(example)[0] for example in examples]
-        self.assertEqual(
-            names,
-            [
-                # A: range change, two viewpoints
-                "query_d4rt", "query_d4rt", "python_math", "final_answer",
-                # B: camera egomotion from a static background point
-                "query_d4rt", "query_d4rt", "python_math", "final_answer",
-                # C: object motion projected onto its own measured facing axis
-                "query_d4rt", "query_d4rt", "query_d4rt", "python_math", "final_answer",
-            ],
-        )
-        for example in examples:
-            if validate_action(example)[0] == "final_answer":
-                self.assertEqual(example["arguments"]["kind"], "text")
-                cited = example["arguments"]["evidence_ids"]
-                self.assertTrue(any(item.startswith("d4rt_") for item in cited), cited)
+
+    def test_shared_protocol_requires_one_action_then_wait(self) -> None:
+        protocol = self.TOOL_PROTOCOL
+        self.assertIn("Each response is exactly one assistant turn", protocol)
+        self.assertIn("Choose exactly one action", protocol)
+        self.assertIn("Stop immediately after that action's closing brace", protocol)
+        self.assertIn("Wait for the host response", protocol)
+        self.assertIn("Never emit a second action", protocol)
+        self.assertIn("simulate a tool result", protocol)
+        self.assertIn("write a HOST TURN", protocol)
+        self.assertIn("invent an evidence ID", protocol)
+        self.assertIn("Only IDs in HOST EVIDENCE STATE exist", protocol)
+
+    def test_each_assistant_example_is_one_valid_action_and_stops_at_it(self) -> None:
+        for prompt in (self.SIMPLE_PROMPT, self.PROMPT):
+            blocks = self._assistant_blocks(prompt)
+            self.assertTrue(blocks)
+            for block in blocks:
+                action_lines = [
+                    line for line in block.splitlines()
+                    if line.startswith('{"action":"')
+                ]
+                self.assertEqual(len(action_lines), 1, block)
+                self.assertEqual(block.rstrip().splitlines()[-1], action_lines[0], block)
+                validate_action(json.loads(action_lines[0]))
+                self.assertNotIn("Tool result", block)
+                self.assertNotIn("HOST TURN", block)
+
+    def test_dsi_examples_compose_tools_and_measure_before_answering(self) -> None:
+        example_sections = self.PROMPT.split("\n### Example ")[1:]
+        expected_names = [
+            ["query_d4rt", "query_d4rt", "python_math", "final_answer"],
+            ["query_d4rt", "query_d4rt", "python_math", "final_answer"],
+            ["query_d4rt", "query_d4rt", "query_d4rt", "python_math", "final_answer"],
+        ]
+        self.assertEqual(len(example_sections), len(expected_names))
+        for section, expected in zip(example_sections, expected_names):
+            actions = [
+                json.loads(line)
+                for line in section.splitlines()
+                if line.startswith('{"action":"')
+            ]
+            self.assertEqual(
+                [validate_action(action)[0] for action in actions],
+                expected,
+            )
+            final = actions[-1]
+            self.assertEqual(final["arguments"]["kind"], "text")
+            cited = final["arguments"]["evidence_ids"]
+            self.assertTrue(any(item.startswith("d4rt_") for item in cited), cited)
+
+    def test_example_evidence_is_introduced_by_an_earlier_host_turn(self) -> None:
+        evidence_pattern = re.compile(r"^(?:d4rt|math)_\d+$")
+        for prompt in (self.SIMPLE_PROMPT, self.PROMPT):
+            for section in prompt.split("\n### Example ")[1:]:
+                available: set[str] = set()
+                for line in section.splitlines():
+                    host_result = re.fullmatch(
+                        r"Tool result ((?:d4rt|math)_\d+):", line
+                    )
+                    if host_result:
+                        evidence_id = host_result.group(1)
+                        self.assertNotIn(evidence_id, available)
+                        available.add(evidence_id)
+                        continue
+                    if not line.startswith('{"action":"'):
+                        continue
+                    action = json.loads(line)
+                    references = {
+                        value
+                        for value in re.findall(
+                            r'"((?:d4rt|math)_\d+)"',
+                            json.dumps(action, separators=(",", ":")),
+                        )
+                        if evidence_pattern.fullmatch(value)
+                    }
+                    self.assertLessEqual(references, available, line)
+
+    def test_examples_do_not_restore_the_failed_forced_grounding_declaration(self) -> None:
+        for prompt in (self.SIMPLE_PROMPT, self.PROMPT):
+            self.assertNotIn("GROUNDING:", prompt)
+            self.assertNotIn("REUSE GROUNDING:", prompt)
 
     def test_example_calculations_run_under_the_restricted_evaluator(self) -> None:
         values = {

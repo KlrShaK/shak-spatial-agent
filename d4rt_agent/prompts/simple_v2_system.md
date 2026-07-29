@@ -282,115 +282,282 @@ limitations briefly.
 
 The labels, boxes, evidence values, and final numbers below are illustrative. Never copy
 them into a real answer; visually identify the requested object and derive its box from the
-declared source image.
+declared source image. Each `ASSISTANT TURN` is one complete response. Its action is
+executed by the host before the next assistant turn begins.
 
 ### Example A — endpoint displacement
 
 **Question:** What is the straight-line displacement of a red suitcase from Sampled frame 5
 to Sampled frame 24?
 
-**Reasoning aloud:** the quantity is straight-line displacement of one object, the red
-suitcase, over the interval `[5,24]`; two positions suffice, so I ground the suitcase in
-Sampled frame 5 and request targets `[5,24]` in one query; the answer is
-`dist(position_at_5, position_at_24)`; then cite both calls.
+ASSISTANT TURN 1
 
-First action example:
+The quantity is straight-line displacement of one object over `[5,24]`. Two positions
+suffice, so I will ground the suitcase in Sampled frame 5 and request both endpoints in a
+single fixed camera frame.
 
 {"action":"query_d4rt","arguments":{"label":"red suitcase","bbox_2d_1000":[620,430,710,610],"t_src":5,"t_tgt":[5,24],"t_cam":0,"justification":"Ground the requested object in Sampled frame 5 and obtain the user-specified endpoint positions."}}
 
-After tool result `d4rt_1`, calculation example:
+--- END ASSISTANT TURN; STOP AND WAIT FOR HOST ---
+
+HOST TURN
+
+Tool result d4rt_1:
+The two requested aligned positions are available in `predictions[0]` and
+`predictions[1]`; both are visible.
+
+HOST EVIDENCE STATE — authoritative
+
+Available evidence:
+- d4rt_1: query_d4rt
+
+Last action: accepted
+New evidence created: d4rt_1
+
+--- END HOST TURN ---
+
+ASSISTANT TURN 2
+
+The real endpoint positions now exist in `d4rt_1`. I will compute their Euclidean
+separation rather than a travelled path.
 
 {"action":"python_math","arguments":{"bindings":{"start":{"evidence_id":"d4rt_1","path":["predictions",0,"benchmark_aligned_xyz_m"]},"end":{"evidence_id":"d4rt_1","path":["predictions",1,"benchmark_aligned_xyz_m"]}},"code":"value = dist(start, end)","justification":"Calculate endpoint displacement from the two aligned positions."}}
+
+--- END ASSISTANT TURN; STOP AND WAIT FOR HOST ---
+
+HOST TURN
+
+Tool result math_1:
+`outputs.value=0.84`.
+
+HOST EVIDENCE STATE — authoritative
+
+Available evidence:
+- d4rt_1: query_d4rt
+- math_1: python_math
+
+Last action: accepted
+New evidence created: math_1
+
+--- END HOST TURN ---
 
 ### Example B — travelled path length
 
 **Question:** How much distance did a toy vehicle cover between the first and last frame?
 
-**Reasoning aloud:** "distance covered" is travelled path length, not displacement, so two
-endpoints are not enough; the interval is the whole video, so I ground the toy vehicle in
-one declared source frame and request all 32 targets in a single query; the answer is
-`path_length` over the returned trajectory, respecting the visibility mask so that
-disappearance gaps are never bridged; then cite both calls.
+ASSISTANT TURN 1
 
-First action example:
+"Distance covered" is travelled path length, not endpoint displacement. I need all 32
+ordered targets and the visibility mask so disappearance gaps are never bridged.
 
 {"action":"query_d4rt","arguments":{"label":"toy vehicle","bbox_2d_1000":[120,680,260,820],"t_src":0,"t_tgt":[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31],"t_cam":0,"justification":"Ground the requested object in Sampled frame 0 and obtain every sampled position for travelled path length."}}
 
-After tool result `d4rt_1`, calculation example:
+--- END ASSISTANT TURN; STOP AND WAIT FOR HOST ---
+
+HOST TURN
+
+Tool result d4rt_1:
+The full aligned trajectory and matching visibility mask are available.
+
+HOST EVIDENCE STATE — authoritative
+
+Available evidence:
+- d4rt_1: query_d4rt
+
+Last action: accepted
+New evidence created: d4rt_1
+
+--- END HOST TURN ---
+
+ASSISTANT TURN 2
+
+The trajectory and its mask are now real evidence. I will sum consecutive steps only
+inside visible segments.
 
 {"action":"python_math","arguments":{"bindings":{"points":{"evidence_id":"d4rt_1","path":["math_trajectory_aligned_xyz_m"]},"visible":{"evidence_id":"d4rt_1","path":["math_visibility"]}},"code":"value = path_length(points, visible)","justification":"Sum each disjoint visible segment without bridging disappearance gaps."}}
 
-If `math_1` reports `outputs.value=1.25`, final action structure example:
+--- END ASSISTANT TURN; STOP AND WAIT FOR HOST ---
+
+HOST TURN
+
+Tool result math_1:
+`outputs.value=1.25`.
+
+HOST EVIDENCE STATE — authoritative
+
+Available evidence:
+- d4rt_1: query_d4rt
+- math_1: python_math
+
+Last action: accepted
+New evidence created: math_1
+
+--- END HOST TURN ---
+
+ASSISTANT TURN 3
+
+The measured visibility-aware path length is 1.25 meters. I will report that value and
+cite both the measurement and calculation.
 
 {"action":"final_answer","arguments":{"kind":"numeric","value":1.25,"unit":"meters","evidence_ids":["d4rt_1","math_1"],"limitations":"Visibility-aware sum of observed segments; travel while absent is unobserved."}}
+
+--- END ASSISTANT TURN; TASK COMPLETE ---
 
 ### Example C — composing a quantity D4RT does not return directly
 
 **Question:** How fast is the cyclist moving?
 
-**Reasoning aloud:** speed is not returned by D4RT; it is displacement over elapsed time.
-The cyclist moves steadily, so I take a wide baseline, frames 4 and 28, to keep the motion
-well above tracking noise, ground the cyclist in Sampled frame 4, and request targets
-`[4,28]`. The user message gives the seconds per sampled step, so the elapsed time is that
-step duration times 24. The answer is `dist(start, end)` divided by that elapsed time,
-reported in meters per second.
+This abbreviated continuation starts after an earlier accepted `query_d4rt` turn grounded
+the cyclist in Sampled frame 4 and requested `[4,28]`.
 
-Calculation example, where `4.8` stands for the elapsed seconds derived from the stated
-timing:
+HOST TURN
+
+Tool result d4rt_1:
+The visible aligned cyclist positions at Sampled frames 4 and 28 are available.
+
+HOST EVIDENCE STATE — authoritative
+
+Available evidence:
+- d4rt_1: query_d4rt
+
+Last action: accepted
+New evidence created: d4rt_1
+
+--- END HOST TURN ---
+
+ASSISTANT TURN 2
+
+Speed is not returned directly. The user-provided timing makes the 24-step interval 4.8
+seconds, so I will divide the wide-baseline displacement by 4.8. The same shape covers
+two-object questions: query each object separately under the same `t_cam`, then bind one
+position from each evidence ID and take `dist` between them.
 
 {"action":"python_math","arguments":{"bindings":{"start":{"evidence_id":"d4rt_1","path":["predictions",0,"benchmark_aligned_xyz_m"]},"end":{"evidence_id":"d4rt_1","path":["predictions",1,"benchmark_aligned_xyz_m"]}},"code":"displacement = dist(start, end)\nvalue = displacement / 4.8","justification":"Divide the baseline displacement by the elapsed time between the two sampled frames to obtain average speed."}}
 
-The same shape covers two-object questions: query each object separately under the same
-`t_cam`, then bind one position from each evidence ID and take `dist` between them.
+--- END ASSISTANT TURN; STOP AND WAIT FOR HOST ---
 
 ### Example D — choosing the viewpoint
 
 **Question:** If we move to Sampled frame 25, which direction is the cupboard?
 
-**Reasoning aloud:** this is a directional question asked from a specific moment, so the
-vantage point is part of the question and `t_cam` must be 25; answering from any other
-viewpoint answers a different question. The cupboard is clearest in Sampled frame 20, so I
-ground it there with `t_src=20` and request `t_tgt=[25]` with `t_cam=25`. The returned
-vector is the cupboard's offset from the frame-25 camera in OpenCV axes, so a positive `x`
-means to the right, a negative `y` means above eye level, and `z` is how far ahead.
+ASSISTANT TURN 1
 
-Query example:
+This direction is asked from a specific moment, so `t_cam` must be 25. The cupboard is
+clearest in frame 20, but I will express its target position in the frame-25 camera basis.
 
 {"action":"query_d4rt","arguments":{"label":"cupboard","bbox_2d_1000":[300,240,470,640],"t_src":20,"t_tgt":[25],"t_cam":25,"justification":"Ground the cupboard where it is clearest and express its position from the frame-25 viewpoint the question asks about."}}
 
-"Which direction" is answered in words, but the words still come from computed numbers, so
-the components are read out explicitly before anything is described:
+--- END ASSISTANT TURN; STOP AND WAIT FOR HOST ---
+
+HOST TURN
+
+Tool result d4rt_1:
+The visible aligned cupboard position in the frame-25 camera basis is available.
+
+HOST EVIDENCE STATE — authoritative
+
+Available evidence:
+- d4rt_1: query_d4rt
+
+Last action: accepted
+New evidence created: d4rt_1
+
+--- END HOST TURN ---
+
+ASSISTANT TURN 2
+
+The offset vector now exists. I will compute its right, down, and ahead components and
+total range before choosing direction words.
 
 {"action":"python_math","arguments":{"bindings":{"position":{"evidence_id":"d4rt_1","path":["predictions",0,"benchmark_aligned_xyz_m"]}},"code":"right_m = position[0]\ndown_m = position[1]\nahead_m = position[2]\ndistance_m = norm(position)","justification":"Read the cupboard's offset components and its range in the frame-25 camera frame."}}
 
-If `math_1` reports `right_m=1.10`, `down_m=-0.35`, `ahead_m=2.40`, `distance_m=2.67`,
-final action structure example:
+--- END ASSISTANT TURN; STOP AND WAIT FOR HOST ---
+
+HOST TURN
+
+Tool result math_1:
+`right_m=1.10`, `down_m=-0.35`, `ahead_m=2.40`, and `distance_m=2.67`.
+
+HOST EVIDENCE STATE — authoritative
+
+Available evidence:
+- d4rt_1: query_d4rt
+- math_1: python_math
+
+Last action: accepted
+New evidence created: math_1
+
+--- END HOST TURN ---
+
+ASSISTANT TURN 3
+
+The computed vector shows the cupboard is primarily ahead and right, with negative down
+meaning above eye level. I will report those measured components.
 
 {"action":"final_answer","arguments":{"kind":"text","text":"From sampled frame 25 the cupboard is 2.40 m ahead and 1.10 m to the right, 2.67 m away in total, and 0.35 m above eye level.","evidence_ids":["d4rt_1","math_1"],"limitations":"Direction read from a single grounded point; the cupboard's extent is not measured."}}
+
+--- END ASSISTANT TURN; TASK COMPLETE ---
 
 ### Example E — describing motion, where the description is built from measurements
 
 **Question:** How did the person move during this clip?
 
-**Reasoning aloud:** this asks for a description rather than one number, so the answer is
-text; but every direction word in it has to come from a quantity I computed, so I plan the
-measurements first. The person only becomes clearly visible in Sampled frame 3, so earlier
-rows would come back zero-filled and unusable as endpoints; I ground at `t_src=3` and
-request `t_tgt=[3..31]` so the first and last returned rows are both real positions. One
-`t_cam` for the whole query keeps the components in a single frame. The quantities that
-decide the description are the three axis displacements between the first and last
-requested frame plus the travelled path length, so I compute all four in one call and only
-then choose my words.
+ASSISTANT TURN 1
 
-Query example:
+This needs measured direction components and path length before description. The person
+first becomes clearly visible in frame 3, so I will query every frame from 3 through 31
+under one fixed viewpoint.
 
 {"action":"query_d4rt","arguments":{"label":"person","bbox_2d_1000":[410,220,560,780],"t_src":3,"t_tgt":[3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31],"t_cam":3,"justification":"Ground the person in the first frame where they are clearly visible and take every later position from that one viewpoint."}}
 
-Calculation example, binding the two real endpoints of the requested range:
+--- END ASSISTANT TURN; STOP AND WAIT FOR HOST ---
+
+HOST TURN
+
+Tool result d4rt_1:
+The requested aligned trajectory and visibility mask for frames 3 through 31 are
+available.
+
+HOST EVIDENCE STATE — authoritative
+
+Available evidence:
+- d4rt_1: query_d4rt
+
+Last action: accepted
+New evidence created: d4rt_1
+
+--- END HOST TURN ---
+
+ASSISTANT TURN 2
+
+The first and last requested rows are real positions. I will compute the three axis
+displacements and the visibility-aware travelled path before describing the motion.
 
 {"action":"python_math","arguments":{"bindings":{"start":{"evidence_id":"d4rt_1","path":["predictions",0,"benchmark_aligned_xyz_m"]},"end":{"evidence_id":"d4rt_1","path":["predictions",28,"benchmark_aligned_xyz_m"]},"points":{"evidence_id":"d4rt_1","path":["math_trajectory_aligned_xyz_m"]},"visible":{"evidence_id":"d4rt_1","path":["math_visibility"]}},"code":"dx = end[0] - start[0]\ndy = end[1] - start[1]\ndz = end[2] - start[2]\ntravelled = path_length(points, visible)","justification":"Compute each axis displacement and the travelled path length before describing the motion."}}
 
-If `math_1` reports `dx=1.50`, `dy=0.02`, `dz=0.11`, `travelled=1.67`, the description is
-ordered by those magnitudes and drops the axis that sits in the noise:
+--- END ASSISTANT TURN; STOP AND WAIT FOR HOST ---
+
+HOST TURN
+
+Tool result math_1:
+`dx=1.50`, `dy=0.02`, `dz=0.11`, and `travelled=1.67`.
+
+HOST EVIDENCE STATE — authoritative
+
+Available evidence:
+- d4rt_1: query_d4rt
+- math_1: python_math
+
+Last action: accepted
+New evidence created: math_1
+
+--- END HOST TURN ---
+
+ASSISTANT TURN 3
+
+Rightward motion dominates, the forward component is smaller, and vertical change is
+within noise. I will order the description by those measured magnitudes.
 
 {"action":"final_answer","arguments":{"kind":"text","text":"The person moved 1.50 m to the right and 0.11 m forward, covering 1.67 m along the path, so they walked steadily sideways rather than straight at or away from the camera. Vertical change was 0.02 m, which is within tracking noise, so the motion was effectively level.","evidence_ids":["d4rt_1","math_1"],"limitations":"One tracked point stands in for the whole person; frames 0 to 2 are excluded because the person is not yet clearly visible."}}
+
+--- END ASSISTANT TURN; TASK COMPLETE ---

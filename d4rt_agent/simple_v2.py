@@ -82,6 +82,10 @@ QUESTIONS: tuple[dict[str, str], ...] = (
 # prompt can be read and reviewed on its own, and is loaded once at import.
 SYSTEM_PROMPT_PATH = Path(__file__).resolve().parent / "prompts" / "simple_v2_system.md"
 SYSTEM_PROMPT = SYSTEM_PROMPT_PATH.read_text(encoding="utf-8")
+TOOL_TURN_PROTOCOL_PATH = (
+    Path(__file__).resolve().parent / "prompts" / "tool_turn_protocol.md"
+)
+TOOL_TURN_PROTOCOL_TEXT = TOOL_TURN_PROTOCOL_PATH.read_text(encoding="utf-8")
 
 
 def _utc_now() -> str:
@@ -424,7 +428,10 @@ class SimpleV2Orchestrator:
         self.backend = backend
         self.sampled_video = sampled_video
         self.max_steps = max(1, int(max_steps))
-        self.system_prompt = SYSTEM_PROMPT if system_prompt is None else system_prompt
+        task_prompt = SYSTEM_PROMPT if system_prompt is None else system_prompt
+        self.system_prompt = (
+            f"{TOOL_TURN_PROTOCOL_TEXT.rstrip()}\n\n{task_prompt}"
+        )
 
     def _validate_final(
         self,

@@ -289,35 +289,99 @@ through `python_math`.
 
 The labels, boxes, evidence values, and final letters below are illustrative. Never copy
 them into a real answer; visually identify the requested object and derive its box from the
-declared source image.
+declared source image. Each `ASSISTANT TURN` is one complete response. Its action is
+executed by the host before the next assistant turn begins.
 
 ### Example A — did the observer and the object get closer?
 
 **Question:** How does the distance between the observer and the car change in this video?
 Options: `A: Get farther`, `B: Get closer`, `C: Remain unchanged`, `D: Cannot be determined`
 
-**Reasoning aloud:** the quantity is the camera-to-car range at the start versus the end.
-The origin of each query is the camera at `t_cam`, so range is just `norm(position)`. I need
-that at frame 0 and at frame 31, each read from its own camera, so this is two queries
-differing in `t_cam`. Norms are frame-invariant, so comparing them is legitimate. I ground
-the car once in frame 0 where it is clearest.
+ASSISTANT TURN 1
 
-First action example:
+The deciding quantity is camera-to-car range at the start versus the end. Range is
+`norm(position)`, so I will first measure the car in the frame-0 camera basis.
 
 {"action":"query_d4rt","arguments":{"label":"red car","bbox_2d_1000":[380,420,560,610],"t_src":0,"t_tgt":[0],"t_cam":0,"justification":"Range from the camera at the start of the clip, read as the norm in the frame-0 camera basis."}}
 
-Second action example, the same grounding seen from the end of the clip:
+--- END ASSISTANT TURN; STOP AND WAIT FOR HOST ---
+
+HOST TURN
+
+Tool result d4rt_1:
+The visible aligned car position at frame 0 in the frame-0 camera basis is available,
+with its measurement spread.
+
+HOST EVIDENCE STATE — authoritative
+
+Available evidence:
+- d4rt_1: query_d4rt
+
+Last action: accepted
+New evidence created: d4rt_1
+
+--- END HOST TURN ---
+
+ASSISTANT TURN 2
+
+The starting range now exists. I need the ending range from the ending camera basis;
+comparing norms across those bases is valid because norms are frame-invariant.
 
 {"action":"query_d4rt","arguments":{"label":"red car","bbox_2d_1000":[380,420,560,610],"t_src":0,"t_tgt":[31],"t_cam":31,"justification":"Range from the camera at the end of the clip, for comparison against the frame-0 range."}}
 
-Calculation example, comparing the two ranges against the measurement spread:
+--- END ASSISTANT TURN; STOP AND WAIT FOR HOST ---
+
+HOST TURN
+
+Tool result d4rt_2:
+The visible aligned car position at frame 31 in the frame-31 camera basis is available.
+
+HOST EVIDENCE STATE — authoritative
+
+Available evidence:
+- d4rt_1: query_d4rt
+- d4rt_2: query_d4rt
+
+Last action: accepted
+New evidence created: d4rt_2
+
+--- END HOST TURN ---
+
+ASSISTANT TURN 3
+
+Both ranges are now measured. I will compare their norms and size the difference against
+the starting spread and range before choosing an option.
 
 {"action":"python_math","arguments":{"bindings":{"start":{"evidence_id":"d4rt_1","path":["predictions",0,"benchmark_aligned_xyz_m"]},"end":{"evidence_id":"d4rt_2","path":["predictions",0,"benchmark_aligned_xyz_m"]},"spread":{"evidence_id":"d4rt_1","path":["predictions",0,"benchmark_aligned_xyz_std_m"]}},"code":"range_start = norm(start)\nrange_end = norm(end)\nchange = range_end - range_start\nnoise = norm(spread)\nfraction = change / range_start","justification":"Compare start and end range, and size the change against both the measurement spread and the starting range."}}
 
-If `math_1` reports `range_start=8.10`, `range_end=4.35`, `change=-3.75`, `noise=0.06`,
-`fraction=-0.46`, the change is far above noise and negative, so:
+--- END ASSISTANT TURN; STOP AND WAIT FOR HOST ---
+
+HOST TURN
+
+Tool result math_1:
+`range_start=8.10`, `range_end=4.35`, `change=-3.75`, `noise=0.06`, and
+`fraction=-0.46`.
+
+HOST EVIDENCE STATE — authoritative
+
+Available evidence:
+- d4rt_1: query_d4rt
+- d4rt_2: query_d4rt
+- math_1: python_math
+
+Last action: accepted
+New evidence created: math_1
+
+--- END HOST TURN ---
+
+ASSISTANT TURN 4
+
+The range fell by 46%, far beyond the spread, so the supported option is B. I will report
+the exact offered text and cite the measurements and calculation.
 
 {"action":"final_answer","arguments":{"kind":"text","text":"B: Get closer. Camera-to-car range fell from 8.10 to 4.35, a change of -3.75 or -46% of the starting range (math_1), which is far beyond the 0.06 measurement spread (d4rt_1).","evidence_ids":["d4rt_1","d4rt_2","math_1"],"limitations":"One tracked point stands in for the whole car; range is measured to that point, not to the nearest surface."}}
+
+--- END ASSISTANT TURN; TASK COMPLETE ---
 
 ### Example B — how did the observer move?
 
@@ -325,27 +389,91 @@ If `math_1` reports `range_start=8.10`, `range_end=4.35`, `change=-3.75`, `noise
 the observer's location moving? Options: `A: Moving left`, `B: Moving backward`,
 `C: Moving forward`, `D: Moving right`
 
-**Reasoning aloud:** this asks about the camera, which D4RT never reports directly. I pick a
-static background point — the corner of the stone building, which cannot move on its own —
-and read it in each frame's own basis by varying `t_cam`. Its apparent motion is the inverse
-of the camera's. I ground it once in frame 0 and query the two endpoints.
+ASSISTANT TURN 1
 
-First action example:
+This asks about the camera, which D4RT does not report directly. I will use a rigid
+building corner as a static background reference and first read it in the frame-0 basis.
 
 {"action":"query_d4rt","arguments":{"label":"corner of the stone building","bbox_2d_1000":[120,180,190,300],"t_src":0,"t_tgt":[0],"t_cam":0,"justification":"Static background reference read in the frame-0 camera basis, as the baseline for camera egomotion."}}
 
-Second action example, identical grounding, later vantage point:
+--- END ASSISTANT TURN; STOP AND WAIT FOR HOST ---
+
+HOST TURN
+
+Tool result d4rt_1:
+The visible aligned building-corner position in the frame-0 camera basis is available.
+
+HOST EVIDENCE STATE — authoritative
+
+Available evidence:
+- d4rt_1: query_d4rt
+
+Last action: accepted
+New evidence created: d4rt_1
+
+--- END HOST TURN ---
+
+ASSISTANT TURN 2
+
+The starting static-point position now exists. I will read the identical grounding in the
+frame-31 basis; its apparent shift is the inverse of camera motion.
 
 {"action":"query_d4rt","arguments":{"label":"corner of the stone building","bbox_2d_1000":[120,180,190,300],"t_src":0,"t_tgt":[31],"t_cam":31,"justification":"Same static point in the frame-31 camera basis, so its apparent shift reports the camera's own motion."}}
 
-Calculation example:
+--- END ASSISTANT TURN; STOP AND WAIT FOR HOST ---
+
+HOST TURN
+
+Tool result d4rt_2:
+The visible aligned position of the same building corner in the frame-31 camera basis is
+available.
+
+HOST EVIDENCE STATE — authoritative
+
+Available evidence:
+- d4rt_1: query_d4rt
+- d4rt_2: query_d4rt
+
+Last action: accepted
+New evidence created: d4rt_2
+
+--- END HOST TURN ---
+
+ASSISTANT TURN 3
+
+Both static-point readings now exist. I will invert its apparent horizontal and depth
+shift to estimate the camera's motion and compare the dominant components.
 
 {"action":"python_math","arguments":{"bindings":{"start":{"evidence_id":"d4rt_1","path":["predictions",0,"benchmark_aligned_xyz_m"]},"end":{"evidence_id":"d4rt_2","path":["predictions",0,"benchmark_aligned_xyz_m"]}},"code":"point_dx = end[0] - start[0]\npoint_dz = end[2] - start[2]\ncamera_right = -point_dx\ncamera_forward = -point_dz\nrange_start = norm(start)\nrange_end = norm(end)","justification":"Invert the static point's apparent shift to obtain the camera's own sideways and forward motion."}}
 
-If `math_1` reports `point_dz=-5.20`, `camera_forward=5.20`, `camera_right=0.15`, the
-forward term dominates:
+--- END ASSISTANT TURN; STOP AND WAIT FOR HOST ---
+
+HOST TURN
+
+Tool result math_1:
+`point_dz=-5.20`, `camera_forward=5.20`, `camera_right=0.15`,
+`range_start=6.80`, and `range_end=1.60`.
+
+HOST EVIDENCE STATE — authoritative
+
+Available evidence:
+- d4rt_1: query_d4rt
+- d4rt_2: query_d4rt
+- math_1: python_math
+
+Last action: accepted
+New evidence created: math_1
+
+--- END HOST TURN ---
+
+ASSISTANT TURN 4
+
+Forward motion dominates the measured sideways component, so the supported option is C.
+I will state the static-point inference as a limitation.
 
 {"action":"final_answer","arguments":{"kind":"text","text":"C: Moving forward. A static building corner closed from 6.80 to 1.60 in depth, so the camera advanced 5.20 toward it while moving only 0.15 sideways (math_1).","evidence_ids":["d4rt_1","d4rt_2","math_1"],"limitations":"Egomotion inferred from one static background point; a single point cannot separate translation from a slow rotation about the scene."}}
+
+--- END ASSISTANT TURN; TASK COMPLETE ---
 
 ### Example C — how did the object move in its own frame?
 
@@ -353,28 +481,114 @@ forward term dominates:
 relative to his/her/its own starting orientation and location? Options: `A: Moving backward`,
 `B: Moving forward`, `C: Moving left`, `D: Moving right`
 
-**Reasoning aloud:** "relative to its own orientation" means the object's body frame, so I
-need two things: the displacement, and the direction the character faces. Fixing one `t_cam`
-and varying `t_tgt` gives displacement in a single rigid frame with the camera's motion
-already cancelled. For the facing I ground two parts of the character — chest and back — in
-the same frame under the same `t_cam`, and the back-to-chest vector is forward. Then I
-project the displacement onto that axis.
+ASSISTANT TURN 1
 
-First action example, the displacement:
+"Relative to its own orientation" requires both displacement and a measured facing axis.
+I will first get the torso endpoints under one fixed `t_cam`, which cancels camera motion.
 
 {"action":"query_d4rt","arguments":{"label":"character's torso","bbox_2d_1000":[430,300,540,620],"t_src":0,"t_tgt":[0,31],"t_cam":0,"justification":"Endpoint positions in one fixed frame, so the displacement is the character's motion through the scene with camera motion cancelled."}}
 
-Second action example, the facing axis, both parts under the same viewpoint:
+--- END ASSISTANT TURN; STOP AND WAIT FOR HOST ---
+
+HOST TURN
+
+Tool result d4rt_1:
+The visible aligned torso positions at frames 0 and 31 in the fixed frame-0 basis are
+available.
+
+HOST EVIDENCE STATE — authoritative
+
+Available evidence:
+- d4rt_1: query_d4rt
+
+Last action: accepted
+New evidence created: d4rt_1
+
+--- END HOST TURN ---
+
+ASSISTANT TURN 2
+
+The displacement endpoints now exist. I need the character's starting front point in the
+same source frame and camera basis to build its own forward axis.
 
 {"action":"query_d4rt","arguments":{"label":"character's chest, front of the torso","bbox_2d_1000":[470,330,520,430],"t_src":0,"t_tgt":[0],"t_cam":0,"justification":"Front reference point for the character's facing axis, grounded and viewed in the same frame as the displacement."}}
 
+--- END ASSISTANT TURN; STOP AND WAIT FOR HOST ---
+
+HOST TURN
+
+Tool result d4rt_2:
+The visible aligned front-torso point at frame 0 is available in the frame-0 basis.
+
+HOST EVIDENCE STATE — authoritative
+
+Available evidence:
+- d4rt_1: query_d4rt
+- d4rt_2: query_d4rt
+
+Last action: accepted
+New evidence created: d4rt_2
+
+--- END HOST TURN ---
+
+ASSISTANT TURN 3
+
+The front point now exists. I need the matching rear point under the same grounding time
+and camera basis; rear-to-front will define the measured starting forward axis.
+
 {"action":"query_d4rt","arguments":{"label":"character's back, rear of the torso","bbox_2d_1000":[430,330,470,430],"t_src":0,"t_tgt":[0],"t_cam":0,"justification":"Rear reference point; the rear-to-front vector defines the character's own forward direction."}}
 
-Calculation example:
+--- END ASSISTANT TURN; STOP AND WAIT FOR HOST ---
+
+HOST TURN
+
+Tool result d4rt_3:
+The visible aligned rear-torso point at frame 0 is available in the frame-0 basis.
+
+HOST EVIDENCE STATE — authoritative
+
+Available evidence:
+- d4rt_1: query_d4rt
+- d4rt_2: query_d4rt
+- d4rt_3: query_d4rt
+
+Last action: accepted
+New evidence created: d4rt_3
+
+--- END HOST TURN ---
+
+ASSISTANT TURN 4
+
+The displacement, front, and rear measurements now exist in one coordinate frame. I will
+project displacement onto the rear-to-front axis and its lateral perpendicular.
 
 {"action":"python_math","arguments":{"bindings":{"start":{"evidence_id":"d4rt_1","path":["predictions",0,"benchmark_aligned_xyz_m"]},"end":{"evidence_id":"d4rt_1","path":["predictions",1,"benchmark_aligned_xyz_m"]},"front":{"evidence_id":"d4rt_2","path":["predictions",0,"benchmark_aligned_xyz_m"]},"rear":{"evidence_id":"d4rt_3","path":["predictions",0,"benchmark_aligned_xyz_m"]}},"code":"fx = front[0] - rear[0]\nfz = front[2] - rear[2]\ndx = end[0] - start[0]\ndz = end[2] - start[2]\nfn = sqrt(fx*fx + fz*fz)\nalong = (dx*fx + dz*fz) / fn\nlateral = (dx*fz - dz*fx) / fn\nup = start[1] - end[1]","justification":"Project the character's displacement onto its own measured forward axis to separate forward-back from left-right motion."}}
 
-If `math_1` reports `along=2.90`, `lateral=0.12`, `up=0.04`, the motion is almost entirely
-along the character's own forward axis:
+--- END ASSISTANT TURN; STOP AND WAIT FOR HOST ---
+
+HOST TURN
+
+Tool result math_1:
+`along=2.90`, `lateral=0.12`, and `up=0.04`.
+
+HOST EVIDENCE STATE — authoritative
+
+Available evidence:
+- d4rt_1: query_d4rt
+- d4rt_2: query_d4rt
+- d4rt_3: query_d4rt
+- math_1: python_math
+
+Last action: accepted
+New evidence created: math_1
+
+--- END HOST TURN ---
+
+ASSISTANT TURN 5
+
+The forward projection dominates lateral and vertical motion, so option B is supported.
+I will make clear that the facing axis comes from the starting frame.
 
 {"action":"final_answer","arguments":{"kind":"text","text":"B: Moving forward. Projected onto the character's own measured facing axis, the displacement was 2.90 forward against 0.12 lateral and 0.04 vertical (math_1), so the motion is forward in the character's own frame.","evidence_ids":["d4rt_1","d4rt_2","d4rt_3","math_1"],"limitations":"Facing axis derived from two grounded torso points in frame 0 and assumed constant; if the character turned during the clip the projection uses only the starting orientation."}}
+
+--- END ASSISTANT TURN; TASK COMPLETE ---

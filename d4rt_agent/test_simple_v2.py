@@ -13,6 +13,8 @@ import numpy as np
 from d4rt_agent.simple_v2 import (
     OrchestrationError,
     SYSTEM_PROMPT,
+    TOOL_TURN_PROTOCOL_PATH,
+    TOOL_TURN_PROTOCOL_TEXT,
     SimpleV2Orchestrator,
     _validate_final_evidence,
     extract_first_action,
@@ -409,6 +411,58 @@ class ActionContractTest(unittest.TestCase):
         self.assertIn("d4rt_9", str(caught.exception))
         self.assertIn("Available evidence IDs: []", str(caught.exception))
         self.assertIn("Rejected actions create no evidence", str(caught.exception))
+
+
+class SystemPromptCompositionTest(unittest.TestCase):
+    @staticmethod
+    def _orchestrator(
+        system_prompt: str | None = None,
+    ) -> SimpleV2Orchestrator:
+        return SimpleV2Orchestrator(
+            qwen=object(),  # type: ignore[arg-type]
+            backend=object(),  # type: ignore[arg-type]
+            sampled_video=object(),  # type: ignore[arg-type]
+            system_prompt=system_prompt,
+        )
+
+    def test_protocol_text_is_loaded_from_the_reviewable_prompt_file(self) -> None:
+        self.assertEqual(
+            TOOL_TURN_PROTOCOL_TEXT,
+            TOOL_TURN_PROTOCOL_PATH.read_text(encoding="utf-8"),
+        )
+
+    def test_default_prompt_prepends_the_protocol_exactly_once(self) -> None:
+        orchestrator = self._orchestrator()
+        protocol = TOOL_TURN_PROTOCOL_TEXT.rstrip()
+        self.assertEqual(
+            orchestrator.system_prompt,
+            f"{protocol}\n\n{SYSTEM_PROMPT}",
+        )
+        self.assertEqual(orchestrator.system_prompt.count(protocol), 1)
+        self.assertLess(
+            orchestrator.system_prompt.index(protocol),
+            orchestrator.system_prompt.index(SYSTEM_PROMPT),
+        )
+
+    def test_caller_prompt_is_preserved_after_the_protocol(self) -> None:
+        caller_prompt = "\n# Caller-owned task prompt\nA unique sentinel."
+        orchestrator = self._orchestrator(caller_prompt)
+        protocol = TOOL_TURN_PROTOCOL_TEXT.rstrip()
+        self.assertEqual(
+            orchestrator.system_prompt,
+            f"{protocol}\n\n{caller_prompt}",
+        )
+        self.assertEqual(orchestrator.system_prompt.count(protocol), 1)
+        self.assertLess(
+            orchestrator.system_prompt.index(protocol),
+            orchestrator.system_prompt.index("# Caller-owned task prompt"),
+        )
+
+    def test_tool_free_dsi_baseline_does_not_receive_the_protocol(self) -> None:
+        from d4rt_agent.dsi_bench_run import BASELINE_PROMPT
+
+        self.assertNotIn(TOOL_TURN_PROTOCOL_TEXT.rstrip(), BASELINE_PROMPT)
+        self.assertNotIn("## Tool interaction protocol", BASELINE_PROMPT)
 
 
 class UnscoredAnswerTest(unittest.TestCase):
