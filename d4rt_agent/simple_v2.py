@@ -12,6 +12,7 @@ absent from every schema and message shown to Qwen.
 from __future__ import annotations
 
 import argparse
+from dataclasses import dataclass
 from datetime import datetime, timezone
 import json
 import math
@@ -87,18 +88,37 @@ def _utc_now() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
-def _extract_action_json(text: str) -> dict[str, Any]:
-    """Extract the first complete JSON object representing an action."""
+@dataclass(frozen=True)
+class ExtractedAction:
+    """The first action object and its exact source span in a model response."""
+
+    value: dict[str, Any]
+    start: int
+    end: int
+
+
+def extract_first_action(text: str) -> ExtractedAction:
+    """Extract the first complete action object and its exclusive end offset."""
 
     decoder = json.JSONDecoder()
     for match in re.finditer(r"\{", text):
         try:
-            value, _ = decoder.raw_decode(text[match.start():])
+            value, consumed = decoder.raw_decode(text[match.start():])
         except json.JSONDecodeError:
             continue
         if isinstance(value, dict) and ("action" in value or "name" in value):
-            return value
+            return ExtractedAction(
+                value=value,
+                start=match.start(),
+                end=match.start() + consumed,
+            )
     raise ValueError(f"Qwen did not emit one JSON action: {text[:500]!r}")
+
+
+def _extract_action_json(text: str) -> dict[str, Any]:
+    """Compatibility wrapper for callers that only need the parsed action."""
+
+    return extract_first_action(text).value
 
 
 def _redact_host_policy(result: dict[str, Any]) -> dict[str, Any]:
@@ -379,67 +399,60 @@ class SimpleV2Orchestrator:
 
         for step in range(1, self.max_steps + 1):
             raw = self.qwen.generate(messages)
-            messages.append({"role": "assistant", "content": [{"type": "text", "text": raw}]})
             attempt: dict[str, Any] = {
                 "step": step,
                 "kind": "model_action",
                 "raw_qwen_response": raw,
+                "effective_response": raw,
+                "discarded_suffix": "",
+                "action_span": None,
+                "parsed_action": None,
+                "status": "rejected",
+                "failure_stage": None,
+                "call_id": None,
+                "result": None,
+                "error": None,
             }
+
             try:
-                if re.search(r"\bpoint_mode\b", raw):
-                    raise ValueError("Qwen must never select or emit point_mode")
-                parsed = _extract_action_json(raw)
-                name, arguments = validate_action(parsed)
-                attempt["parsed_action"] = {"action": name, "arguments": arguments}
-                if name == "final_answer":
-                    self._validate_final(task, arguments, evidence)
-                    counters["final"] += 1
-                    call_id = f"final_{counters['final']}"
-                    record = {
-                        **attempt,
-                        "call_id": call_id,
-                        "status": "ok",
-                        "result": arguments,
-                    }
-                    trace.append(record)
-                    return {
-                        "point_mode": self.backend.point_mode,
-                        **task,
-                        "final_answer": arguments,
-                        "trace": trace,
-                        "evidence": evidence,
-                        "steps": step,
-                    }
-                result, response_content, prefix = self._execute_action(
-                    name, arguments, evidence, step=step
-                )
-                counters[prefix] += 1
-                call_id = f"{prefix}_{counters[prefix]}"
-                evidence[call_id] = result
-                record = {
-                    **attempt,
-                    "call_id": call_id,
-                    "status": "ok",
-                    "justification": arguments["justification"],
-                    "result": result,
-                }
-                trace.append(record)
-                if response_content is None:
-                    response_content = [{
-                        "type": "text",
-                        "text": f"Tool result {call_id}: {json.dumps(_redact_host_policy(result))}",
-                    }]
-                else:
-                    response_content.insert(0, {
-                        "type": "text",
-                        "text": f"Tool result {call_id}: {json.dumps(_redact_host_policy(result))}",
-                    })
+                extracted = extract_first_action(raw)
+            except ValueError as error:
+                attempt.update(failure_stage="parse", error=str(error))
+                trace.append(attempt)
+                messages.append({
+                    "role": "assistant",
+                    "content": [{"type": "text", "text": raw}],
+                })
+                rejection = [{
+                    "type": "text",
+                    "text": (
+                        f"Action rejected: {error}. Your next response must end with one "
+                        "corrected JSON action using only the supplied schemas."
+                    ),
+                }]
                 notice = self._step_notice(step)
                 if notice:
-                    response_content.append({"type": "text", "text": notice})
-                messages.append({"role": "user", "content": response_content})
+                    rejection.append({"type": "text", "text": notice})
+                messages.append({"role": "user", "content": rejection})
+                continue
+
+            effective = raw[:extracted.end].strip()
+            discarded = raw[extracted.end:]
+            attempt.update(
+                effective_response=effective,
+                discarded_suffix=discarded,
+                action_span={"start": extracted.start, "end": extracted.end},
+                parsed_action=extracted.value,
+            )
+            messages.append({
+                "role": "assistant",
+                "content": [{"type": "text", "text": effective}],
+            })
+
+            try:
+                name, arguments = validate_action(extracted.value)
             except (KeyError, TypeError, ValueError) as error:
-                attempt.update(status="rejected", error=str(error))
+                attempt.update(failure_stage="validation", error=str(error))
                 trace.append(attempt)
                 rejection = [{
                     "type": "text",
@@ -452,6 +465,89 @@ class SimpleV2Orchestrator:
                 if notice:
                     rejection.append({"type": "text", "text": notice})
                 messages.append({"role": "user", "content": rejection})
+                continue
+
+            attempt["parsed_action"] = {"action": name, "arguments": arguments}
+            if name == "final_answer":
+                try:
+                    self._validate_final(task, arguments, evidence)
+                except (KeyError, TypeError, ValueError) as error:
+                    attempt.update(failure_stage="final_validation", error=str(error))
+                    trace.append(attempt)
+                    rejection = [{
+                        "type": "text",
+                        "text": (
+                            f"Action rejected: {error}. Return one corrected JSON action "
+                            "using only the supplied schemas."
+                        ),
+                    }]
+                    notice = self._step_notice(step)
+                    if notice:
+                        rejection.append({"type": "text", "text": notice})
+                    messages.append({"role": "user", "content": rejection})
+                    continue
+
+                counters["final"] += 1
+                call_id = f"final_{counters['final']}"
+                attempt.update(
+                    call_id=call_id,
+                    status="ok",
+                    result=arguments,
+                )
+                trace.append(attempt)
+                return {
+                    "point_mode": self.backend.point_mode,
+                    **task,
+                    "final_answer": arguments,
+                    "trace": trace,
+                    "evidence": evidence,
+                    "steps": step,
+                }
+
+            try:
+                result, response_content, prefix = self._execute_action(
+                    name, arguments, evidence, step=step
+                )
+            except ValueError as error:
+                attempt.update(failure_stage="execution", error=str(error))
+                trace.append(attempt)
+                rejection = [{
+                    "type": "text",
+                    "text": (
+                        f"Action rejected: {error}. Return one corrected JSON action using "
+                        "only the supplied schemas."
+                    ),
+                }]
+                notice = self._step_notice(step)
+                if notice:
+                    rejection.append({"type": "text", "text": notice})
+                messages.append({"role": "user", "content": rejection})
+                continue
+
+            counters[prefix] += 1
+            call_id = f"{prefix}_{counters[prefix]}"
+            evidence[call_id] = result
+            attempt.update(
+                call_id=call_id,
+                status="ok",
+                justification=arguments["justification"],
+                result=result,
+            )
+            trace.append(attempt)
+            if response_content is None:
+                response_content = [{
+                    "type": "text",
+                    "text": f"Tool result {call_id}: {json.dumps(_redact_host_policy(result))}",
+                }]
+            else:
+                response_content.insert(0, {
+                    "type": "text",
+                    "text": f"Tool result {call_id}: {json.dumps(_redact_host_policy(result))}",
+                })
+            notice = self._step_notice(step)
+            if notice:
+                response_content.append({"type": "text", "text": notice})
+            messages.append({"role": "user", "content": response_content})
         raise OrchestrationError(
             f"Qwen did not produce a valid final answer in {self.max_steps} steps; "
             f"last trace entry: {trace[-1] if trace else 'none'}",

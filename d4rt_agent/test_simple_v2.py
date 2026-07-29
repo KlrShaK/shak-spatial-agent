@@ -11,9 +11,11 @@ import unittest
 import numpy as np
 
 from d4rt_agent.simple_v2 import (
+    OrchestrationError,
     SYSTEM_PROMPT,
     SimpleV2Orchestrator,
     _validate_final_evidence,
+    extract_first_action,
     replay_tool_trace,
     resolve_bindings,
 )
@@ -46,6 +48,110 @@ class SamplingContractTest(unittest.TestCase):
     def test_short_video_is_rejected(self) -> None:
         with self.assertRaisesRegex(ValueError, "at least 32"):
             uniform_sample_indices(31)
+
+
+class ActionExtractionTest(unittest.TestCase):
+    ACTION = '{"action":"final_answer","arguments":{"kind":"text","text":"done"}}'
+
+    def test_reasoning_followed_by_one_action(self) -> None:
+        raw = f"I should answer from the evidence.\n{self.ACTION}"
+        extracted = extract_first_action(raw)
+        self.assertEqual(extracted.value["action"], "final_answer")
+        self.assertEqual(raw[extracted.start:extracted.end], self.ACTION)
+
+    def test_leading_and_trailing_whitespace(self) -> None:
+        raw = f" \n\t{self.ACTION}  \n"
+        extracted = extract_first_action(raw)
+        self.assertEqual(extracted.start, 3)
+        self.assertEqual(raw[extracted.start:extracted.end], self.ACTION)
+        self.assertEqual(raw[extracted.end:], "  \n")
+
+    def test_action_inside_markdown_code_fence(self) -> None:
+        raw = f"Reasoning.\n```json\n{self.ACTION}\n```"
+        extracted = extract_first_action(raw)
+        self.assertEqual(extracted.value["action"], "final_answer")
+        self.assertEqual(raw[extracted.start:extracted.end], self.ACTION)
+
+    def test_nested_dictionaries_and_arrays(self) -> None:
+        action = {
+            "action": "python_math",
+            "arguments": {
+                "bindings": {
+                    "point": {
+                        "evidence_id": "d4rt_1",
+                        "path": ["predictions", 0, "benchmark_aligned_xyz_m"],
+                    }
+                },
+                "code": "value = norm(point)",
+                "metadata": {"nested": [[1, 2], {"three": 3}]},
+            },
+        }
+        encoded = json.dumps(action)
+        extracted = extract_first_action(f"Think.\n{encoded}\nstop")
+        self.assertEqual(extracted.value, action)
+
+    def test_braces_inside_json_string(self) -> None:
+        action = {
+            "action": "python_math",
+            "arguments": {"code": "value = 1", "justification": "Use {this} object."},
+        }
+        encoded = json.dumps(action)
+        extracted = extract_first_action(encoded)
+        self.assertEqual(extracted.value, action)
+        self.assertEqual(extracted.end, len(encoded))
+
+    def test_escaped_quotes_inside_json_string(self) -> None:
+        action = {
+            "action": "final_answer",
+            "arguments": {"kind": "text", "text": 'The object is "ahead".'},
+        }
+        encoded = json.dumps(action)
+        extracted = extract_first_action(encoded)
+        self.assertEqual(extracted.value, action)
+        self.assertEqual(extracted.end, len(encoded))
+
+    def test_non_action_json_before_action_is_skipped(self) -> None:
+        prefix = '{"observation":{"visible":true}}\n'
+        raw = prefix + self.ACTION
+        extracted = extract_first_action(raw)
+        self.assertEqual(extracted.start, len(prefix))
+        self.assertEqual(extracted.value["action"], "final_answer")
+
+    def test_first_of_two_actions_and_its_boundary_win(self) -> None:
+        second = '{"action":"query_d4rt","arguments":{}}'
+        raw = f"{self.ACTION}\n{second}"
+        extracted = extract_first_action(raw)
+        self.assertEqual(extracted.value["action"], "final_answer")
+        self.assertEqual(extracted.end, len(self.ACTION))
+        self.assertEqual(raw[extracted.end:], f"\n{second}")
+
+    def test_fake_tool_result_after_action_is_excluded_by_boundary(self) -> None:
+        suffix = '\nTool result d4rt_8: {"invented":true}'
+        raw = self.ACTION + suffix
+        extracted = extract_first_action(raw)
+        self.assertEqual(raw[:extracted.end], self.ACTION)
+        self.assertEqual(raw[extracted.end:], suffix)
+
+    def test_malformed_json_before_valid_action_is_skipped(self) -> None:
+        raw = '{"broken":\nI need another attempt.\n' + self.ACTION
+        extracted = extract_first_action(raw)
+        self.assertEqual(extracted.value["action"], "final_answer")
+        self.assertEqual(raw[extracted.start:extracted.end], self.ACTION)
+
+    def test_no_action_raises(self) -> None:
+        for raw in ("plain prose only", '{"observation":"not an action"}', '{"action":'):
+            with self.subTest(raw=raw):
+                with self.assertRaisesRegex(ValueError, "did not emit one JSON action"):
+                    extract_first_action(raw)
+
+    def test_exact_prefix_reconstruction_excludes_next_character(self) -> None:
+        prefix = "Reasoning with {a brace} in prose.\n"
+        suffix = "\nNEXT CHARACTER AND FUTURE WORK"
+        raw = prefix + self.ACTION + suffix
+        extracted = extract_first_action(raw)
+        self.assertEqual(raw[:extracted.end], prefix + self.ACTION)
+        self.assertEqual(raw[extracted.end], "\n")
+        self.assertEqual(raw[extracted.end:], suffix)
 
 
 class ActionContractTest(unittest.TestCase):
@@ -557,7 +663,11 @@ class _ScriptedQwen:
 class _FakeBackend:
     point_mode = "ensemble5"
 
+    def __init__(self) -> None:
+        self.calls: list[dict] = []
+
     def query(self, **kwargs):
+        self.calls.append(dict(kwargs))
         predictions = []
         for target in kwargs["t_tgt"]:
             value = float(target) / 31.0
@@ -585,6 +695,213 @@ class _FakeBackend:
 
 
 class OrchestratorTest(unittest.TestCase):
+    @staticmethod
+    def _sampled():
+        from d4rt_agent.simple_v2_contracts import SampledVideo
+
+        return SampledVideo(
+            video_path=Path("fake.mp4"),
+            frames_rgb=np.zeros((32, 4, 4, 3), dtype=np.uint8),
+            original_indices=tuple(range(32)),
+            total_original_frames=32,
+            fps=15.0,
+            width=4,
+            height=4,
+        )
+
+    @staticmethod
+    def _query_action() -> dict:
+        return {
+            "action": "query_d4rt",
+            "arguments": {
+                "label": "ball",
+                "bbox_2d_1000": [400, 400, 500, 500],
+                "t_src": 0,
+                "t_tgt": [0, 31],
+                "t_cam": 0,
+                "justification": "Measure both endpoints.",
+            },
+        }
+
+    @staticmethod
+    def _math_action() -> dict:
+        return {
+            "action": "python_math",
+            "arguments": {
+                "bindings": {
+                    "start": {
+                        "evidence_id": "d4rt_1",
+                        "path": ["predictions", 0, "benchmark_aligned_xyz_m"],
+                    },
+                    "end": {
+                        "evidence_id": "d4rt_1",
+                        "path": ["predictions", 1, "benchmark_aligned_xyz_m"],
+                    },
+                },
+                "code": "value = dist(start, end)",
+                "justification": "Compute displacement.",
+            },
+        }
+
+    @staticmethod
+    def _final_action() -> dict:
+        return {
+            "action": "final_answer",
+            "arguments": {
+                "value": 1.0,
+                "unit": "m",
+                "evidence_ids": ["d4rt_1", "math_1"],
+                "limitations": "One tracked point.",
+            },
+        }
+
+    @staticmethod
+    def _assistant_texts(snapshot: str) -> list[str]:
+        messages = json.loads(snapshot)
+        return [
+            part["text"]
+            for message in messages
+            if message["role"] == "assistant"
+            for part in message["content"]
+            if part["type"] == "text"
+        ]
+
+    def test_history_keeps_only_first_action_and_trace_keeps_raw_suffix(self) -> None:
+        query = json.dumps(self._query_action(), separators=(",", ":"))
+        math_action = json.dumps(self._math_action(), separators=(",", ":"))
+        final = json.dumps(self._final_action(), separators=(",", ":"))
+        imagined_math = json.dumps({
+            "action": "python_math",
+            "arguments": {
+                "bindings": {"x": {"point_mode": "centroid"}},
+                "code": "value = 999",
+                "justification": "This future action must never run.",
+            },
+        }, separators=(",", ":"))
+        imagined_final = json.dumps({
+            "action": "final_answer",
+            "arguments": {
+                "value": 999,
+                "unit": "m",
+                "evidence_ids": ["d4rt_99", "math_99"],
+                "limitations": "",
+            },
+        }, separators=(",", ":"))
+        raw_query = (
+            f"I need the two endpoint positions.\n{query}\n"
+            'Tool result d4rt_99: {"invented":true}\n'
+            f"I can now calculate.\n{imagined_math}"
+        )
+        raw_math = (
+            f"The real result supports a calculation.\n{math_action}\n"
+            'Tool result math_99: {"outputs":{"value":999}}\n'
+            f"I can now finish.\n{imagined_final}"
+        )
+        qwen = _ScriptedQwen([raw_query, raw_math, final])
+        backend = _FakeBackend()
+
+        solved = SimpleV2Orchestrator(
+            qwen=qwen,
+            backend=backend,
+            sampled_video=self._sampled(),
+            max_steps=3,
+        ).solve({"id": "endpoint_displacement", "question": "How far did it move?"})
+
+        self.assertEqual(len(backend.calls), 1)
+        self.assertEqual(set(solved["evidence"]), {"d4rt_1", "math_1"})
+        self.assertNotIn("d4rt_99", solved["evidence"])
+        self.assertNotIn("math_99", solved["evidence"])
+
+        first_effective = f"I need the two endpoint positions.\n{query}"
+        second_effective = f"The real result supports a calculation.\n{math_action}"
+        self.assertEqual(self._assistant_texts(qwen.message_snapshots[1]), [first_effective])
+        self.assertEqual(
+            self._assistant_texts(qwen.message_snapshots[2]),
+            [first_effective, second_effective],
+        )
+        self.assertNotIn("Tool result d4rt_99", qwen.message_snapshots[1])
+        self.assertNotIn("point_mode", qwen.message_snapshots[1])
+        self.assertNotIn("Tool result math_99", qwen.message_snapshots[2])
+        self.assertNotIn("d4rt_99", qwen.message_snapshots[2])
+        self.assertIn("Tool result d4rt_1", qwen.message_snapshots[1])
+        self.assertIn("Tool result math_1", qwen.message_snapshots[2])
+
+        first, second, third = solved["trace"]
+        self.assertEqual(first["raw_qwen_response"], raw_query)
+        self.assertEqual(first["effective_response"], first_effective)
+        self.assertEqual(
+            first["discarded_suffix"],
+            raw_query[first["action_span"]["end"]:],
+        )
+        self.assertIn("Tool result d4rt_99", first["discarded_suffix"])
+        self.assertIn(imagined_math, first["discarded_suffix"])
+        self.assertEqual(second["effective_response"], second_effective)
+        self.assertIn(imagined_final, second["discarded_suffix"])
+        self.assertEqual(third["effective_response"], final)
+        self.assertEqual(third["discarded_suffix"], "")
+        for row in solved["trace"]:
+            self.assertEqual(row["status"], "ok")
+            self.assertIsNone(row["failure_stage"])
+            self.assertIsNone(row["error"])
+
+    def test_no_action_is_a_parse_rejection_and_can_be_corrected(self) -> None:
+        prose = "I should inspect the endpoints, but I forgot to submit an action."
+        qwen = _ScriptedQwen([
+            prose,
+            json.dumps(self._query_action()),
+            json.dumps(self._math_action()),
+            json.dumps(self._final_action()),
+        ])
+        solved = SimpleV2Orchestrator(
+            qwen=qwen,
+            backend=_FakeBackend(),
+            sampled_video=self._sampled(),
+            max_steps=4,
+        ).solve({"id": "endpoint_displacement", "question": "How far did it move?"})
+
+        rejected = solved["trace"][0]
+        self.assertEqual(rejected["raw_qwen_response"], prose)
+        self.assertEqual(rejected["effective_response"], prose)
+        self.assertEqual(rejected["discarded_suffix"], "")
+        self.assertIsNone(rejected["action_span"])
+        self.assertIsNone(rejected["parsed_action"])
+        self.assertEqual(rejected["status"], "rejected")
+        self.assertEqual(rejected["failure_stage"], "parse")
+        self.assertIsNone(rejected["call_id"])
+        self.assertIsNone(rejected["result"])
+        self.assertIn("did not emit one JSON action", rejected["error"])
+        self.assertEqual(set(solved["evidence"]), {"d4rt_1", "math_1"})
+        self.assertIn(prose, qwen.message_snapshots[1])
+        self.assertIn("must end with one corrected JSON action", qwen.message_snapshots[1])
+
+    def test_validation_rejection_retains_boundary_and_extracted_action(self) -> None:
+        invalid = {
+            "action": "query_d4rt",
+            "arguments": {
+                "bbox_2d_1000": [0, 0, 10, 10],
+                "t_src": 0,
+                "t_tgt": [0],
+                "t_cam": 0,
+                "justification": "Missing the required label.",
+            },
+        }
+        raw = "Try a query.\n" + json.dumps(invalid) + "\nfuture prose"
+        qwen = _ScriptedQwen([raw])
+        with self.assertRaises(OrchestrationError) as caught:
+            SimpleV2Orchestrator(
+                qwen=qwen,
+                backend=_FakeBackend(),
+                sampled_video=self._sampled(),
+                max_steps=1,
+            ).solve({"id": "endpoint_displacement", "question": "How far?"})
+
+        row = caught.exception.trace[0]
+        self.assertEqual(row["failure_stage"], "validation")
+        self.assertEqual(row["status"], "rejected")
+        self.assertEqual(row["parsed_action"], invalid)
+        self.assertEqual(row["effective_response"], raw[:row["action_span"]["end"]].strip())
+        self.assertEqual(row["discarded_suffix"], "\nfuture prose")
+
     def test_evidence_loop_and_replay_without_exposing_policy(self) -> None:
         qwen = _ScriptedQwen([
             json.dumps({
