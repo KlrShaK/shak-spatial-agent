@@ -82,6 +82,15 @@ def _effective_thinking(step: Mapping[str, Any]) -> str:
             # action_span indexes the unstripped raw generation, whereas
             # effective_response is intentionally stripped before history.
             return raw[:start].strip()
+    if "action_span" in step and span is None:
+        # A Phase 1 parse rejection has no submitted action boundary. The whole
+        # response entered effective history, including any malformed
+        # action-like tail, so the normal trace view must show the whole turn.
+        return (
+            effective
+            if len(effective) <= UNPARSED_LIMIT
+            else effective[:UNPARSED_LIMIT] + " […truncated]"
+        )
     return _thinking(effective)
 
 

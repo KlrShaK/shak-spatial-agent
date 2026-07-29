@@ -314,6 +314,31 @@ class TraceRenderingCompatibilityTest(unittest.TestCase):
         }
         self.assertIn("I forgot the action.", "\n".join(render_trace_markdown(record)))
 
+    def test_parse_rejection_shows_complete_effective_malformed_action(self) -> None:
+        effective = 'Thinking first.\n{"action": broken payload'
+        record = {
+            "trace": [{
+                "step": 1,
+                "status": "rejected",
+                "failure_stage": "parse",
+                "raw_qwen_response": effective,
+                "effective_response": effective,
+                "discarded_suffix": "",
+                "action_span": None,
+                "parsed_action": None,
+                "call_id": None,
+                "result": None,
+                "error": "Qwen did not emit one JSON action",
+                "evidence_state": _state(
+                    [], accepted=False, new_id=None, reason="parse failure"
+                ),
+            }],
+            "evidence": {},
+        }
+        markdown = "\n".join(render_trace_markdown(record))
+        self.assertIn("Thinking first.", markdown)
+        self.assertIn('{"action": broken payload', markdown)
+
 
 if __name__ == "__main__":
     unittest.main()
