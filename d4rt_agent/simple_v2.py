@@ -97,6 +97,15 @@ class ExtractedAction:
     end: int
 
 
+@dataclass(frozen=True)
+class EvidenceEntry:
+    """Host-owned metadata for one successfully created evidence object."""
+
+    evidence_id: str
+    tool_name: str
+    created_at_step: int
+
+
 def extract_first_action(text: str) -> ExtractedAction:
     """Extract the first complete action object and its exclusive end offset."""
 
@@ -119,6 +128,79 @@ def _extract_action_json(text: str) -> dict[str, Any]:
     """Compatibility wrapper for callers that only need the parsed action."""
 
     return extract_first_action(text).value
+
+
+def unknown_evidence_error(
+    requested: Sequence[Any],
+    evidence: Mapping[str, Any],
+) -> str:
+    """Describe nonexistent IDs while naming the evidence that actually exists."""
+
+    unique_by_repr = {repr(item): item for item in requested}
+    requested_text = [unique_by_repr[key] for key in sorted(unique_by_repr)]
+    available = sorted(evidence)
+    return (
+        f"unknown evidence IDs {requested_text!r} do not exist. "
+        f"Available evidence IDs: {available!r}. "
+        "Rejected actions create no evidence. Use an available ID, or submit "
+        "the missing tool call as this turn's single action."
+    )
+
+
+def _evidence_state(
+    entries: Sequence[EvidenceEntry],
+    *,
+    last_action: str,
+    new_evidence_id: str | None = None,
+    reason: str | None = None,
+) -> dict[str, Any]:
+    """Take a JSON-safe snapshot of the authoritative host evidence registry."""
+
+    if last_action not in {"accepted", "rejected"}:
+        raise ValueError(f"invalid ledger action status: {last_action!r}")
+    return {
+        "available": [
+            {
+                "evidence_id": entry.evidence_id,
+                "tool_name": entry.tool_name,
+                "created_at_step": entry.created_at_step,
+            }
+            for entry in entries
+        ],
+        "last_action": last_action,
+        "new_evidence_id": new_evidence_id,
+        "reason": reason,
+    }
+
+
+def _format_evidence_state(state: Mapping[str, Any]) -> str:
+    """Render a concise model-facing ledger solely from host state."""
+
+    available = state.get("available") or []
+    lines = [
+        "HOST EVIDENCE STATE — authoritative",
+        "",
+        "Available evidence:",
+    ]
+    if available:
+        lines.extend(
+            f"- {entry['evidence_id']}: {entry['tool_name']}" for entry in available
+        )
+    else:
+        lines.append("- none")
+    lines.extend([
+        "",
+        f"Last action: {state['last_action']}",
+        f"New evidence created: {state.get('new_evidence_id') or 'none'}",
+    ])
+    reason = state.get("reason")
+    if reason:
+        lines.append(f"Reason: {reason}")
+    lines.append("")
+    if state["last_action"] == "rejected":
+        lines.append("Rejected actions create no evidence identifiers.")
+    lines.append("Only identifiers listed under Available evidence exist.")
+    return "\n".join(lines)
 
 
 def _redact_host_policy(result: dict[str, Any]) -> dict[str, Any]:
@@ -172,7 +254,10 @@ def resolve_bindings(
         evidence_id = specification.get("evidence_id")
         path = specification.get("path", [])
         if not isinstance(evidence_id, str) or evidence_id not in evidence:
-            raise ValueError(f"binding {variable!r} cites unknown evidence: {evidence_id!r}")
+            raise ValueError(
+                f"binding {variable!r}: "
+                f"{unknown_evidence_error([evidence_id], evidence)}"
+            )
         if not isinstance(path, list) or not all(isinstance(item, (str, int)) for item in path):
             raise ValueError(f"binding {variable!r} path must contain string fields or integer indices")
         values[variable] = _resolve_path(evidence[evidence_id], path)
@@ -203,7 +288,9 @@ def _validate_final_evidence(
     evidence_ids = arguments["evidence_ids"]
     if any(item not in evidence for item in evidence_ids):
         unknown = [item for item in evidence_ids if item not in evidence]
-        raise ValueError(f"final answer cites unknown evidence IDs: {unknown}")
+        raise ValueError(
+            "final answer: " + unknown_evidence_error(unknown, evidence)
+        )
     if arguments.get("kind", "numeric") == "text":
         # Descriptive answers carry no scored number, so there is nothing to trace
         # back to a calculation.  They are recorded as unscored instead.
@@ -362,6 +449,53 @@ class SimpleV2Orchestrator:
 
         return None
 
+    def _reject_turn(
+        self,
+        *,
+        attempt: dict[str, Any],
+        error: Exception,
+        failure_stage: str,
+        evidence_entries: Sequence[EvidenceEntry],
+        trace: list[dict[str, Any]],
+        messages: list[dict[str, Any]],
+        step: int,
+        missing_action: bool = False,
+    ) -> None:
+        """Record one rejected action and return host truth to the model."""
+
+        reason = str(error)
+        state = _evidence_state(
+            evidence_entries,
+            last_action="rejected",
+            reason=reason,
+        )
+        attempt.update(
+            status="rejected",
+            failure_stage=failure_stage,
+            error=reason,
+            evidence_state=state,
+        )
+        trace.append(attempt)
+        correction = (
+            "Your next response must end with one corrected JSON action"
+            if missing_action
+            else "Return one corrected JSON action"
+        )
+        rejection = [
+            {
+                "type": "text",
+                "text": (
+                    f"Action rejected: {reason}. {correction} using only the supplied "
+                    "schemas."
+                ),
+            },
+            {"type": "text", "text": _format_evidence_state(state)},
+        ]
+        notice = self._step_notice(step)
+        if notice:
+            rejection.append({"type": "text", "text": notice})
+        messages.append({"role": "user", "content": rejection})
+
     def solve(self, task: dict[str, str]) -> dict[str, Any]:
         from PIL import Image
 
@@ -395,6 +529,7 @@ class SimpleV2Orchestrator:
         ]
         trace: list[dict[str, Any]] = []
         evidence: dict[str, dict[str, Any]] = {}
+        evidence_entries: list[EvidenceEntry] = []
         counters = {"d4rt": 0, "math": 0, "final": 0}
 
         for step in range(1, self.max_steps + 1):
@@ -412,28 +547,26 @@ class SimpleV2Orchestrator:
                 "call_id": None,
                 "result": None,
                 "error": None,
+                "evidence_state": None,
             }
 
             try:
                 extracted = extract_first_action(raw)
             except ValueError as error:
-                attempt.update(failure_stage="parse", error=str(error))
-                trace.append(attempt)
                 messages.append({
                     "role": "assistant",
                     "content": [{"type": "text", "text": raw}],
                 })
-                rejection = [{
-                    "type": "text",
-                    "text": (
-                        f"Action rejected: {error}. Your next response must end with one "
-                        "corrected JSON action using only the supplied schemas."
-                    ),
-                }]
-                notice = self._step_notice(step)
-                if notice:
-                    rejection.append({"type": "text", "text": notice})
-                messages.append({"role": "user", "content": rejection})
+                self._reject_turn(
+                    attempt=attempt,
+                    error=error,
+                    failure_stage="parse",
+                    evidence_entries=evidence_entries,
+                    trace=trace,
+                    messages=messages,
+                    step=step,
+                    missing_action=True,
+                )
                 continue
 
             effective = raw[:extracted.end].strip()
@@ -452,19 +585,15 @@ class SimpleV2Orchestrator:
             try:
                 name, arguments = validate_action(extracted.value)
             except (KeyError, TypeError, ValueError) as error:
-                attempt.update(failure_stage="validation", error=str(error))
-                trace.append(attempt)
-                rejection = [{
-                    "type": "text",
-                    "text": (
-                        f"Action rejected: {error}. Return one corrected JSON action using "
-                        "only the supplied schemas."
-                    ),
-                }]
-                notice = self._step_notice(step)
-                if notice:
-                    rejection.append({"type": "text", "text": notice})
-                messages.append({"role": "user", "content": rejection})
+                self._reject_turn(
+                    attempt=attempt,
+                    error=error,
+                    failure_stage="validation",
+                    evidence_entries=evidence_entries,
+                    trace=trace,
+                    messages=messages,
+                    step=step,
+                )
                 continue
 
             attempt["parsed_action"] = {"action": name, "arguments": arguments}
@@ -472,27 +601,28 @@ class SimpleV2Orchestrator:
                 try:
                     self._validate_final(task, arguments, evidence)
                 except (KeyError, TypeError, ValueError) as error:
-                    attempt.update(failure_stage="final_validation", error=str(error))
-                    trace.append(attempt)
-                    rejection = [{
-                        "type": "text",
-                        "text": (
-                            f"Action rejected: {error}. Return one corrected JSON action "
-                            "using only the supplied schemas."
-                        ),
-                    }]
-                    notice = self._step_notice(step)
-                    if notice:
-                        rejection.append({"type": "text", "text": notice})
-                    messages.append({"role": "user", "content": rejection})
+                    self._reject_turn(
+                        attempt=attempt,
+                        error=error,
+                        failure_stage="final_validation",
+                        evidence_entries=evidence_entries,
+                        trace=trace,
+                        messages=messages,
+                        step=step,
+                    )
                     continue
 
                 counters["final"] += 1
                 call_id = f"final_{counters['final']}"
+                state = _evidence_state(
+                    evidence_entries,
+                    last_action="accepted",
+                )
                 attempt.update(
                     call_id=call_id,
                     status="ok",
                     result=arguments,
+                    evidence_state=state,
                 )
                 trace.append(attempt)
                 return {
@@ -509,29 +639,38 @@ class SimpleV2Orchestrator:
                     name, arguments, evidence, step=step
                 )
             except ValueError as error:
-                attempt.update(failure_stage="execution", error=str(error))
-                trace.append(attempt)
-                rejection = [{
-                    "type": "text",
-                    "text": (
-                        f"Action rejected: {error}. Return one corrected JSON action using "
-                        "only the supplied schemas."
-                    ),
-                }]
-                notice = self._step_notice(step)
-                if notice:
-                    rejection.append({"type": "text", "text": notice})
-                messages.append({"role": "user", "content": rejection})
+                self._reject_turn(
+                    attempt=attempt,
+                    error=error,
+                    failure_stage="execution",
+                    evidence_entries=evidence_entries,
+                    trace=trace,
+                    messages=messages,
+                    step=step,
+                )
                 continue
 
             counters[prefix] += 1
             call_id = f"{prefix}_{counters[prefix]}"
             evidence[call_id] = result
+            evidence_entries.append(
+                EvidenceEntry(
+                    evidence_id=call_id,
+                    tool_name=name,
+                    created_at_step=step,
+                )
+            )
+            state = _evidence_state(
+                evidence_entries,
+                last_action="accepted",
+                new_evidence_id=call_id,
+            )
             attempt.update(
                 call_id=call_id,
                 status="ok",
                 justification=arguments["justification"],
                 result=result,
+                evidence_state=state,
             )
             trace.append(attempt)
             if response_content is None:
@@ -544,6 +683,10 @@ class SimpleV2Orchestrator:
                     "type": "text",
                     "text": f"Tool result {call_id}: {json.dumps(_redact_host_policy(result))}",
                 })
+            response_content.append({
+                "type": "text",
+                "text": _format_evidence_state(state),
+            })
             notice = self._step_notice(step)
             if notice:
                 response_content.append({"type": "text", "text": notice})

@@ -45,6 +45,7 @@ from .simple_v2 import (
     OrchestrationError,
     SimpleV2Orchestrator,
     _resolve_path,
+    unknown_evidence_error,
 )
 from .simple_v2_backend import (
     DEFAULT_D4RT_CHECKPOINT,
@@ -263,7 +264,9 @@ class DSIOrchestrator(SimpleV2Orchestrator):
         evidence_ids = arguments.get("evidence_ids", [])
         unknown = [item for item in evidence_ids if item not in evidence]
         if unknown:
-            raise ValueError(f"final answer cites unknown evidence IDs: {unknown}")
+            raise ValueError(
+                "final answer: " + unknown_evidence_error(unknown, evidence)
+            )
         if self.require_d4rt and not any(item.startswith("d4rt_") for item in evidence_ids):
             raise ValueError(
                 "the answer must cite at least one query_d4rt call, because an answer read "

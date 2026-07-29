@@ -400,12 +400,15 @@ class ActionContractTest(unittest.TestCase):
             "small_talk", {"kind": "text", "text": "Doing well.", "evidence_ids": []}, {}
         )
         # Cited ids must still exist, even for text.
-        with self.assertRaisesRegex(ValueError, "unknown evidence IDs"):
+        with self.assertRaisesRegex(ValueError, "unknown evidence IDs") as caught:
             _validate_final_evidence(
                 "small_talk",
                 {"kind": "text", "text": "Doing well.", "evidence_ids": ["d4rt_9"]},
                 {},
             )
+        self.assertIn("d4rt_9", str(caught.exception))
+        self.assertIn("Available evidence IDs: []", str(caught.exception))
+        self.assertIn("Rejected actions create no evidence", str(caught.exception))
 
 
 class UnscoredAnswerTest(unittest.TestCase):
@@ -694,6 +697,39 @@ class _FakeBackend:
         }
 
 
+class _FailOnceBackend(_FakeBackend):
+    def __init__(self) -> None:
+        super().__init__()
+        self.attempts = 0
+
+    def query(self, **kwargs):
+        self.attempts += 1
+        if self.attempts == 1:
+            raise ValueError("synthetic model-correctable query failure")
+        return super().query(**kwargs)
+
+
+class _InvisibleBackend(_FakeBackend):
+    def query(self, **kwargs):
+        result = super().query(**kwargs)
+        for prediction in result["predictions"]:
+            prediction.update(
+                raw_xyz=None,
+                benchmark_aligned_xyz_m=None,
+                visible=False,
+                math_xyz_aligned_m=None,
+            )
+        result["math_trajectory_aligned_xyz_m"] = [None] * len(result["predictions"])
+        result["math_visibility"] = [False] * len(result["predictions"])
+        result["visibility_coverage"] = 0.0
+        return result
+
+
+class _UnexpectedFailureBackend(_FakeBackend):
+    def query(self, **kwargs):
+        raise RuntimeError("unexpected backend crash")
+
+
 class OrchestratorTest(unittest.TestCase):
     @staticmethod
     def _sampled():
@@ -764,6 +800,13 @@ class OrchestratorTest(unittest.TestCase):
             if message["role"] == "assistant"
             for part in message["content"]
             if part["type"] == "text"
+        ]
+
+    @staticmethod
+    def _ledger_ids(row: dict) -> list[str]:
+        return [
+            entry["evidence_id"]
+            for entry in row["evidence_state"]["available"]
         ]
 
     def test_history_keeps_only_first_action_and_trace_keeps_raw_suffix(self) -> None:
@@ -870,6 +913,10 @@ class OrchestratorTest(unittest.TestCase):
         self.assertIsNone(rejected["call_id"])
         self.assertIsNone(rejected["result"])
         self.assertIn("did not emit one JSON action", rejected["error"])
+        self.assertEqual(self._ledger_ids(rejected), [])
+        self.assertEqual(rejected["evidence_state"]["last_action"], "rejected")
+        self.assertIn("HOST EVIDENCE STATE", qwen.message_snapshots[1])
+        self.assertIn("Available evidence:\\n- none", qwen.message_snapshots[1])
         self.assertEqual(set(solved["evidence"]), {"d4rt_1", "math_1"})
         self.assertIn(prose, qwen.message_snapshots[1])
         self.assertIn("must end with one corrected JSON action", qwen.message_snapshots[1])
@@ -901,6 +948,210 @@ class OrchestratorTest(unittest.TestCase):
         self.assertEqual(row["parsed_action"], invalid)
         self.assertEqual(row["effective_response"], raw[:row["action_span"]["end"]].strip())
         self.assertEqual(row["discarded_suffix"], "\nfuture prose")
+
+    def test_invalid_schema_does_not_create_a_counter_gap(self) -> None:
+        invalid = {
+            "action": "query_d4rt",
+            "arguments": {
+                "bbox_2d_1000": [0, 0, 10, 10],
+                "t_src": 0,
+                "t_tgt": [0, 31],
+                "t_cam": 0,
+                "justification": "Missing label.",
+            },
+        }
+        qwen = _ScriptedQwen([
+            json.dumps(invalid),
+            json.dumps(self._query_action()),
+            json.dumps(self._math_action()),
+            json.dumps(self._final_action()),
+        ])
+        solved = SimpleV2Orchestrator(
+            qwen=qwen,
+            backend=_FakeBackend(),
+            sampled_video=self._sampled(),
+            max_steps=4,
+        ).solve({"id": "endpoint_displacement", "question": "How far?"})
+
+        self.assertEqual(
+            [row["call_id"] for row in solved["trace"]],
+            [None, "d4rt_1", "math_1", "final_1"],
+        )
+        rejected = solved["trace"][0]
+        self.assertEqual(rejected["failure_stage"], "validation")
+        self.assertEqual(self._ledger_ids(rejected), [])
+        self.assertEqual(rejected["evidence_state"]["last_action"], "rejected")
+        self.assertIsNone(rejected["evidence_state"]["new_evidence_id"])
+        self.assertIn("query_d4rt.label", rejected["evidence_state"]["reason"])
+
+    def test_unknown_math_evidence_lists_reality_then_corrects_to_math_1(self) -> None:
+        bad_math = self._math_action()
+        bad_math["arguments"]["bindings"]["start"]["evidence_id"] = "d4rt_2"
+        qwen = _ScriptedQwen([
+            json.dumps(self._query_action()),
+            json.dumps(bad_math),
+            json.dumps(self._math_action()),
+            json.dumps(self._final_action()),
+        ])
+        solved = SimpleV2Orchestrator(
+            qwen=qwen,
+            backend=_FakeBackend(),
+            sampled_video=self._sampled(),
+            max_steps=4,
+        ).solve({"id": "endpoint_displacement", "question": "How far?"})
+
+        self.assertEqual(
+            [row["call_id"] for row in solved["trace"]],
+            ["d4rt_1", None, "math_1", "final_1"],
+        )
+        rejected = solved["trace"][1]
+        self.assertEqual(rejected["failure_stage"], "execution")
+        self.assertEqual(self._ledger_ids(rejected), ["d4rt_1"])
+        self.assertIn("d4rt_2", rejected["error"])
+        self.assertIn("Available evidence IDs: ['d4rt_1']", rejected["error"])
+        self.assertIn("Rejected actions create no evidence", rejected["error"])
+        host_snapshot = qwen.message_snapshots[2]
+        self.assertIn("HOST EVIDENCE STATE", host_snapshot)
+        self.assertIn("d4rt_1: query_d4rt", host_snapshot)
+        self.assertIn("New evidence created: none", host_snapshot)
+        self.assertIn("d4rt_2", host_snapshot)
+        self.assertNotIn("math_2", json.dumps(solved))
+
+    def test_failed_final_validation_does_not_consume_final_1(self) -> None:
+        bad_final = self._final_action()
+        bad_final["arguments"]["value"] = 2.0
+        qwen = _ScriptedQwen([
+            json.dumps(self._query_action()),
+            json.dumps(self._math_action()),
+            json.dumps(bad_final),
+            json.dumps(self._final_action()),
+        ])
+        solved = SimpleV2Orchestrator(
+            qwen=qwen,
+            backend=_FakeBackend(),
+            sampled_video=self._sampled(),
+            max_steps=4,
+        ).solve({"id": "endpoint_displacement", "question": "How far?"})
+
+        self.assertEqual(
+            [row["call_id"] for row in solved["trace"]],
+            ["d4rt_1", "math_1", None, "final_1"],
+        )
+        rejected = solved["trace"][2]
+        self.assertEqual(rejected["failure_stage"], "final_validation")
+        self.assertEqual(self._ledger_ids(rejected), ["d4rt_1", "math_1"])
+        final = solved["trace"][3]
+        self.assertEqual(final["evidence_state"]["last_action"], "accepted")
+        self.assertIsNone(final["evidence_state"]["new_evidence_id"])
+        self.assertEqual(self._ledger_ids(final), ["d4rt_1", "math_1"])
+
+    def test_tool_value_error_creates_no_evidence_and_retry_is_d4rt_1(self) -> None:
+        qwen = _ScriptedQwen([
+            json.dumps(self._query_action()),
+            json.dumps(self._query_action()),
+            json.dumps(self._math_action()),
+            json.dumps(self._final_action()),
+        ])
+        backend = _FailOnceBackend()
+        solved = SimpleV2Orchestrator(
+            qwen=qwen,
+            backend=backend,
+            sampled_video=self._sampled(),
+            max_steps=4,
+        ).solve({"id": "endpoint_displacement", "question": "How far?"})
+
+        self.assertEqual(backend.attempts, 2)
+        self.assertEqual(
+            [row["call_id"] for row in solved["trace"]],
+            [None, "d4rt_1", "math_1", "final_1"],
+        )
+        failed = solved["trace"][0]
+        self.assertEqual(failed["failure_stage"], "execution")
+        self.assertEqual(self._ledger_ids(failed), [])
+        self.assertEqual(set(solved["evidence"]), {"d4rt_1", "math_1"})
+
+    def test_all_invisible_valid_result_still_creates_evidence(self) -> None:
+        qwen = _ScriptedQwen([json.dumps(self._query_action())])
+        with self.assertRaises(OrchestrationError) as caught:
+            SimpleV2Orchestrator(
+                qwen=qwen,
+                backend=_InvisibleBackend(),
+                sampled_video=self._sampled(),
+                max_steps=1,
+            ).solve({"id": "endpoint_displacement", "question": "How far?"})
+
+        self.assertEqual(set(caught.exception.evidence), {"d4rt_1"})
+        row = caught.exception.trace[0]
+        self.assertEqual(row["status"], "ok")
+        self.assertEqual(row["call_id"], "d4rt_1")
+        self.assertEqual(row["result"]["math_visibility"], [False, False])
+        self.assertEqual(row["evidence_state"]["new_evidence_id"], "d4rt_1")
+        self.assertEqual(self._ledger_ids(row), ["d4rt_1"])
+
+    def test_rejection_preserves_existing_evidence_and_ledger_metadata(self) -> None:
+        bad_math = self._math_action()
+        bad_math["arguments"]["bindings"]["end"]["evidence_id"] = "d4rt_8"
+        qwen = _ScriptedQwen([
+            json.dumps(self._query_action()),
+            json.dumps(bad_math),
+        ])
+        with self.assertRaises(OrchestrationError) as caught:
+            SimpleV2Orchestrator(
+                qwen=qwen,
+                backend=_FakeBackend(),
+                sampled_video=self._sampled(),
+                max_steps=2,
+            ).solve({"id": "endpoint_displacement", "question": "How far?"})
+
+        self.assertEqual(set(caught.exception.evidence), {"d4rt_1"})
+        first, rejected = caught.exception.trace
+        self.assertEqual(self._ledger_ids(first), ["d4rt_1"])
+        self.assertEqual(self._ledger_ids(rejected), ["d4rt_1"])
+        entry = rejected["evidence_state"]["available"][0]
+        self.assertEqual(entry["tool_name"], "query_d4rt")
+        self.assertEqual(entry["created_at_step"], 1)
+        self.assertEqual(rejected["evidence_state"]["last_action"], "rejected")
+        self.assertIsNone(rejected["evidence_state"]["new_evidence_id"])
+
+    def test_every_ledger_matches_registry_so_far_and_tool_type(self) -> None:
+        invalid = {"action": "python_math", "arguments": {"bindings": {}, "code": ""}}
+        qwen = _ScriptedQwen([
+            json.dumps(invalid),
+            json.dumps(self._query_action()),
+            json.dumps(self._math_action()),
+            json.dumps(self._final_action()),
+        ])
+        solved = SimpleV2Orchestrator(
+            qwen=qwen,
+            backend=_FakeBackend(),
+            sampled_video=self._sampled(),
+            max_steps=4,
+        ).solve({"id": "endpoint_displacement", "question": "How far?"})
+
+        expected: dict[str, str] = {}
+        for row in solved["trace"]:
+            call_id = row["call_id"]
+            if row["status"] == "ok" and isinstance(call_id, str):
+                if call_id.startswith("d4rt_"):
+                    expected[call_id] = "query_d4rt"
+                elif call_id.startswith("math_"):
+                    expected[call_id] = "python_math"
+            ledger = {
+                entry["evidence_id"]: entry["tool_name"]
+                for entry in row["evidence_state"]["available"]
+            }
+            self.assertEqual(ledger, expected)
+        self.assertEqual(set(expected), set(solved["evidence"]))
+
+    def test_unexpected_tool_exception_propagates(self) -> None:
+        qwen = _ScriptedQwen([json.dumps(self._query_action())])
+        with self.assertRaisesRegex(RuntimeError, "unexpected backend crash"):
+            SimpleV2Orchestrator(
+                qwen=qwen,
+                backend=_UnexpectedFailureBackend(),
+                sampled_video=self._sampled(),
+                max_steps=1,
+            ).solve({"id": "endpoint_displacement", "question": "How far?"})
 
     def test_evidence_loop_and_replay_without_exposing_policy(self) -> None:
         qwen = _ScriptedQwen([
