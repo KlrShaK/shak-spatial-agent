@@ -17,10 +17,16 @@ Usage::
 from __future__ import annotations
 
 import argparse
+import html
 import json
 import textwrap
 from pathlib import Path
 from typing import Any, Mapping
+
+try:
+    from .orchestration_audit import count_action_objects
+except ImportError:  # Support the documented ``python d4rt_agent/dsi_bench_show.py`` form.
+    from orchestration_audit import count_action_objects
 
 RESULTS = Path(__file__).resolve().parent / "results" / "dsi_bench"
 RULE = "=" * 100
@@ -53,6 +59,74 @@ def _thinking(raw: str) -> str:
     # cannot bury the rest of the trace.
     text = raw.strip()
     return text if len(text) <= UNPARSED_LIMIT else text[:UNPARSED_LIMIT] + " […truncated]"
+
+
+def _effective_response(step: Mapping[str, Any]) -> str:
+    """Return the response that actually entered model-visible history."""
+
+    value = step.get("effective_response")
+    if isinstance(value, str):
+        return value
+    return str(step.get("raw_qwen_response") or "")
+
+
+def _effective_thinking(step: Mapping[str, Any]) -> str:
+    """Keep reasoning before the submitted action, using exact Phase 1 bounds."""
+
+    effective = _effective_response(step)
+    span = step.get("action_span")
+    if isinstance(span, Mapping):
+        start = span.get("start")
+        raw = str(step.get("raw_qwen_response") or "")
+        if isinstance(start, int) and not isinstance(start, bool) and 0 <= start <= len(raw):
+            # action_span indexes the unstripped raw generation, whereas
+            # effective_response is intentionally stripped before history.
+            return raw[:start].strip()
+    return _thinking(effective)
+
+
+def trace_boundary_metrics(record: Mapping[str, Any]) -> dict[str, int]:
+    """Summarize model output discarded by the one-action boundary."""
+
+    suffixes = [
+        str(step.get("discarded_suffix", ""))
+        for step in record.get("trace", [])
+        if isinstance(step, Mapping)
+    ]
+    nonempty = [suffix for suffix in suffixes if suffix.strip()]
+    return {
+        "turns": len(suffixes),
+        "discarded_suffixes": len(nonempty),
+        "discarded_suffixes_with_action": sum(
+            1 for suffix in nonempty if count_action_objects(suffix)
+        ),
+    }
+
+
+def _markdown_boundary_diagnostic(step: Mapping[str, Any]) -> list[str]:
+    """Collapsed, HTML-safe raw/effective/suffix diagnostics for one turn."""
+
+    suffix = str(step.get("discarded_suffix", ""))
+    if not suffix.strip():
+        return []
+    raw = str(step.get("raw_qwen_response", ""))
+    effective = _effective_response(step)
+    actions = count_action_objects(suffix)
+    action_label = f"; {actions} additional action(s)" if actions else ""
+    return [
+        "<details><summary>Turn-boundary diagnostic — "
+        f"discarded {len(suffix)} character(s){action_label}</summary>",
+        "",
+        "<p><strong>Effective response retained in history</strong></p>",
+        f"<pre><code>{html.escape(effective)}</code></pre>",
+        "<p><strong>Discarded suffix</strong></p>",
+        f"<pre><code>{html.escape(suffix)}</code></pre>",
+        "<p><strong>Complete raw model response</strong></p>",
+        f"<pre><code>{html.escape(raw)}</code></pre>",
+        "",
+        "</details>",
+        "",
+    ]
 
 
 def _rejection(step: Mapping[str, Any]) -> str:
@@ -131,7 +205,7 @@ def render_trace_markdown(record: Mapping[str, Any]) -> list[str]:
         badge = "" if status == "ok" else f" · **{status}**"
         lines += [f"**Step {step['step']}** · `{name}`{badge}", ""]
 
-        thought = _thinking(step.get("raw_qwen_response") or "")
+        thought = _effective_thinking(step)
         if thought:
             lines += _quote(thought) + [""]
 
@@ -180,7 +254,13 @@ def render_trace_markdown(record: Mapping[str, Any]) -> list[str]:
             )
             lines += [f"*Returned* `{call_id}`: {outputs}", ""]
         if status != "ok":
-            lines += [f"> ⛔ **Host rejected this step.** {_rejection(step)[:400]}", ""]
+            stage = step.get("failure_stage")
+            stage_text = f" during `{stage}`" if stage else ""
+            lines += [
+                f"> ⛔ **Host rejected this step{stage_text}.** {_rejection(step)[:400]}",
+                "",
+            ]
+        lines += _markdown_boundary_diagnostic(step)
         lines += ["---", ""]
     # The separator belongs *between* steps; the report supplies its own after
     # the closing </details>.
@@ -202,8 +282,8 @@ def render_trace(record: Mapping[str, Any], raw: bool = False) -> list[str]:
         action = step.get("parsed_action") or {}
         name = action.get("action", "-")
         lines.append(f"--- step {step['step']}  {name}  [{step['status']}] " + "-" * 40)
-        prose = step.get("raw_qwen_response") or ""
-        thought = prose if raw else _thinking(prose)
+        prose = str(step.get("raw_qwen_response") or "")
+        thought = prose if raw else _effective_thinking(step)
         if thought:
             lines.append(_wrap(thought))
         arguments = action.get("arguments") or {}
@@ -233,7 +313,15 @@ def render_trace(record: Mapping[str, Any], raw: bool = False) -> list[str]:
         elif found and call_id.startswith("math_"):
             lines.append(f"    -> {call_id}  {json.dumps(found.get('outputs', {}))}")
         if step["status"] != "ok":
-            lines.append(f"    !! REJECTED: {_rejection(step)[:400]}")
+            stage = step.get("failure_stage")
+            stage_text = f" [{stage}]" if stage else ""
+            lines.append(f"    !! REJECTED{stage_text}: {_rejection(step)[:400]}")
+        suffix = str(step.get("discarded_suffix", ""))
+        if suffix.strip() and not raw:
+            lines.append(
+                f"    .. discarded suffix: {len(suffix)} chars, "
+                f"{count_action_objects(suffix)} additional action(s); use --raw to inspect"
+            )
         lines.append("")
     return lines
 

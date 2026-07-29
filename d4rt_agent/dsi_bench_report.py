@@ -25,7 +25,8 @@ from typing import Any, Mapping, Sequence
 import numpy as np
 
 from .dsi_bench_data import CATEGORY_NAMES, parse_choice_letter, read_manifest
-from .dsi_bench_show import render_trace_markdown
+from .dsi_bench_show import render_trace_markdown, trace_boundary_metrics
+from .orchestration_audit import count_action_objects, iter_attempts
 from .simple_v2_contracts import sample_video_cpu
 
 
@@ -225,16 +226,25 @@ def _trace_rows(record: Mapping[str, Any]) -> list[str]:
         arguments = action.get("arguments") or {}
         name = action.get("action", "—")
         target = arguments.get("t_tgt")
+        suffix = str(entry.get("discarded_suffix", ""))
+        if suffix.strip():
+            extra_actions = count_action_objects(suffix)
+            suffix_text = f"yes ({extra_actions} action{'s' if extra_actions != 1 else ''})"
+        else:
+            suffix_text = "no"
         rows.append(
-            "| {step} | {status} | {name} | {label} | {t_src} | {t_tgt} | {t_cam} | {why} |".format(
+            "| {step} | {status} | {stage} | {name} | {label} | {t_src} | {t_tgt} | "
+            "{t_cam} | {suffix} | {why} |".format(
                 step=entry.get("step", ""),
                 status=entry.get("status", ""),
+                stage=entry.get("failure_stage") or "—",
                 name=name,
                 label=str(arguments.get("label", ""))[:28].replace("|", "\\|"),
                 t_src=arguments.get("t_src", ""),
                 t_tgt=(f"{target[0]}…{target[-1]} ({len(target)})" if isinstance(target, list) and len(target) > 3
                        else (target if target is not None else "")),
                 t_cam=arguments.get("t_cam", ""),
+                suffix=suffix_text,
                 why=str(arguments.get("justification", entry.get("error", "")))[:90].replace("|", "\\|"),
             )
         )
@@ -285,6 +295,27 @@ def _header(manifest: Mapping[str, Any], agent: Mapping[str, Any], baseline: Map
         lines.append(f"| Agent run status | {statuses} |")
         tracker_backed = sum(1 for record in agent.values() if record.get("d4rt_used"))
         lines.append(f"| Answers citing D4RT | {tracker_backed} / {len(agent)} |")
+        boundary = {
+            "turns": 0,
+            "discarded_suffixes": 0,
+            "discarded_suffixes_with_action": 0,
+        }
+        for record in agent.values():
+            for _, attempt in iter_attempts(record):
+                metrics = trace_boundary_metrics(attempt)
+                for key in boundary:
+                    boundary[key] += metrics[key]
+        lines += [
+            f"| Model turns audited | {boundary['turns']} |",
+            (
+                "| Turns with discarded suffixes | "
+                f"{boundary['discarded_suffixes']} / {boundary['turns']} |"
+            ),
+            (
+                "| Discarded suffixes containing another action | "
+                f"{boundary['discarded_suffixes_with_action']} |"
+            ),
+        ]
     lines += [
         "",
         "> **Read this as a diagnostic, not a benchmark score.** The sample is balanced by",
@@ -382,29 +413,47 @@ def _question_section(
             shown = f"_no letter could be read from the reply:_ `{raw[:200]}`"
         lines += ["**Qwen-only baseline.**", "", f"> {shown}", ""]
 
-    if agent_record and agent_record.get("trace"):
-        rows = _trace_rows(agent_record)
-        lines += [
-            "<details><summary>Agent trace "
-            f"({agent_record.get('steps', len(rows))} steps, "
-            f"{agent_record.get('wall_seconds', 0):.0f}s)</summary>",
-            "",
-            "| Step | Status | Action | Label | t_src | t_tgt | t_cam | Justification |",
-            "| ---: | --- | --- | --- | ---: | --- | ---: | --- |",
-            *rows,
-            "",
-            "</details>",
-            "",
-        ]
-        # The table above says what the agent did; this says why it thought so.
-        lines += [
-            "<details><summary>Complete thinking log "
-            f"({agent_record.get('steps', len(rows))} steps)</summary>",
-            "",
-            *render_trace_markdown(agent_record),
-            "</details>",
-            "",
-        ]
+    if agent_record:
+        attempts = list(iter_attempts(agent_record))
+        for attempt_name, attempt in attempts:
+            if not attempt.get("trace"):
+                continue
+            rows = _trace_rows(attempt)
+            boundary = trace_boundary_metrics(attempt)
+            label = (
+                "Agent"
+                if len(attempts) == 1
+                else f"{attempt_name.capitalize()} attempt"
+            )
+            timing = (
+                f", {agent_record.get('wall_seconds', 0):.0f}s"
+                if len(attempts) == 1 else ""
+            )
+            lines += [
+                f"<details><summary>{label} trace "
+                f"({len(rows)} steps{timing}; "
+                f"{boundary['discarded_suffixes']} discarded suffixes, "
+                f"{boundary['discarded_suffixes_with_action']} with another action)"
+                "</summary>",
+                "",
+                "| Step | Status | Stage | Action | Label | t_src | t_tgt | t_cam | "
+                "Discarded suffix | Justification |",
+                "| ---: | --- | --- | --- | --- | ---: | --- | ---: | --- | --- |",
+                *rows,
+                "",
+                "</details>",
+                "",
+            ]
+            # The table above says what the agent did; this says why it thought
+            # so, based on the effective model-visible response.
+            lines += [
+                f"<details><summary>{label} thinking log "
+                f"({len(rows)} steps)</summary>",
+                "",
+                *render_trace_markdown(attempt),
+                "</details>",
+                "",
+            ]
     grounded = [
         call_id
         for call_id in (agent_record or {}).get("evidence", {})

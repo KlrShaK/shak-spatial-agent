@@ -5,6 +5,7 @@
 #   sbatch --export=ALL,POINT_MODE=ensemble5 scripts/run_dsi_bench_blackwell.slurm
 #   sbatch --export=ALL,POINT_MODE=ensemble5,LIMIT=2 scripts/run_dsi_bench_blackwell.slurm
 #   sbatch --export=ALL,POINT_MODE=ensemble5,MODE=baseline scripts/run_dsi_bench_blackwell.slurm
+#   sbatch --export=ALL,POINT_MODE=ensemble5,RESULTS_DIR=/scratch/run,MANIFEST_PATH=/scratch/run/manifest.json,ONLY_FILE=/scratch/question_ids.txt,FORCE=0 scripts/run_dsi_bench_blackwell.slurm
 #
 # The runner writes one file per question and skips questions already answered, so
 # a job that runs out of time is continued by resubmitting the same command. That
@@ -32,7 +33,10 @@ DEPS_DIR="$REPO_ROOT/.cache/qwen3vl_python"
 LOCAL_DEPS="${TMPDIR:-/tmp/$USER}/qwen3vl_python"
 HF_HOME=/cluster/work/igp_psr/spanwar/hf_cache
 MODEL_CACHE="$HF_HOME/hub/models--Qwen--Qwen3-VL-8B-Instruct/snapshots"
-RESULTS_DIR="d4rt_agent/results/dsi_bench"
+RESULTS_DIR="${RESULTS_DIR:-d4rt_agent/results/dsi_bench}"
+MANIFEST_PATH="${MANIFEST_PATH:-$REPO_ROOT/d4rt_agent/results/dsi_bench/manifest.json}"
+ONLY_FILE="${ONLY_FILE:-}"
+FORCE="${FORCE:-0}"
 MODE="${MODE:-agent}"
 POINT_MODE="${POINT_MODE:?submit with POINT_MODE=centroid or POINT_MODE=ensemble5}"
 
@@ -44,8 +48,49 @@ if [[ "$MODE" != "agent" && "$MODE" != "baseline" ]]; then
   echo "Unsupported MODE=$MODE (expected agent or baseline)" >&2
   exit 2
 fi
+if [[ "$FORCE" != "0" && "$FORCE" != "1" ]]; then
+  echo "Unsupported FORCE=$FORCE (expected 0 or 1)" >&2
+  exit 2
+fi
 
 cd "$REPO_ROOT"
+if [[ ! -f "$MANIFEST_PATH" ]]; then
+  echo "Manifest does not exist: $MANIFEST_PATH" >&2
+  exit 2
+fi
+
+ONLY_IDS=()
+if [[ -n "$ONLY_FILE" ]]; then
+  if [[ ! -f "$ONLY_FILE" ]]; then
+    echo "ONLY_FILE does not exist: $ONLY_FILE" >&2
+    exit 2
+  fi
+  declare -A SEEN_ONLY_IDS=()
+  while IFS= read -r raw_id || [[ -n "$raw_id" ]]; do
+    question_id="${raw_id#"${raw_id%%[![:space:]]*}"}"
+    question_id="${question_id%"${question_id##*[![:space:]]}"}"
+    if [[ -z "$question_id" ]]; then
+      continue
+    fi
+    if [[ -n "${SEEN_ONLY_IDS[$question_id]:-}" ]]; then
+      echo "Duplicate question ID in ONLY_FILE: $question_id" >&2
+      exit 2
+    fi
+    SEEN_ONLY_IDS["$question_id"]=1
+    ONLY_IDS+=("$question_id")
+  done < "$ONLY_FILE"
+  if [[ "${#ONLY_IDS[@]}" -eq 0 ]]; then
+    echo "ONLY_FILE contains no non-empty question IDs: $ONLY_FILE" >&2
+    exit 2
+  fi
+fi
+
+echo "RESULTS_DIR=$RESULTS_DIR"
+echo "MANIFEST_PATH=$MANIFEST_PATH"
+echo "ONLY_FILE=${ONLY_FILE:-<unset>} (${#ONLY_IDS[@]} selected ID(s))"
+echo "FORCE=$FORCE"
+echo "MODE=$MODE  immutable POINT_MODE=$POINT_MODE  LIMIT=${LIMIT:-all}"
+
 mkdir -p logs/d4rt_agent "$RESULTS_DIR" "$LOCAL_DEPS"
 cp -a "$DEPS_DIR/." "$LOCAL_DEPS/"
 
@@ -72,13 +117,18 @@ fi
 if [[ -n "${LIMIT:-}" ]]; then
   EXTRA+=(--limit "$LIMIT")
 fi
+if [[ "${#ONLY_IDS[@]}" -gt 0 ]]; then
+  EXTRA+=(--only "${ONLY_IDS[@]}")
+fi
+if [[ "$FORCE" == "1" ]]; then
+  EXTRA+=(--force)
+fi
 
-echo "MODE=$MODE  immutable POINT_MODE=$POINT_MODE  LIMIT=${LIMIT:-all}"
-echo "Results dir=$RESULTS_DIR"
 nvidia-smi --query-gpu=name,memory.total,memory.free --format=csv
 
 "$D4RT_PYTHON" -m d4rt_agent.dsi_bench_run \
   --results-dir "$RESULTS_DIR" \
+  --manifest "$MANIFEST_PATH" \
   --point-mode "$POINT_MODE" \
   --qwen-model "$MODEL_DIR" \
   --d4rt-config checkpoints/OpenD4RT_32CLIP_9Dataset_NoAUG/model.yaml \
