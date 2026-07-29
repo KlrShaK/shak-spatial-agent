@@ -11,11 +11,13 @@ import unittest
 import numpy as np
 
 from d4rt_agent.simple_v2 import (
+    ActionRejected,
     OrchestrationError,
     SYSTEM_PROMPT,
     TOOL_TURN_PROTOCOL_PATH,
     TOOL_TURN_PROTOCOL_TEXT,
     SimpleV2Orchestrator,
+    ToolExecutionError,
     _validate_final_evidence,
     extract_first_action,
     replay_tool_trace,
@@ -192,7 +194,7 @@ class ActionContractTest(unittest.TestCase):
             for line in SYSTEM_PROMPT.splitlines()
             if line.startswith('{"action":"') and "ACTION_NAME" not in line
         ]
-        self.assertEqual(len(examples), 12)
+        self.assertEqual(len(examples), 14)
         self.assertEqual(
             [validate_action(example)[0] for example in examples],
             [
@@ -201,8 +203,11 @@ class ActionContractTest(unittest.TestCase):
                 "query_d4rt",
                 "python_math",
                 "final_answer",
-                # Example C composes speed from displacement and elapsed time.
+                # Example C composes speed from displacement and elapsed time,
+                # from its own initial measurement through a final answer.
+                "query_d4rt",
                 "python_math",
+                "final_answer",
                 # Example D selects a non-zero viewpoint for a directional question
                 # and answers it in words.  It must show the python_math call it
                 # cites: an example that skips straight to a described answer is one
@@ -759,7 +764,7 @@ class _FailOnceBackend(_FakeBackend):
     def query(self, **kwargs):
         self.attempts += 1
         if self.attempts == 1:
-            raise ValueError("synthetic model-correctable query failure")
+            raise ActionRejected("synthetic model-correctable query failure")
         return super().query(**kwargs)
 
 
@@ -782,6 +787,13 @@ class _InvisibleBackend(_FakeBackend):
 class _UnexpectedFailureBackend(_FakeBackend):
     def query(self, **kwargs):
         raise RuntimeError("unexpected backend crash")
+
+
+class _FailSecondWithValueErrorBackend(_FakeBackend):
+    def query(self, **kwargs):
+        if self.calls:
+            raise ValueError("backend output shape mismatch")
+        return super().query(**kwargs)
 
 
 class OrchestratorTest(unittest.TestCase):
@@ -1206,6 +1218,36 @@ class OrchestratorTest(unittest.TestCase):
                 sampled_video=self._sampled(),
                 max_steps=1,
             ).solve({"id": "endpoint_displacement", "question": "How far?"})
+
+    def test_backend_value_error_propagates_with_partial_state(self) -> None:
+        qwen = _ScriptedQwen([
+            json.dumps(self._query_action()),
+            json.dumps(self._query_action()),
+        ])
+        with self.assertRaisesRegex(
+            ToolExecutionError, "ValueError: backend output shape mismatch"
+        ) as caught:
+            SimpleV2Orchestrator(
+                qwen=qwen,
+                backend=_FailSecondWithValueErrorBackend(),
+                sampled_video=self._sampled(),
+                max_steps=2,
+            ).solve({"id": "endpoint_displacement", "question": "How far?"})
+
+        error = caught.exception
+        self.assertIsInstance(error.original_error, ValueError)
+        self.assertEqual(len(error.trace), 2)
+        self.assertEqual(error.trace[0]["call_id"], "d4rt_1")
+        self.assertEqual(error.trace[1]["status"], "error")
+        self.assertEqual(error.trace[1]["failure_stage"], "execution")
+        self.assertIn("backend output shape mismatch", error.trace[1]["error"])
+        self.assertEqual(
+            error.trace[1]["evidence_state"]["last_action"], "error"
+        )
+        self.assertEqual(
+            self._ledger_ids(error.trace[1]), ["d4rt_1"]
+        )
+        self.assertEqual(set(error.evidence), {"d4rt_1"})
 
     def test_evidence_loop_and_replay_without_exposing_policy(self) -> None:
         qwen = _ScriptedQwen([

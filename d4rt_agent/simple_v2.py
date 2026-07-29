@@ -160,7 +160,7 @@ def _evidence_state(
 ) -> dict[str, Any]:
     """Take a JSON-safe snapshot of the authoritative host evidence registry."""
 
-    if last_action not in {"accepted", "rejected"}:
+    if last_action not in {"accepted", "rejected", "error"}:
         raise ValueError(f"invalid ledger action status: {last_action!r}")
     return {
         "available": [
@@ -412,6 +412,25 @@ class OrchestrationError(RuntimeError):
         self.evidence = evidence
 
 
+class ActionRejected(ValueError):
+    """A model-correctable tool request rejected by host policy or inputs."""
+
+
+class ToolExecutionError(RuntimeError):
+    """Unexpected tool failure with the successful partial conversation attached."""
+
+    def __init__(
+        self,
+        error: Exception,
+        trace: list[dict[str, Any]],
+        evidence: dict[str, dict[str, Any]],
+    ) -> None:
+        super().__init__(f"{type(error).__name__}: {error}")
+        self.original_error = error
+        self.trace = trace
+        self.evidence = evidence
+
+
 class SimpleV2Orchestrator:
     """Host-enforced three-action loop with replayable evidence."""
 
@@ -645,7 +664,7 @@ class SimpleV2Orchestrator:
                 result, response_content, prefix = self._execute_action(
                     name, arguments, evidence, step=step
                 )
-            except ValueError as error:
+            except ActionRejected as error:
                 self._reject_turn(
                     attempt=attempt,
                     error=error,
@@ -656,6 +675,24 @@ class SimpleV2Orchestrator:
                     step=step,
                 )
                 continue
+            except Exception as error:
+                # Backend/model/programming failures are infrastructure errors,
+                # not feedback the reasoning model can correct. Preserve the
+                # complete failing turn plus prior evidence for the outer run
+                # recorder, but do not expose it as a model-correctable rejection.
+                reason = f"{type(error).__name__}: {error}"
+                attempt.update(
+                    status="error",
+                    failure_stage="execution",
+                    error=reason,
+                    evidence_state=_evidence_state(
+                        evidence_entries,
+                        last_action="error",
+                        reason=reason,
+                    ),
+                )
+                trace.append(attempt)
+                raise ToolExecutionError(error, list(trace), dict(evidence)) from error
 
             counters[prefix] += 1
             call_id = f"{prefix}_{counters[prefix]}"
@@ -724,8 +761,11 @@ class SimpleV2Orchestrator:
             )
             return result, None, "d4rt"
         if name == "python_math":
-            values, provenance = resolve_bindings(arguments["bindings"], evidence)
-            outputs = restricted_python_math(values, arguments["code"])
+            try:
+                values, provenance = resolve_bindings(arguments["bindings"], evidence)
+                outputs = restricted_python_math(values, arguments["code"])
+            except ValueError as error:
+                raise ActionRejected(str(error)) from error
             result = {
                 "bindings": provenance,
                 "resolved_bindings": values,

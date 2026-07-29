@@ -40,10 +40,12 @@ from .dsi_bench_data import (
     write_manifest,
 )
 from .simple_v2 import (
+    ActionRejected,
     DEFAULT_QWEN_MODEL,
     OfflineQwen,
     OrchestrationError,
     SimpleV2Orchestrator,
+    ToolExecutionError,
     _resolve_path,
     unknown_evidence_error,
 )
@@ -163,7 +165,7 @@ class DSIOrchestrator(SimpleV2Orchestrator):
         if step is not None and self.max_steps - step <= self.HARD_DEADLINE_STEPS:
             # Warnings alone did not stop agents from measuring until the loop
             # died (job 8071987), so the last step is reserved for the answer.
-            raise ValueError(
+            raise ActionRejected(
                 "no steps remain for measurement — this is your last action, so it must "
                 "be final_answer. Choose the best-supported option from the evidence you "
                 "already have. Emit exactly this shape, filled in: " + self.ANSWER_TEMPLATE
@@ -172,9 +174,11 @@ class DSIOrchestrator(SimpleV2Orchestrator):
             self._refuse_hopeless_query(evidence)
         try:
             return super()._execute_action(name, arguments, evidence, step=step)
-        except ValueError as error:
+        except ActionRejected as error:
             if name == "python_math":
-                raise ValueError(self._diagnose_math(arguments, evidence, error)) from error
+                raise ActionRejected(
+                    self._diagnose_math(arguments, evidence, error)
+                ) from error
             raise
 
     def _refuse_hopeless_query(self, evidence: Mapping[str, dict[str, Any]]) -> None:
@@ -195,7 +199,7 @@ class DSIOrchestrator(SimpleV2Orchestrator):
         ]
         if len(blind) < self.MAX_BLIND_QUERIES:
             return
-        raise ValueError(
+        raise ActionRejected(
             f"{len(blind)} queries ({', '.join(sorted(blind))}) have already come back with "
             "nothing visible, so the tracked point is absent from those frames and no further "
             "query will recover it. Changing t_cam cannot make an unobserved target visible. "
@@ -489,6 +493,15 @@ def run_agent(args: argparse.Namespace, manifest: Mapping[str, Any], entries: Se
                         trace=relaxed_error.trace,
                         evidence=relaxed_error.evidence,
                     )
+        except ToolExecutionError as error:
+            record.update(
+                status="error",
+                d4rt_used=False,
+                error=str(error),
+                trace=error.trace,
+                evidence=error.evidence,
+                traceback=traceback.format_exc(),
+            )
         except Exception as error:  # noqa: BLE001 - one bad clip must not cost the rest
             record.update(
                 status="error",

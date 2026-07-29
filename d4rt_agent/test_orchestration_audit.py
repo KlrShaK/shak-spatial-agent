@@ -151,6 +151,16 @@ class ActionScanningTest(unittest.TestCase):
         text = '{bad json\n{"action":"final_answer","arguments":{}}'
         self.assertEqual(count_action_objects(text), 1)
 
+    def test_nested_name_field_is_not_a_second_action(self) -> None:
+        text = json.dumps({
+            "action": "query_d4rt",
+            "arguments": {
+                "metadata": {"name": "runner"},
+                "justification": "Nested data is part of one action.",
+            },
+        })
+        self.assertEqual(count_action_objects(text), 1)
+
 
 class AuditTest(unittest.TestCase):
     def test_valid_trace_passes_and_counts_discarded_future_action(self) -> None:
@@ -198,6 +208,60 @@ class AuditTest(unittest.TestCase):
         self.assertEqual(result["summary"]["effective_turns_with_multiple_actions"], 1)
         self.assertIn(
             "multiple_effective_actions",
+            {item["code"] for item in result["violations"]},
+        )
+
+    def test_raw_boundary_tampering_is_structural_failure(self) -> None:
+        record = _valid_record()
+        row = record["trace"][0]
+        row["raw_qwen_response"] += (
+            '\n{"action":"python_math","arguments":{"bindings":{}}}'
+        )
+        result = audit_records([record])
+        self.assertEqual(result["status"], "fail")
+        self.assertIn(
+            "boundary_reconstruction_mismatch",
+            {item["code"] for item in result["violations"]},
+        )
+
+    def test_boundary_must_select_first_raw_action(self) -> None:
+        record = _valid_record()
+        row = record["trace"][0]
+        first = row["raw_qwen_response"]
+        second = json.dumps(row["parsed_action"], separators=(",", ":"))
+        row["raw_qwen_response"] = first + "\n" + second
+        start = len(first) + 1
+        row["action_span"] = {"start": start, "end": start + len(second)}
+        row["effective_response"] = row["raw_qwen_response"][: start + len(second)]
+        row["discarded_suffix"] = ""
+        result = audit_records([record])
+        self.assertEqual(result["status"], "fail")
+        self.assertIn(
+            "first_action_boundary_mismatch",
+            {item["code"] for item in result["violations"]},
+        )
+
+    def test_parsed_arguments_must_match_raw_action(self) -> None:
+        record = _valid_record()
+        record["trace"][0]["parsed_action"]["arguments"]["label"] = "different object"
+        result = audit_records([record])
+        self.assertEqual(result["status"], "fail")
+        self.assertIn(
+            "parsed_action_payload_mismatch",
+            {item["code"] for item in result["violations"]},
+        )
+
+    def test_no_action_boundary_cannot_carry_parsed_action(self) -> None:
+        record = _valid_record()
+        row = record["trace"][0]
+        row["raw_qwen_response"] = "plain prose"
+        row["effective_response"] = "plain prose"
+        row["discarded_suffix"] = ""
+        row["action_span"] = None
+        result = audit_records([record])
+        self.assertEqual(result["status"], "fail")
+        self.assertIn(
+            "parsed_action_without_boundary",
             {item["code"] for item in result["violations"]},
         )
 
@@ -284,6 +348,15 @@ class AuditTest(unittest.TestCase):
             saved = json.loads(output.read_text(encoding="utf-8"))
             self.assertEqual(saved["status"], "pass")
             self.assertEqual(saved["summary"]["records"], 1)
+
+    def test_empty_answers_directory_fails(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            result = audit_answers_dir(Path(directory))
+        self.assertEqual(result["status"], "fail")
+        self.assertIn(
+            "no_answer_records",
+            {item["code"] for item in result["violations"]},
+        )
 
 
 class TraceRenderingCompatibilityTest(unittest.TestCase):

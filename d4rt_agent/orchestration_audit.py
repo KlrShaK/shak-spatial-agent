@@ -16,29 +16,58 @@ from pathlib import Path
 import re
 from typing import Any, Iterable, Mapping, Sequence
 
+try:
+    from .simple_v2_contracts import validate_action
+except ImportError:  # Support ``python d4rt_agent/orchestration_audit.py``.
+    from simple_v2_contracts import validate_action
+
 
 def _utc_now() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
-def action_objects(text: str) -> list[dict[str, Any]]:
-    """Return complete JSON action objects in textual order.
-
-    Scanning every opening brace deliberately mirrors the live extractor.  An
-    outer JSON object can contain nested braces, so offsets consumed by a prior
-    decode are not used to skip future candidates.
-    """
+def _first_action(
+    text: str,
+) -> tuple[dict[str, Any], int, int] | None:
+    """Return the first action and exact source span using the live scan rule."""
 
     decoder = json.JSONDecoder()
-    found: list[tuple[int, dict[str, Any]]] = []
     for match in re.finditer(r"\{", str(text)):
         try:
-            value, _ = decoder.raw_decode(str(text)[match.start():])
+            value, consumed = decoder.raw_decode(str(text)[match.start():])
         except json.JSONDecodeError:
             continue
         if isinstance(value, dict) and ("action" in value or "name" in value):
-            found.append((match.start(), value))
-    return [value for _, value in sorted(found, key=lambda item: item[0])]
+            return value, match.start(), match.start() + consumed
+    return None
+
+
+def action_objects(text: str) -> list[dict[str, Any]]:
+    """Return complete JSON action objects in textual order.
+
+    Once an action object is decoded, its entire span is consumed so nested
+    objects with ordinary ``name`` fields are not mistaken for second actions.
+    Non-action and malformed objects advance one brace so a later action can
+    still be found, matching the live extractor's recovery behavior.
+    """
+
+    decoder = json.JSONDecoder()
+    source = str(text)
+    found: list[dict[str, Any]] = []
+    offset = 0
+    while match := re.search(r"\{", source[offset:]):
+        start = offset + match.start()
+        try:
+            value, consumed = decoder.raw_decode(source[start:])
+        except json.JSONDecodeError:
+            offset = start + 1
+            continue
+        if isinstance(value, dict) and ("action" in value or "name" in value):
+            found.append(value)
+            offset = start + consumed
+        else:
+            offset = start + 1
+    return found
 
 
 def count_action_objects(text: str) -> int:
@@ -258,7 +287,173 @@ def _audit_attempt(
                 message=f"Phase 1 trace row is missing fields: {missing}",
             )
 
-        effective = str(row.get("effective_response", ""))
+        raw_value = row.get("raw_qwen_response")
+        effective_value = row.get("effective_response")
+        suffix_value = row.get("discarded_suffix")
+        raw = raw_value if isinstance(raw_value, str) else ""
+        effective = effective_value if isinstance(effective_value, str) else ""
+        suffix = suffix_value if isinstance(suffix_value, str) else ""
+        if not all(
+            isinstance(value, str)
+            for value in (raw_value, effective_value, suffix_value)
+        ):
+            _violation(
+                violations,
+                question_id=question_id,
+                attempt=attempt_name,
+                step=step,
+                code="invalid_boundary_text",
+                message="raw/effective/discarded response fields must all be strings",
+            )
+
+        span = row.get("action_span")
+        if span is None:
+            if effective != raw or suffix != "":
+                _violation(
+                    violations,
+                    question_id=question_id,
+                    attempt=attempt_name,
+                    step=step,
+                    code="boundary_reconstruction_mismatch",
+                    message=(
+                        "a no-action turn must retain the complete raw response as "
+                        "effective history and have an empty discarded suffix"
+                    ),
+                )
+            if action_objects(raw):
+                _violation(
+                    violations,
+                    question_id=question_id,
+                    attempt=attempt_name,
+                    step=step,
+                    code="missing_action_boundary",
+                    message="raw response contains an action but action_span is null",
+                )
+            if row.get("parsed_action") is not None:
+                _violation(
+                    violations,
+                    question_id=question_id,
+                    attempt=attempt_name,
+                    step=step,
+                    code="parsed_action_without_boundary",
+                    message="parsed_action must be null when no action was extracted",
+                )
+        elif isinstance(span, Mapping):
+            start = span.get("start")
+            end = span.get("end")
+            valid_offsets = (
+                isinstance(start, int)
+                and not isinstance(start, bool)
+                and isinstance(end, int)
+                and not isinstance(end, bool)
+                and 0 <= start < end <= len(raw)
+            )
+            if not valid_offsets:
+                _violation(
+                    violations,
+                    question_id=question_id,
+                    attempt=attempt_name,
+                    step=step,
+                    code="invalid_action_span",
+                    message=f"action_span {dict(span)!r} is outside the raw response",
+                )
+            else:
+                decoder = json.JSONDecoder()
+                try:
+                    decoded, consumed = decoder.raw_decode(raw[start:])
+                except json.JSONDecodeError:
+                    decoded, consumed = None, -1
+                if (
+                    consumed != end - start
+                    or not isinstance(decoded, dict)
+                    or not ("action" in decoded or "name" in decoded)
+                ):
+                    _violation(
+                        violations,
+                        question_id=question_id,
+                        attempt=attempt_name,
+                        step=step,
+                        code="action_span_decode_mismatch",
+                        message="action_span does not select one complete action object",
+                    )
+                first = _first_action(raw)
+                if first is None or (start, end) != (first[1], first[2]):
+                    _violation(
+                        violations,
+                        question_id=question_id,
+                        attempt=attempt_name,
+                        step=step,
+                        code="first_action_boundary_mismatch",
+                        message=(
+                            f"recorded action span {(start, end)!r} does not match "
+                            f"the first raw action span "
+                            f"{None if first is None else (first[1], first[2])!r}"
+                        ),
+                    )
+                if effective != raw[:end].strip() or suffix != raw[end:]:
+                    _violation(
+                        violations,
+                        question_id=question_id,
+                        attempt=attempt_name,
+                        step=step,
+                        code="boundary_reconstruction_mismatch",
+                        message=(
+                            "effective_response/discarded_suffix do not reconstruct "
+                            "the recorded raw response at action_span.end"
+                        ),
+                    )
+                parsed_name = _action_name(row)
+                decoded_name = (
+                    decoded.get("action", decoded.get("name"))
+                    if isinstance(decoded, Mapping) else None
+                )
+                if parsed_name != decoded_name:
+                    _violation(
+                        violations,
+                        question_id=question_id,
+                        attempt=attempt_name,
+                        step=step,
+                        code="parsed_action_mismatch",
+                        message=(
+                            f"action span names {decoded_name!r}, but parsed_action "
+                            f"names {parsed_name!r}"
+                        ),
+                    )
+                parsed_action = row.get("parsed_action")
+                expected_action: Any = decoded
+                if row.get("failure_stage") != "validation":
+                    try:
+                        normalized_name, normalized_arguments = validate_action(decoded)
+                        expected_action = {
+                            "action": normalized_name,
+                            "arguments": normalized_arguments,
+                        }
+                    except (KeyError, TypeError, ValueError):
+                        # A malformed schema is expected only for a validation
+                        # rejection, which is compared against the raw object.
+                        expected_action = decoded
+                if parsed_action != expected_action:
+                    _violation(
+                        violations,
+                        question_id=question_id,
+                        attempt=attempt_name,
+                        step=step,
+                        code="parsed_action_payload_mismatch",
+                        message=(
+                            "parsed_action does not match the action selected by "
+                            "action_span after host normalization"
+                        ),
+                    )
+        else:
+            _violation(
+                violations,
+                question_id=question_id,
+                attempt=attempt_name,
+                step=step,
+                code="invalid_action_span",
+                message="action_span must be an object or null",
+            )
+
         effective_actions = count_action_objects(effective)
         if effective_actions > 1:
             metrics["effective_turns_with_multiple_actions"] += 1
@@ -316,7 +511,11 @@ def _audit_attempt(
         if not isinstance(state, Mapping):
             state = {}
         last_action = state.get("last_action")
-        expected_last = "accepted" if status == "ok" else "rejected"
+        expected_last = {
+            "ok": "accepted",
+            "rejected": "rejected",
+            "error": "error",
+        }.get(status, "rejected")
         if last_action != expected_last:
             _violation(
                 violations,
@@ -503,6 +702,13 @@ def audit_answers_dir(answers_dir: Path) -> dict[str, Any]:
             })
     result = audit_records(records)
     result["answers_dir"] = str(answers_dir.resolve())
+    if not records and not load_violations:
+        load_violations.append({
+            "question_id": "<directory>",
+            "attempt": "file",
+            "code": "no_answer_records",
+            "message": f"no answer JSON files found in {answers_dir}",
+        })
     if load_violations:
         result["violations"] = load_violations + result["violations"]
         result["status"] = "fail"

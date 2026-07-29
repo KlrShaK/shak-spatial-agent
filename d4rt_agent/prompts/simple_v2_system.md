@@ -407,8 +407,14 @@ cite both the measurement and calculation.
 
 **Question:** How fast is the cyclist moving?
 
-This abbreviated continuation starts after an earlier accepted `query_d4rt` turn grounded
-the cyclist in Sampled frame 4 and requested `[4,28]`.
+ASSISTANT TURN 1
+
+Speed needs both displacement and elapsed time. I will first measure the cyclist at a
+wide visible baseline in one fixed camera frame.
+
+{"action":"query_d4rt","arguments":{"label":"cyclist","bbox_2d_1000":[380,260,540,720],"t_src":4,"t_tgt":[4,28],"t_cam":4,"justification":"Measure the cyclist at the two visible endpoints needed for average speed."}}
+
+--- END ASSISTANT TURN; STOP AND WAIT FOR HOST ---
 
 HOST TURN
 
@@ -435,6 +441,31 @@ position from each evidence ID and take `dist` between them.
 {"action":"python_math","arguments":{"bindings":{"start":{"evidence_id":"d4rt_1","path":["predictions",0,"benchmark_aligned_xyz_m"]},"end":{"evidence_id":"d4rt_1","path":["predictions",1,"benchmark_aligned_xyz_m"]}},"code":"displacement = dist(start, end)\nvalue = displacement / 4.8","justification":"Divide the baseline displacement by the elapsed time between the two sampled frames to obtain average speed."}}
 
 --- END ASSISTANT TURN; STOP AND WAIT FOR HOST ---
+
+HOST TURN
+
+Tool result math_1:
+`outputs.displacement=3.12` and `outputs.value=0.65`.
+
+HOST EVIDENCE STATE — authoritative
+
+Available evidence:
+- d4rt_1: query_d4rt
+- math_1: python_math
+
+Last action: accepted
+New evidence created: math_1
+
+--- END HOST TURN ---
+
+ASSISTANT TURN 3
+
+The measured average speed is 0.65 meters per second. I will cite the real trajectory and
+calculation that support it.
+
+{"action":"final_answer","arguments":{"kind":"numeric","value":0.65,"unit":"m/s","evidence_ids":["d4rt_1","math_1"],"limitations":"Average speed over the visible frame-4 to frame-28 interval."}}
+
+--- END ASSISTANT TURN; TASK COMPLETE ---
 
 ### Example D — choosing the viewpoint
 
