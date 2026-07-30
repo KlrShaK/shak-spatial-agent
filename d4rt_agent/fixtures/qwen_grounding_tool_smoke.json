@@ -1,0 +1,41 @@
+[
+  {
+    "question_id": "CameraBench_c0_camerabench_m0jmssq5ptw.3.12_ccd85243",
+    "t_src": 0,
+    "mode": "bbox",
+    "request": "runner"
+  },
+  {
+    "question_id": "llava178k_c5_videos_youtube_video_2024_ytb_16mzjk4aojs_video-scene-00000_b36d2eb1",
+    "t_src": 0,
+    "mode": "bbox",
+    "request": "harvester"
+  },
+  {
+    "question_id": "CameraBench_c0_camerabench_m0jmssq5ptw.3.12_ccd85243",
+    "t_src": 0,
+    "mode": "points",
+    "request": "runner's chest and back",
+    "count": 2
+  },
+  {
+    "question_id": "CameraBench_c2_camerabench_u35wis62r2m.1.4_8c093924",
+    "t_src": 0,
+    "mode": "points",
+    "request": "five static points on the distant rigid background structure",
+    "count": 5
+  },
+  {
+    "question_id": "CameraBench_c2_camerabench_u35wis62r2m.1.4_8c093924",
+    "t_src": 0,
+    "mode": "points",
+    "request": "three distinct corners on the central building structure",
+    "count": 3
+  },
+  {
+    "question_id": "CameraBench_c0_camerabench_m0jmssq5ptw.3.12_ccd85243",
+    "t_src": 0,
+    "mode": "bbox",
+    "request": "the red car closest to the camera"
+  }
+]

@@ -172,6 +172,53 @@ class GroundingEvidenceTraversalTest(unittest.TestCase):
             self.assertIn("strict/d4rt_1", output)
             self.assertIn("p1", output)
 
+    def test_parse_failure_is_rendered_and_gets_an_exact_frame_overlay(self) -> None:
+        record = {
+            "trace": [{
+                "step": 3,
+                "status": "rejected",
+                "parsed_action": {
+                    "action": "ground_with_qwen",
+                    "arguments": {
+                        "mode": "bbox",
+                        "t_src": 1,
+                        "request": "runner",
+                        "justification": "Ground it.",
+                    },
+                },
+                "grounder_failure": {
+                    "raw_grounder_response": "not valid json",
+                    "host_provenance": {
+                        "original_t_src": 12,
+                        "raw_grounder_response": "not valid json",
+                    },
+                },
+            }],
+            "evidence": {},
+        }
+        rows = iter_grounding_evidence(record)
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0]["grounding"]["status"], "parse_error")
+        markdown = "\n".join(
+            _grounding_details(record, "question_failure", "clip")
+        )
+        self.assertIn("strict/grounder_failure_step_3", markdown)
+        self.assertIn("not valid json", markdown)
+        self.assertIn("grounding_frames/question_failure_f01.jpg", markdown)
+
+        frames = np.zeros((2, 20, 30, 3), dtype=np.uint8)
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            paths = build_qwen_grounding_media(
+                frames,
+                record,
+                question_id="question_failure",
+                frames_directory=root / "grounding_frames",
+                sheet_destination=root / "groundings" / "clip.jpg",
+            )
+            self.assertEqual([path.name for path in paths], ["question_failure_f01.jpg"])
+            self.assertTrue(paths[0].is_file())
+
 
 class GroundingOverlayTest(unittest.TestCase):
     def test_combines_groundings_by_exact_source_frame(self) -> None:
@@ -251,9 +298,12 @@ class GroundingOverlayTest(unittest.TestCase):
             self.assertTrue(destination.is_file())
 
     def test_refresh_flag_parses_with_skip_media(self) -> None:
-        args = parse_args(["--refresh-groundings", "--skip-media"])
+        args = parse_args(
+            ["--refresh-groundings", "--skip-media", "--allow-partial"]
+        )
         self.assertTrue(args.refresh_groundings)
         self.assertTrue(args.skip_media)
+        self.assertTrue(args.allow_partial)
 
 
 if __name__ == "__main__":

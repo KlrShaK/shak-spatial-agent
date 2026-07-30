@@ -240,7 +240,7 @@ def _is_grounding_evidence(evidence_id: str, value: Any) -> bool:
 def iter_grounding_evidence(
     record: Mapping[str, Any] | None,
 ) -> list[dict[str, Any]]:
-    """Return every immutable qg record, namespaced by execution attempt.
+    """Return qg records and parse failures, namespaced by execution attempt.
 
     Strict and relaxed retries both start their evidence counters at ``qg_1``.
     The namespace therefore is part of the review identity even for a normal
@@ -278,6 +278,53 @@ def iter_grounding_evidence(
                 "display_id": f"{attempt_name}/{evidence_id}",
                 "grounding": value,
                 "steps": uses,
+                "attempt_record": attempt,
+            })
+        for position, step in enumerate(steps, start=1):
+            if not isinstance(step, Mapping) or step.get("status") != "rejected":
+                continue
+            failure = step.get("grounder_failure")
+            action = step.get("parsed_action")
+            if not isinstance(failure, Mapping) or not isinstance(action, Mapping):
+                continue
+            if action.get("action") != "ground_with_qwen":
+                continue
+            arguments = action.get("arguments")
+            if not isinstance(arguments, Mapping):
+                continue
+            provenance = failure.get("host_provenance")
+            if not isinstance(provenance, Mapping):
+                provenance = {}
+            raw_response = failure.get("raw_grounder_response")
+            if raw_response is not None and "raw_grounder_response" not in provenance:
+                provenance = {
+                    **dict(provenance),
+                    "raw_grounder_response": raw_response,
+                }
+            mode = arguments.get("mode")
+            grounding: dict[str, Any] = {
+                "status": "parse_error",
+                "mode": mode,
+                "t_src": arguments.get("t_src"),
+                "request": arguments.get("request"),
+                "host_provenance": provenance,
+            }
+            if mode == "bbox":
+                grounding["bbox_2d_1000"] = None
+            elif mode == "points":
+                grounding.update(
+                    requested_count=arguments.get("count"),
+                    returned_count=0,
+                    points_2d_1000=[],
+                )
+            step_number = step.get("step", position)
+            failure_id = f"grounder_failure_step_{step_number}"
+            rows.append({
+                "attempt": attempt_name,
+                "evidence_id": failure_id,
+                "display_id": f"{attempt_name}/{failure_id}",
+                "grounding": grounding,
+                "steps": [step],
                 "attempt_record": attempt,
             })
     return rows
@@ -560,6 +607,8 @@ def _trace_rows(record: Mapping[str, Any]) -> list[str]:
 
 def _grounding_cache_summary(row: Mapping[str, Any]) -> str:
     grounding = row["grounding"]
+    if grounding.get("status") == "parse_error":
+        return "no cache entry or grounding ID was created"
     host = _host_provenance(grounding)
     hit_steps = [
         step
@@ -632,10 +681,11 @@ def _grounding_details(
     if not rows:
         return []
     lines = [
-        f"<details><summary>Qwen grounding evidence ({len(rows)} immutable groundings)</summary>",
+        f"<details><summary>Qwen grounding attempts ({len(rows)} result rows)</summary>",
         "",
-        "Grounding IDs are prefixed with their attempt because strict and relaxed retries "
-        "have independent evidence registries.",
+        "Created grounding IDs are prefixed with their attempt because strict and "
+        "relaxed retries have independent evidence registries. Parse-failure rows "
+        "name their model step and intentionally have no grounding ID.",
         "",
     ]
     source_frames: list[int] = []
@@ -949,11 +999,25 @@ def build_report(
     results_dir: Path,
     skip_media: bool = False,
     refresh_groundings: bool = False,
+    allow_partial: bool = False,
 ) -> Path:
     results_dir = Path(results_dir)
     manifest = read_manifest(results_dir / "manifest.json")
     agent = _load_records(results_dir / "answers")
     baseline = _load_records(results_dir / "baseline")
+    expected_ids = {
+        str(entry["question_id"]) for entry in manifest["questions"]
+    }
+    if not allow_partial:
+        for label, records in (("agent answers", agent), ("baseline", baseline)):
+            if set(records) != expected_ids:
+                missing = sorted(expected_ids - set(records))
+                extra = sorted(set(records) - expected_ids)
+                raise ValueError(
+                    f"refusing to generate a final report: {label} do not exactly "
+                    f"match the manifest; missing={missing}, extra={extra}. Use "
+                    "--allow-partial only for an explicitly intermediate report."
+                )
 
     lines = _header(manifest, agent, baseline)
     lines += _index_table(manifest, agent, baseline)
@@ -1052,6 +1116,11 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
             "leave videos, GIFs, and ordinary contact sheets untouched"
         ),
     )
+    parser.add_argument(
+        "--allow-partial",
+        action="store_true",
+        help="explicitly generate an intermediate report with missing result rows",
+    )
     return parser.parse_args(argv)
 
 
@@ -1061,6 +1130,7 @@ def main(argv: Sequence[str] | None = None) -> None:
         args.results_dir,
         skip_media=args.skip_media,
         refresh_groundings=args.refresh_groundings,
+        allow_partial=args.allow_partial,
     )
     print(f"Wrote: {path}")
 

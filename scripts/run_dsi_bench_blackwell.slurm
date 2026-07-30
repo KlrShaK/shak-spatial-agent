@@ -48,6 +48,10 @@ if [[ "$MODE" != "agent" && "$MODE" != "baseline" ]]; then
   echo "Unsupported MODE=$MODE (expected agent or baseline)" >&2
   exit 2
 fi
+if [[ "$MODE" == "agent" && "$POINT_MODE" != "ensemble5" ]]; then
+  echo "Phase 2 agent evaluation requires host-fixed POINT_MODE=ensemble5" >&2
+  exit 2
+fi
 if [[ "$FORCE" != "0" && "$FORCE" != "1" ]]; then
   echo "Unsupported FORCE=$FORCE (expected 0 or 1)" >&2
   exit 2
@@ -90,6 +94,8 @@ echo "MANIFEST_PATH=$MANIFEST_PATH"
 echo "ONLY_FILE=${ONLY_FILE:-<unset>} (${#ONLY_IDS[@]} selected ID(s))"
 echo "FORCE=$FORCE"
 echo "MODE=$MODE  immutable POINT_MODE=$POINT_MODE  LIMIT=${LIMIT:-all}"
+echo "GROUNDING_TOOL=isolated_qwen bbox_tokens=96 points_tokens=192 seed=42"
+echo "CODE_SHA=$(git rev-parse HEAD)"
 
 mkdir -p logs/d4rt_agent "$RESULTS_DIR" "$LOCAL_DEPS"
 cp -a "$DEPS_DIR/." "$LOCAL_DEPS/"

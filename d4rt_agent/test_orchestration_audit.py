@@ -134,6 +134,86 @@ def _valid_record(*, suffix: str = "") -> dict[str, object]:
     return result
 
 
+def _valid_phase2_record() -> dict[str, object]:
+    ground_action = {
+        "action": "ground_with_qwen",
+        "arguments": {
+            "mode": "bbox",
+            "t_src": 0,
+            "request": "runner",
+            "justification": "Ground the runner.",
+        },
+    }
+    grounding = {
+        "grounding_id": "qg_1",
+        "status": "ok",
+        "mode": "bbox",
+        "t_src": 0,
+        "request": "runner",
+        "bbox_2d_1000": [100, 100, 300, 600],
+        "host_provenance": {
+            "clip_key": "clip-key",
+            "resolved_video_path": "/clips/runner.mp4",
+            "sampled_mapping_digest": "mapping-digest",
+            "cache_key_digest": "cache-digest",
+            "raw_grounder_response": '{"bbox_2d_1000":[100,100,300,600]}',
+            "grounding_prompt_version": "prompt-version",
+            "original_t_src": 0,
+        },
+    }
+    qg_entry = {
+        "evidence_id": "qg_1",
+        "tool_name": "ground_with_qwen",
+        "created_at_step": 1,
+    }
+    query_action = {
+        "action": "query_d4rt",
+        "arguments": {
+            "grounding_id": "qg_1",
+            "t_tgt": [0, 31],
+            "t_cam": 0,
+            "justification": "Track the grounded runner.",
+        },
+    }
+    d4rt = {
+        "grounding_id": "qg_1",
+        "grounding_mode": "bbox",
+        "grounding_request": "runner",
+        "point_mode": "ensemble5",
+        "t_src": 0,
+        "t_tgt": [0, 31],
+        "predictions": [],
+    }
+    d4rt_entry = {
+        "evidence_id": "d4rt_1",
+        "tool_name": "query_d4rt",
+        "created_at_step": 2,
+    }
+    return {
+        "question_id": "phase2",
+        "status": "failed",
+        "trace": [
+            _row(
+                step=1,
+                action=ground_action,
+                status="ok",
+                available=[qg_entry],
+                call_id="qg_1",
+                result=grounding,
+            ),
+            _row(
+                step=2,
+                action=query_action,
+                status="ok",
+                available=[qg_entry, d4rt_entry],
+                call_id="d4rt_1",
+                result=d4rt,
+            ),
+        ],
+        "evidence": {"qg_1": grounding, "d4rt_1": d4rt},
+    }
+
+
 class ActionScanningTest(unittest.TestCase):
     def test_scans_actions_in_order_without_counting_plain_json(self) -> None:
         text = (
@@ -293,6 +373,93 @@ class AuditTest(unittest.TestCase):
         self.assertEqual(result["status"], "pass")
         self.assertEqual(result["summary"]["unknown_evidence_rejections"], 1)
         self.assertEqual(result["summary"]["evidence_ids_created"], 1)
+
+    def test_grounding_cache_reuse_does_not_duplicate_registry_or_counter(self) -> None:
+        action = {
+            "action": "ground_with_qwen",
+            "arguments": {
+                "mode": "bbox",
+                "t_src": 0,
+                "request": "the runner",
+                "justification": "Ground the tracked subject.",
+            },
+        }
+        grounding = {
+            "grounding_id": "qg_1",
+            "status": "ok",
+            "mode": "bbox",
+            "t_src": 0,
+            "request": "the runner",
+            "bbox_2d_1000": [100, 100, 300, 600],
+            "host_provenance": {
+                "clip_key": "clip-key",
+                "resolved_video_path": "/clips/cache.mp4",
+                "sampled_mapping_digest": "mapping-digest",
+                "cache_key_digest": "cache-digest",
+                "raw_grounder_response": (
+                    '{"bbox_2d_1000":[100,100,300,600]}'
+                ),
+                "grounding_prompt_version": "prompt-version",
+                "original_t_src": 0,
+            },
+        }
+        entry = {
+            "evidence_id": "qg_1",
+            "tool_name": "ground_with_qwen",
+            "created_at_step": 1,
+        }
+        created = _row(
+            step=1,
+            action=action,
+            status="ok",
+            available=[entry],
+            call_id="qg_1",
+            result=grounding,
+        )
+        reused = _row(
+            step=2,
+            action=action,
+            status="ok",
+            available=[entry],
+            call_id="qg_1",
+            result=grounding,
+        )
+        reused["cache_hit"] = True
+        reused["reused_evidence_id"] = "qg_1"
+        reused["evidence_state"]["new_evidence_id"] = None
+        record = {
+            "question_id": "cache",
+            "status": "failed",
+            "trace": [created, reused],
+            "evidence": {"qg_1": grounding},
+        }
+
+        result = audit_records([record])
+
+        self.assertEqual(result["status"], "pass")
+        self.assertEqual(result["summary"]["evidence_ids_created"], 1)
+        self.assertEqual(
+            result["summary"]["successful_actions"]["ground_with_qwen"], 2
+        )
+
+    def test_phase2_grounding_and_d4rt_provenance_pass(self) -> None:
+        result = audit_records([_valid_phase2_record()])
+        self.assertEqual(result["status"], "pass", result["violations"])
+
+    def test_mutated_grounding_and_wrong_d4rt_mode_fail_provenance_audit(self) -> None:
+        record = _valid_phase2_record()
+        record["trace"][0]["result"] = {
+            **record["trace"][0]["result"],
+            "bbox_2d_1000": [1, 2, 3, 4],
+        }
+        record["trace"][1]["result"] = {
+            **record["trace"][1]["result"],
+            "point_mode": "centroid",
+        }
+        result = audit_records([record])
+        codes = {item["code"] for item in result["violations"]}
+        self.assertIn("trace_registry_result_mismatch", codes)
+        self.assertIn("invalid_d4rt_grounding_provenance", codes)
 
     def test_strict_and_relaxed_attempts_are_counted_separately(self) -> None:
         strict = _valid_record()

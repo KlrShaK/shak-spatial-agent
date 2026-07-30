@@ -11,6 +11,7 @@ import argparse
 from collections import Counter
 from datetime import datetime, timezone
 import json
+import math
 import os
 from pathlib import Path
 import re
@@ -96,6 +97,26 @@ def _action_name(row: Mapping[str, Any]) -> str:
     return "unparsed"
 
 
+def _normalize_legacy_bbox_query(action: Mapping[str, Any]) -> dict[str, Any] | None:
+    """Normalize pre-Phase-2 query_d4rt actions for archived-trace audits."""
+
+    name = action.get("action", action.get("name"))
+    arguments = action.get("arguments")
+    if name != "query_d4rt" or not isinstance(arguments, Mapping):
+        return None
+    if "bbox_2d_1000" not in arguments or "grounding_id" in arguments:
+        return None
+    args = dict(arguments)
+    try:
+        args["bbox_2d_1000"] = [float(value) for value in args["bbox_2d_1000"]]
+        args["t_src"] = int(args["t_src"])
+        args["t_tgt"] = [int(value) for value in args["t_tgt"]]
+        args["t_cam"] = int(args["t_cam"])
+    except (KeyError, TypeError, ValueError):
+        return None
+    return {"action": "query_d4rt", "arguments": args}
+
+
 def _referenced_evidence(row: Mapping[str, Any]) -> set[str]:
     action = row.get("parsed_action")
     if not isinstance(action, Mapping):
@@ -104,6 +125,9 @@ def _referenced_evidence(row: Mapping[str, Any]) -> set[str]:
     if not isinstance(arguments, Mapping):
         return set()
     name = action.get("action", action.get("name"))
+    if name == "query_d4rt":
+        grounding_id = arguments.get("grounding_id")
+        return {grounding_id} if isinstance(grounding_id, str) else set()
     if name == "python_math":
         bindings = arguments.get("bindings")
         if not isinstance(bindings, Mapping):
@@ -149,6 +173,176 @@ def _ledger_entries(row: Mapping[str, Any]) -> list[dict[str, Any]] | None:
             "created_at_step": created_at_step,
         })
     return entries
+
+
+def _grounding_result_problems(
+    grounding_id: str,
+    arguments: Mapping[str, Any],
+    result: Any,
+) -> list[str]:
+    """Validate the immutable qg payload saved by a successful grounding call."""
+
+    if not isinstance(result, Mapping):
+        return ["successful grounding result is not an object"]
+    problems: list[str] = []
+    mode = arguments.get("mode")
+    status = result.get("status")
+    if result.get("grounding_id") != grounding_id:
+        problems.append(
+            f"grounding_id={result.get('grounding_id')!r}, expected {grounding_id!r}"
+        )
+    if result.get("mode") != mode:
+        problems.append(
+            f"grounding mode={result.get('mode')!r}, action requested {mode!r}"
+        )
+    for field in ("t_src", "request"):
+        if result.get(field) != arguments.get(field):
+            problems.append(
+                f"grounding {field}={result.get(field)!r}, action requested "
+                f"{arguments.get(field)!r}"
+            )
+    if status not in {"ok", "not_found"}:
+        problems.append(f"grounding status is invalid: {status!r}")
+
+    provenance = result.get("host_provenance")
+    if not isinstance(provenance, Mapping):
+        problems.append("grounding host_provenance is missing")
+    else:
+        for field in (
+            "clip_key",
+            "resolved_video_path",
+            "sampled_mapping_digest",
+            "cache_key_digest",
+            "raw_grounder_response",
+            "grounding_prompt_version",
+        ):
+            if not isinstance(provenance.get(field), str) or not provenance.get(field):
+                problems.append(f"grounding provenance {field!r} is missing")
+        if not isinstance(provenance.get("original_t_src"), int):
+            problems.append("grounding provenance original_t_src is missing")
+
+    if mode == "bbox":
+        bbox = result.get("bbox_2d_1000")
+        if status == "not_found":
+            if bbox is not None:
+                problems.append("not_found bbox grounding contains geometry")
+        elif (
+            not isinstance(bbox, list)
+            or len(bbox) != 4
+            or any(
+                isinstance(value, bool)
+                or not isinstance(value, (int, float))
+                or not math.isfinite(float(value))
+                or not 0.0 <= float(value) <= 1000.0
+                for value in (bbox if isinstance(bbox, list) else [])
+            )
+            or (
+                isinstance(bbox, list)
+                and len(bbox) == 4
+                and (float(bbox[2]) <= float(bbox[0]) or float(bbox[3]) <= float(bbox[1]))
+            )
+        ):
+            problems.append("bbox grounding geometry is invalid")
+    elif mode == "points":
+        points = result.get("points_2d_1000")
+        if not isinstance(points, list):
+            problems.append("points grounding geometry is not a list")
+            points = []
+        requested = arguments.get("count")
+        if result.get("requested_count") != requested:
+            problems.append("points grounding requested_count does not match action")
+        if result.get("returned_count") != len(points):
+            problems.append("points grounding returned_count does not match geometry")
+        if status == "not_found" and points:
+            problems.append("not_found points grounding contains geometry")
+        if status == "ok" and not points:
+            problems.append("ok points grounding contains no points")
+        if isinstance(requested, int) and len(points) > requested:
+            problems.append("points grounding returned more points than requested")
+        expected_ids = [f"p{index}" for index in range(1, len(points) + 1)]
+        actual_ids: list[Any] = []
+        coordinates: list[tuple[float, float]] = []
+        for point in points:
+            if not isinstance(point, Mapping):
+                problems.append("points grounding contains a non-object point")
+                continue
+            actual_ids.append(point.get("point_id"))
+            xy = point.get("xy")
+            if (
+                not isinstance(xy, list)
+                or len(xy) != 2
+                or any(
+                    isinstance(value, bool)
+                    or not isinstance(value, (int, float))
+                    or not math.isfinite(float(value))
+                    or not 0.0 <= float(value) <= 1000.0
+                    for value in (xy if isinstance(xy, list) else [])
+                )
+            ):
+                problems.append("points grounding contains invalid coordinates")
+            else:
+                coordinates.append((float(xy[0]), float(xy[1])))
+            if not isinstance(point.get("description"), str) or not str(
+                point.get("description")
+            ).strip():
+                problems.append("points grounding contains an empty description")
+        if actual_ids != expected_ids:
+            problems.append(
+                f"point IDs are not host-assigned in order: {actual_ids!r}"
+            )
+        if len(set(coordinates)) != len(coordinates):
+            problems.append("points grounding contains duplicate coordinates")
+    return problems
+
+
+def _d4rt_grounding_problems(
+    arguments: Mapping[str, Any],
+    result: Any,
+    evidence: Mapping[str, Any],
+) -> list[str]:
+    """Validate that one accepted D4RT result resolves its cited qg exactly."""
+
+    if not isinstance(result, Mapping):
+        return ["successful D4RT result is not an object"]
+    grounding_id = arguments.get("grounding_id")
+    grounding = evidence.get(grounding_id) if isinstance(grounding_id, str) else None
+    if not isinstance(grounding, Mapping):
+        return [f"D4RT grounding {grounding_id!r} is absent from the registry"]
+    problems: list[str] = []
+    mode = grounding.get("mode")
+    if result.get("grounding_id") != grounding_id:
+        problems.append("D4RT result grounding_id does not match its action")
+    if result.get("grounding_mode") != mode:
+        problems.append("D4RT result grounding_mode does not match qg mode")
+    if result.get("t_src") != grounding.get("t_src"):
+        problems.append("D4RT source frame does not match qg source frame")
+    if mode == "bbox":
+        if result.get("point_mode") != "ensemble5":
+            problems.append("bbox D4RT result did not use host-fixed ensemble5")
+        if arguments.get("point_ids") is not None:
+            problems.append("bbox D4RT action contains point_ids")
+    elif mode == "points":
+        points = grounding.get("points_2d_1000")
+        available = [
+            point.get("point_id")
+            for point in points or []
+            if isinstance(point, Mapping)
+        ]
+        selected = arguments.get("point_ids")
+        expected = available if selected is None else list(selected)
+        if any(point_id not in available for point_id in expected):
+            problems.append("point-mode D4RT action selects unknown qg point IDs")
+        if result.get("point_ids") != expected:
+            problems.append("point-mode D4RT result point_ids do not match selection")
+        tracks = result.get("point_tracks")
+        track_ids = [
+            track.get("point_id")
+            for track in tracks or []
+            if isinstance(track, Mapping)
+        ]
+        if track_ids != expected:
+            problems.append("point-mode D4RT tracks do not match selected point IDs")
+    return problems
 
 
 def _violation(
@@ -214,6 +408,7 @@ def _audit_attempt(
     prior_ids: set[str] = set()
     attempt_created: list[str] = []
     attempt_max_step = 0
+    grounding_clip_key: str | None = None
 
     for position, raw_row in enumerate(trace, start=1):
         if not isinstance(raw_row, Mapping):
@@ -429,9 +624,12 @@ def _audit_attempt(
                             "arguments": normalized_arguments,
                         }
                     except (KeyError, TypeError, ValueError):
-                        # A malformed schema is expected only for a validation
-                        # rejection, which is compared against the raw object.
-                        expected_action = decoded
+                        # Archived Phase 1 traces used raw bbox queries. They
+                        # remain auditable even though Phase 2 no longer exposes
+                        # that schema to the model.
+                        expected_action = (
+                            _normalize_legacy_bbox_query(decoded) or decoded
+                        )
                 if parsed_action != expected_action:
                     _violation(
                         violations,
@@ -528,7 +726,11 @@ def _audit_attempt(
 
         new_id = state.get("new_evidence_id")
         call_id = row.get("call_id")
-        evidence_action = status == "ok" and name in {"query_d4rt", "python_math"}
+        evidence_action = status == "ok" and name in {
+            "ground_with_qwen",
+            "query_d4rt",
+            "python_math",
+        }
         if evidence_action:
             if not isinstance(call_id, str):
                 _violation(
@@ -539,7 +741,32 @@ def _audit_attempt(
                     code="missing_call_id",
                     message=f"successful {name} is missing its call_id",
                 )
-            if new_id != call_id:
+            cache_hit = bool(row.get("cache_hit"))
+            reused_id = row.get("reused_evidence_id")
+            if cache_hit:
+                if name != "ground_with_qwen":
+                    _violation(
+                        violations,
+                        question_id=question_id,
+                        attempt=attempt_name,
+                        step=step,
+                        code="invalid_cache_hit",
+                        message=f"only ground_with_qwen may reuse evidence, got {name}",
+                    )
+                if reused_id != call_id or call_id not in prior_ids or new_id is not None:
+                    _violation(
+                        violations,
+                        question_id=question_id,
+                        attempt=attempt_name,
+                        step=step,
+                        code="invalid_cache_reuse",
+                        message=(
+                            f"cache hit must reuse an existing call_id without creating "
+                            f"new evidence; call_id={call_id!r}, reused={reused_id!r}, "
+                            f"new={new_id!r}, prior={sorted(prior_ids)!r}"
+                        ),
+                    )
+            elif new_id != call_id:
                 _violation(
                     violations,
                     question_id=question_id,
@@ -548,7 +775,7 @@ def _audit_attempt(
                     code="ledger_new_id_mismatch",
                     message=f"ledger created {new_id!r}, trace call_id is {call_id!r}",
                 )
-            if isinstance(call_id, str):
+            if isinstance(call_id, str) and not cache_hit:
                 if call_id in prior_ids:
                     _violation(
                         violations,
@@ -566,6 +793,73 @@ def _audit_attempt(
                     })
                     prior_ids.add(call_id)
                     attempt_created.append(call_id)
+            if isinstance(call_id, str) and call_id in evidence:
+                if row.get("result") != evidence.get(call_id):
+                    _violation(
+                        violations,
+                        question_id=question_id,
+                        attempt=attempt_name,
+                        step=step,
+                        code="trace_registry_result_mismatch",
+                        message=(
+                            f"trace result for {call_id!r} differs from the immutable "
+                            "evidence registry"
+                        ),
+                    )
+            action = row.get("parsed_action")
+            arguments = (
+                action.get("arguments")
+                if isinstance(action, Mapping)
+                and isinstance(action.get("arguments"), Mapping)
+                else {}
+            )
+            if name == "ground_with_qwen" and isinstance(call_id, str):
+                for problem in _grounding_result_problems(
+                    call_id, arguments, row.get("result")
+                ):
+                    _violation(
+                        violations,
+                        question_id=question_id,
+                        attempt=attempt_name,
+                        step=step,
+                        code="invalid_grounding_provenance",
+                        message=problem,
+                    )
+                result = row.get("result")
+                provenance = (
+                    result.get("host_provenance")
+                    if isinstance(result, Mapping) else None
+                )
+                clip_key = (
+                    provenance.get("clip_key")
+                    if isinstance(provenance, Mapping) else None
+                )
+                if isinstance(clip_key, str):
+                    if grounding_clip_key is None:
+                        grounding_clip_key = clip_key
+                    elif grounding_clip_key != clip_key:
+                        _violation(
+                            violations,
+                            question_id=question_id,
+                            attempt=attempt_name,
+                            step=step,
+                            code="cross_clip_grounding_registry",
+                            message="one attempt contains qg records from different clips",
+                        )
+            elif name == "query_d4rt" and isinstance(
+                arguments.get("grounding_id"), str
+            ):
+                for problem in _d4rt_grounding_problems(
+                    arguments, row.get("result"), evidence
+                ):
+                    _violation(
+                        violations,
+                        question_id=question_id,
+                        attempt=attempt_name,
+                        step=step,
+                        code="invalid_d4rt_grounding_provenance",
+                        message=problem,
+                    )
         elif new_id is not None:
             _violation(
                 violations,
@@ -575,6 +869,30 @@ def _audit_attempt(
                 code="rejection_created_evidence",
                 message=f"non-evidence action reports new evidence {new_id!r}",
             )
+
+        grounder_failure = row.get("grounder_failure")
+        if name == "ground_with_qwen" and grounder_failure is not None:
+            valid_failure = (
+                status == "rejected"
+                and isinstance(grounder_failure, Mapping)
+                and isinstance(grounder_failure.get("raw_grounder_response"), str)
+                and isinstance(grounder_failure.get("host_provenance"), Mapping)
+                and isinstance(
+                    grounder_failure["host_provenance"].get("clip_key"), str
+                )
+            )
+            if not valid_failure:
+                _violation(
+                    violations,
+                    question_id=question_id,
+                    attempt=attempt_name,
+                    step=step,
+                    code="invalid_grounder_failure_provenance",
+                    message=(
+                        "grounder parse failure must be a rejected action with raw "
+                        "response and clip-bound host provenance"
+                    ),
+                )
 
         if entries != expected_entries:
             _violation(
@@ -605,7 +923,7 @@ def _audit_attempt(
                     f"trace-created IDs {attempt_created!r}"
                 ),
             )
-        for prefix in ("d4rt", "math"):
+        for prefix in ("qg", "d4rt", "math"):
             numbers = [
                 int(match.group(1))
                 for evidence_id in attempt_created
