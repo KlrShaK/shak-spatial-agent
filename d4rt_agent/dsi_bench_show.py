@@ -24,9 +24,9 @@ from pathlib import Path
 from typing import Any, Mapping
 
 try:
-    from .orchestration_audit import count_action_objects
+    from .orchestration_audit import count_action_objects, iter_attempts
 except ImportError:  # Support the documented ``python d4rt_agent/dsi_bench_show.py`` form.
-    from orchestration_audit import count_action_objects
+    from orchestration_audit import count_action_objects, iter_attempts
 
 RESULTS = Path(__file__).resolve().parent / "results" / "dsi_bench"
 RULE = "=" * 100
@@ -148,8 +148,101 @@ def _xyz(values: list[float] | None) -> str:
     return "null" if not values else "[" + ", ".join(f"{v:+.4f}" for v in values) + "]"
 
 
+def _namespaced_id(evidence_id: str, namespace: str | None) -> str:
+    """Disambiguate IDs whose counters restart on the relaxed retry."""
+
+    return f"{namespace}/{evidence_id}" if namespace else evidence_id
+
+
+def _host_provenance(record: Mapping[str, Any]) -> Mapping[str, Any]:
+    """Return Phase 2's diagnostic-only grounding provenance, if present."""
+
+    for key in ("host_provenance", "grounding_provenance", "provenance"):
+        value = record.get(key)
+        if isinstance(value, Mapping):
+            return value
+    return {}
+
+
+def _grounding_cache_description(
+    step: Mapping[str, Any], record: Mapping[str, Any]
+) -> tuple[bool, str | None]:
+    """Read cache metadata from both live and early Phase 2 record layouts."""
+
+    candidates: list[Mapping[str, Any]] = [step, record, _host_provenance(record)]
+    result = step.get("result")
+    if isinstance(result, Mapping):
+        candidates.insert(1, result)
+    cache_hit = any(value.get("cache_hit") is True for value in candidates)
+    reused = next(
+        (
+            str(value["reused_evidence_id"])
+            for value in candidates
+            if isinstance(value.get("reused_evidence_id"), str)
+        ),
+        None,
+    )
+    return cache_hit, reused
+
+
+def _grounding_geometry(record: Mapping[str, Any]) -> str:
+    mode = record.get("mode")
+    if mode == "bbox":
+        return f"bbox_2d_1000={record.get('bbox_2d_1000')}"
+    if mode == "points":
+        points = record.get("points_2d_1000") or []
+        return "points_2d_1000=" + json.dumps(points, ensure_ascii=False)
+    return "geometry=unknown"
+
+
+def _grounding_raw_response(record: Mapping[str, Any]) -> str:
+    host = _host_provenance(record)
+    value = host.get("raw_grounder_response", record.get("raw_grounder_response", ""))
+    return str(value or "")
+
+
+def _describe_grounding(
+    record: Mapping[str, Any],
+    evidence_id: str,
+    step: Mapping[str, Any],
+    namespace: str | None,
+) -> list[str]:
+    cache_hit, reused = _grounding_cache_description(step, record)
+    cache = "hit" if cache_hit else "miss"
+    if reused:
+        cache += f", reused {_namespaced_id(reused, namespace)}"
+    original = _host_provenance(record).get("original_t_src")
+    source = f"sampled frame {record.get('t_src')}"
+    if original is not None:
+        source += f" (original frame {original})"
+    return [
+        f"    -> {_namespaced_id(evidence_id, namespace)}  "
+        f"status={record.get('status', '?')} mode={record.get('mode', '?')} cache={cache}",
+        f"       source={source} request={record.get('request', '')!r}",
+        f"       {_grounding_geometry(record)}",
+    ]
+
+
 def _describe_query(record: dict[str, Any]) -> list[str]:
     """One line per returned frame: the numbers the model actually got back."""
+
+    tracks = record.get("point_tracks")
+    if isinstance(tracks, list):
+        lines: list[str] = []
+        for track in tracks:
+            if not isinstance(track, Mapping):
+                continue
+            lines.append(
+                f"      {track.get('point_id')} {track.get('source_xy_1000')} "
+                f"{track.get('description', '')}"
+            )
+            for prediction in track.get("predictions", []):
+                lines.append(
+                    f"        t_tgt={prediction['sampled_frame_index']:<3} "
+                    f"visible={str(prediction.get('visible')):<5} "
+                    f"xyz={_xyz(prediction.get('benchmark_aligned_xyz_m'))}"
+                )
+        return lines
 
     lines = []
     for prediction in record.get("predictions", []):
@@ -195,7 +288,30 @@ def _markdown_query_table(record: Mapping[str, Any]) -> list[str]:
     return rows
 
 
-def render_trace_markdown(record: Mapping[str, Any]) -> list[str]:
+def _markdown_query_result(record: Mapping[str, Any]) -> list[str]:
+    """Render bbox aggregation or independent Phase 2 point trajectories."""
+
+    tracks = record.get("point_tracks")
+    if not isinstance(tracks, list):
+        return _markdown_query_table(record)
+    lines: list[str] = []
+    for track in tracks:
+        if not isinstance(track, Mapping):
+            continue
+        lines += [
+            f"**Point `{track.get('point_id', '?')}`** — "
+            f"`source_xy_1000={track.get('source_xy_1000')}`; "
+            f"{track.get('description', '')}",
+            "",
+            *_markdown_query_table(track),
+            "",
+        ]
+    return lines or ["_(no point tracks returned)_", ""]
+
+
+def render_trace_markdown(
+    record: Mapping[str, Any], evidence_namespace: str | None = None
+) -> list[str]:
     """The same trace as :func:`render_trace`, but as markdown rather than text.
 
     Three things need to be told apart at a glance -- what the model thought,
@@ -219,7 +335,27 @@ def render_trace_markdown(record: Mapping[str, Any]) -> list[str]:
             lines += _quote(thought) + [""]
 
         arguments = action.get("arguments") or {}
-        if name == "query_d4rt":
+        if name == "ground_with_qwen":
+            lines += [
+                "```python",
+                f"ground_with_qwen(mode={arguments.get('mode')!r}, "
+                f"request={arguments.get('request')!r},",
+                f"                 t_src={arguments.get('t_src')}, "
+                f"count={arguments.get('count')})",
+                "```",
+                "",
+            ]
+        elif name == "query_d4rt" and arguments.get("grounding_id"):
+            lines += [
+                "```python",
+                f"query_d4rt(grounding_id={arguments.get('grounding_id')!r}, "
+                f"point_ids={arguments.get('point_ids')},",
+                f"           t_tgt={arguments.get('t_tgt')}, "
+                f"t_cam={arguments.get('t_cam')})",
+                "```",
+                "",
+            ]
+        elif name == "query_d4rt":
             lines += [
                 "```python",
                 f"query_d4rt(label={arguments.get('label')!r}, "
@@ -255,13 +391,61 @@ def render_trace_markdown(record: Mapping[str, Any]) -> list[str]:
 
         call_id = step.get("call_id")
         found = evidence.get(call_id) if call_id else None
-        if found and call_id.startswith("d4rt_"):
-            lines += [f"*Returned* `{call_id}`:", "", *_markdown_query_table(found), ""]
+        if found and call_id.startswith("qg_"):
+            shown_id = _namespaced_id(call_id, evidence_namespace)
+            cache_hit, reused = _grounding_cache_description(step, found)
+            cache = "hit" if cache_hit else "miss"
+            if reused:
+                cache += f"; reused `{_namespaced_id(reused, evidence_namespace)}`"
+            host = _host_provenance(found)
+            original = host.get("original_t_src")
+            source = f"sampled frame `{found.get('t_src')}`"
+            if original is not None:
+                source += f", original frame `{original}`"
+            lines += [
+                f"*Returned* `{shown_id}` — status `{found.get('status', '?')}`, "
+                f"mode `{found.get('mode', '?')}`, cache {cache}.",
+                "",
+                f"*Request:* {found.get('request', '')}",
+                "",
+                f"*Source:* {source}.",
+                "",
+                f"`{_grounding_geometry(found)}`",
+                "",
+            ]
+            raw_grounder = _grounding_raw_response(found)
+            if raw_grounder:
+                lines += [
+                    "<details><summary>Raw grounding-model response</summary>",
+                    "",
+                    f"<pre><code>{html.escape(raw_grounder)}</code></pre>",
+                    "",
+                    "</details>",
+                    "",
+                ]
+        elif found and call_id.startswith("d4rt_"):
+            grounding_id = found.get("grounding_id")
+            point_ids = found.get("point_ids")
+            provenance = ""
+            if isinstance(grounding_id, str):
+                provenance = (
+                    f" via `{_namespaced_id(grounding_id, evidence_namespace)}`"
+                    + (f", points `{point_ids}`" if point_ids else "")
+                )
+            lines += [
+                f"*Returned* `{_namespaced_id(call_id, evidence_namespace)}`{provenance}:",
+                "",
+                *_markdown_query_result(found),
+                "",
+            ]
         elif found and call_id.startswith("math_"):
             outputs = ", ".join(
                 f"`{key} = {value}`" for key, value in (found.get("outputs") or {}).items()
             )
-            lines += [f"*Returned* `{call_id}`: {outputs}", ""]
+            lines += [
+                f"*Returned* `{_namespaced_id(call_id, evidence_namespace)}`: {outputs}",
+                "",
+            ]
         if status != "ok":
             stage = step.get("failure_stage")
             stage_text = f" during `{stage}`" if stage else ""
@@ -278,7 +462,11 @@ def render_trace_markdown(record: Mapping[str, Any]) -> list[str]:
     return lines + [""]
 
 
-def render_trace(record: Mapping[str, Any], raw: bool = False) -> list[str]:
+def render_trace(
+    record: Mapping[str, Any],
+    raw: bool = False,
+    evidence_namespace: str | None = None,
+) -> list[str]:
     """The model's reasoning, its call, and what came back, step by step.
 
     Returned rather than printed so the markdown report can embed the same text
@@ -296,7 +484,20 @@ def render_trace(record: Mapping[str, Any], raw: bool = False) -> list[str]:
         if thought:
             lines.append(_wrap(thought))
         arguments = action.get("arguments") or {}
-        if name == "query_d4rt":
+        if name == "ground_with_qwen":
+            lines.append(
+                f"    CALL  mode={arguments.get('mode')!r} "
+                f"request={arguments.get('request')!r} "
+                f"t_src={arguments.get('t_src')} count={arguments.get('count')}"
+            )
+        elif name == "query_d4rt" and arguments.get("grounding_id"):
+            lines.append(
+                f"    CALL  grounding_id="
+                f"{_namespaced_id(str(arguments.get('grounding_id')), evidence_namespace)!r} "
+                f"point_ids={arguments.get('point_ids')} "
+                f"t_tgt={arguments.get('t_tgt')} t_cam={arguments.get('t_cam')}"
+            )
+        elif name == "query_d4rt":
             lines.append(
                 f"    CALL  label={arguments.get('label')!r} "
                 f"bbox={arguments.get('bbox_2d_1000')} "
@@ -316,11 +517,24 @@ def render_trace(record: Mapping[str, Any], raw: bool = False) -> list[str]:
 
         call_id = step.get("call_id")
         found = evidence.get(call_id) if call_id else None
-        if found and call_id.startswith("d4rt_"):
-            lines.append(f"    -> {call_id}")
+        if found and call_id.startswith("qg_"):
+            lines += _describe_grounding(found, call_id, step, evidence_namespace)
+        elif found and call_id.startswith("d4rt_"):
+            shown_id = _namespaced_id(call_id, evidence_namespace)
+            grounding_id = found.get("grounding_id")
+            point_ids = found.get("point_ids")
+            suffix = ""
+            if isinstance(grounding_id, str):
+                suffix = f" via {_namespaced_id(grounding_id, evidence_namespace)}"
+                if point_ids:
+                    suffix += f" points={point_ids}"
+            lines.append(f"    -> {shown_id}{suffix}")
             lines += _describe_query(found)
         elif found and call_id.startswith("math_"):
-            lines.append(f"    -> {call_id}  {json.dumps(found.get('outputs', {}))}")
+            lines.append(
+                f"    -> {_namespaced_id(call_id, evidence_namespace)}  "
+                f"{json.dumps(found.get('outputs', {}))}"
+            )
         if step["status"] != "ok":
             stage = step.get("failure_stage")
             stage_text = f" [{stage}]" if stage else ""
@@ -355,7 +569,11 @@ def show(record: dict[str, Any], baseline: dict[str, Any] | None, raw: bool) -> 
         f"d4rt_used={record['d4rt_used']}  {record.get('wall_seconds', 0):.0f}s"
     )
     print()
-    print("\n".join(render_trace(record, raw)))
+    attempts = list(iter_attempts(record))
+    for attempt_name, attempt in attempts:
+        if len(attempts) > 1:
+            print(f"{'-' * 38} {attempt_name.upper()} ATTEMPT {'-' * 44}")
+        print("\n".join(render_trace(attempt, raw, evidence_namespace=attempt_name)))
 
     if baseline is not None:
         print(f"{'-' * 40} Qwen-only baseline (no tools) {'-' * 29}")

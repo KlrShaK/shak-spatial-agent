@@ -17,6 +17,8 @@ to emit, recorded verbatim.
 from __future__ import annotations
 
 import argparse
+import hashlib
+import html
 import json
 from pathlib import Path
 import shutil
@@ -44,6 +46,19 @@ SHEET_JPEG_QUALITY = 88
 GROUNDING_TILE_WIDTH = GIF_WIDTH
 GROUNDING_COLUMNS = 4
 GROUNDING_CAPTION_PX = 20
+GROUNDING_LEGEND_LINE_PX = 22
+
+# BGR colours chosen to remain distinct on both bright and dark video frames.
+GROUNDING_COLOURS = (
+    (37, 215, 255),
+    (255, 144, 30),
+    (87, 230, 80),
+    (220, 80, 220),
+    (60, 80, 255),
+    (235, 210, 70),
+    (180, 120, 255),
+    (70, 220, 190),
+)
 
 
 def _load_records(directory: Path) -> dict[str, dict[str, Any]]:
@@ -168,11 +183,20 @@ def build_grounding_sheet(
 
     import cv2
 
-    queries = [
-        (call_id, value)
-        for call_id, value in (record or {}).get("evidence", {}).items()
-        if call_id.startswith("d4rt_") and value.get("bbox_pixel")
-    ]
+    queries: list[tuple[str, Mapping[str, Any]]] = []
+    if isinstance(record, Mapping):
+        for attempt_name, attempt in iter_attempts(record):
+            evidence = attempt.get("evidence")
+            if not isinstance(evidence, Mapping):
+                continue
+            queries.extend(
+                (f"{attempt_name}/{call_id}", value)
+                for call_id, value in evidence.items()
+                if isinstance(call_id, str)
+                and call_id.startswith("d4rt_")
+                and isinstance(value, Mapping)
+                and value.get("bbox_pixel")
+            )
     if not queries:
         return False
 
@@ -189,6 +213,281 @@ def build_grounding_sheet(
     ]
     cv2.imwrite(str(destination), np.vstack(rows), [cv2.IMWRITE_JPEG_QUALITY, SHEET_JPEG_QUALITY])
     return True
+
+
+def _host_provenance(grounding: Mapping[str, Any]) -> Mapping[str, Any]:
+    for key in ("host_provenance", "grounding_provenance", "provenance"):
+        value = grounding.get(key)
+        if isinstance(value, Mapping):
+            return value
+    return {}
+
+
+def _is_grounding_evidence(evidence_id: str, value: Any) -> bool:
+    return bool(
+        isinstance(value, Mapping)
+        and (
+            evidence_id.startswith("qg_")
+            or (
+                value.get("mode") in {"bbox", "points"}
+                and isinstance(value.get("t_src"), int)
+                and "request" in value
+            )
+        )
+    )
+
+
+def iter_grounding_evidence(
+    record: Mapping[str, Any] | None,
+) -> list[dict[str, Any]]:
+    """Return every immutable qg record, namespaced by execution attempt.
+
+    Strict and relaxed retries both start their evidence counters at ``qg_1``.
+    The namespace therefore is part of the review identity even for a normal
+    one-attempt record, where the only namespace is ``strict``.
+    """
+
+    rows: list[dict[str, Any]] = []
+    if not isinstance(record, Mapping):
+        return rows
+    for attempt_name, attempt in iter_attempts(record):
+        evidence = attempt.get("evidence")
+        if not isinstance(evidence, Mapping):
+            continue
+        trace = attempt.get("trace")
+        steps = trace if isinstance(trace, list) else []
+        for evidence_id, value in evidence.items():
+            if not isinstance(evidence_id, str) or not _is_grounding_evidence(evidence_id, value):
+                continue
+            uses = [
+                step
+                for step in steps
+                if isinstance(step, Mapping)
+                and (
+                    step.get("call_id") == evidence_id
+                    or step.get("reused_evidence_id") == evidence_id
+                    or (
+                        isinstance(step.get("result"), Mapping)
+                        and step["result"].get("reused_evidence_id") == evidence_id
+                    )
+                )
+            ]
+            rows.append({
+                "attempt": attempt_name,
+                "evidence_id": evidence_id,
+                "display_id": f"{attempt_name}/{evidence_id}",
+                "grounding": value,
+                "steps": uses,
+                "attempt_record": attempt,
+            })
+    return rows
+
+
+def _grounding_colour(display_id: str) -> tuple[int, int, int]:
+    digest = hashlib.sha256(display_id.encode("utf-8")).digest()
+    return GROUNDING_COLOURS[int.from_bytes(digest[:2], "big") % len(GROUNDING_COLOURS)]
+
+
+def _valid_source_frame(value: Any, frame_count: int) -> int | None:
+    if (
+        isinstance(value, int)
+        and not isinstance(value, bool)
+        and 0 <= value < frame_count
+    ):
+        return value
+    return None
+
+
+def _draw_qwen_grounding_frame(
+    frame: np.ndarray,
+    rows: Sequence[Mapping[str, Any]],
+    sampled_frame: int,
+) -> np.ndarray:
+    """Draw every Phase 2 grounding made on one exact sampled RGB frame."""
+
+    import cv2
+
+    canvas = cv2.cvtColor(np.asarray(frame).copy(), cv2.COLOR_RGB2BGR)
+    height, width = canvas.shape[:2]
+    thickness = max(2, round(min(width, height) / 300))
+    radius = max(4, round(min(width, height) / 120))
+    font_scale = max(0.45, min(0.75, width / 1200))
+
+    legend: list[tuple[str, tuple[int, int, int]]] = []
+    for row in rows:
+        grounding = row["grounding"]
+        display_id = str(row["display_id"])
+        colour = _grounding_colour(display_id)
+        status = str(grounding.get("status", "?"))
+        mode = str(grounding.get("mode", "?"))
+        request = " ".join(str(grounding.get("request", "")).split())
+        legend.append(
+            (
+                f"{display_id}  {mode}  {status}  {request}",
+                colour,
+            )
+        )
+
+        if status != "ok":
+            continue
+        if mode == "bbox":
+            box = grounding.get("bbox_2d_1000")
+            if (
+                isinstance(box, list)
+                and len(box) == 4
+                and all(isinstance(value, (int, float)) for value in box)
+            ):
+                x0 = round(float(box[0]) * max(width - 1, 1) / 1000.0)
+                y0 = round(float(box[1]) * max(height - 1, 1) / 1000.0)
+                x1 = round(float(box[2]) * max(width - 1, 1) / 1000.0)
+                y1 = round(float(box[3]) * max(height - 1, 1) / 1000.0)
+                cv2.rectangle(canvas, (x0, y0), (x1, y1), colour, thickness, cv2.LINE_AA)
+                cv2.putText(
+                    canvas,
+                    display_id,
+                    (max(2, x0), max(18, y0 - 6)),
+                    cv2.FONT_HERSHEY_SIMPLEX,
+                    font_scale,
+                    colour,
+                    thickness,
+                    cv2.LINE_AA,
+                )
+        elif mode == "points":
+            points = grounding.get("points_2d_1000")
+            if not isinstance(points, list):
+                continue
+            for point_index, point in enumerate(points, start=1):
+                if not isinstance(point, Mapping):
+                    continue
+                xy = point.get("xy")
+                if (
+                    not isinstance(xy, list)
+                    or len(xy) != 2
+                    or not all(isinstance(value, (int, float)) for value in xy)
+                ):
+                    continue
+                u = round(float(xy[0]) * max(width - 1, 1) / 1000.0)
+                v = round(float(xy[1]) * max(height - 1, 1) / 1000.0)
+                point_id = str(point.get("point_id") or f"p{point_index}")
+                cv2.circle(canvas, (u, v), radius, colour, -1, cv2.LINE_AA)
+                cv2.circle(canvas, (u, v), radius + 2, (255, 255, 255), 1, cv2.LINE_AA)
+                cv2.putText(
+                    canvas,
+                    f"{display_id}/{point_id}",
+                    (u + radius + 3, max(18, v - radius)),
+                    cv2.FONT_HERSHEY_SIMPLEX,
+                    font_scale,
+                    colour,
+                    thickness,
+                    cv2.LINE_AA,
+                )
+
+    # Include not_found entries in the same legend even though there is no fake
+    # geometry to draw. Limit text to the image width without dropping identity,
+    # mode, or status.
+    max_chars = max(30, round(width / max(5.0, 8.0 * font_scale)))
+    legend = [(text[:max_chars], colour) for text, colour in legend]
+    legend_height = GROUNDING_LEGEND_LINE_PX * (len(legend) + 1) + 8
+    overlay = canvas.copy()
+    cv2.rectangle(overlay, (0, 0), (width, min(height, legend_height)), (0, 0, 0), -1)
+    canvas = cv2.addWeighted(overlay, 0.70, canvas, 0.30, 0)
+    cv2.putText(
+        canvas,
+        f"sampled frame {sampled_frame}",
+        (8, 19),
+        cv2.FONT_HERSHEY_SIMPLEX,
+        0.52,
+        (255, 255, 255),
+        1,
+        cv2.LINE_AA,
+    )
+    for line_index, (text, colour) in enumerate(legend, start=1):
+        cv2.putText(
+            canvas,
+            text,
+            (8, 19 + line_index * GROUNDING_LEGEND_LINE_PX),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            font_scale,
+            colour,
+            1,
+            cv2.LINE_AA,
+        )
+    return canvas
+
+
+def _write_grounding_contact_sheet(images: Sequence[np.ndarray], destination: Path) -> None:
+    import cv2
+
+    if not images:
+        return
+    tiles: list[np.ndarray] = []
+    for image in images:
+        height, width = image.shape[:2]
+        tile_height = max(1, round(height * GROUNDING_TILE_WIDTH / width))
+        tiles.append(cv2.resize(image, (GROUNDING_TILE_WIDTH, tile_height)))
+    tallest = max(tile.shape[0] for tile in tiles)
+    tiles = [
+        cv2.copyMakeBorder(tile, 0, tallest - tile.shape[0], 0, 0, cv2.BORDER_CONSTANT)
+        for tile in tiles
+    ]
+    blank = np.zeros_like(tiles[0])
+    while len(tiles) % GROUNDING_COLUMNS:
+        tiles.append(blank)
+    rows = [
+        np.hstack(tiles[start : start + GROUNDING_COLUMNS])
+        for start in range(0, len(tiles), GROUNDING_COLUMNS)
+    ]
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    cv2.imwrite(str(destination), np.vstack(rows), [cv2.IMWRITE_JPEG_QUALITY, SHEET_JPEG_QUALITY])
+
+
+def build_qwen_grounding_media(
+    frames: np.ndarray,
+    record: Mapping[str, Any] | None,
+    *,
+    question_id: str,
+    frames_directory: Path,
+    sheet_destination: Path,
+    refresh: bool = False,
+) -> list[Path]:
+    """Render combined exact-frame images and a per-question contact sheet."""
+
+    import cv2
+
+    rows = iter_grounding_evidence(record)
+    prefix = f"{question_id}_f"
+    frames_directory.mkdir(parents=True, exist_ok=True)
+    if refresh:
+        for old_path in frames_directory.iterdir():
+            if old_path.is_file() and old_path.name.startswith(prefix) and old_path.suffix == ".jpg":
+                old_path.unlink()
+
+    grouped: dict[int, list[Mapping[str, Any]]] = {}
+    for row in rows:
+        t_src = _valid_source_frame(row["grounding"].get("t_src"), len(frames))
+        if t_src is not None:
+            grouped.setdefault(t_src, []).append(row)
+    if not grouped:
+        if refresh and sheet_destination.exists():
+            sheet_destination.unlink()
+        return []
+
+    paths: list[Path] = []
+    rendered: list[np.ndarray] = []
+    for t_src, frame_rows in sorted(grouped.items()):
+        image = _draw_qwen_grounding_frame(frames[t_src], frame_rows, t_src)
+        destination = frames_directory / f"{question_id}_f{t_src:02d}.jpg"
+        if refresh or not destination.exists():
+            cv2.imwrite(
+                str(destination),
+                image,
+                [cv2.IMWRITE_JPEG_QUALITY, SHEET_JPEG_QUALITY],
+            )
+        paths.append(destination)
+        rendered.append(image)
+    if refresh or not sheet_destination.exists():
+        _write_grounding_contact_sheet(rendered, sheet_destination)
+    return paths
 
 
 def _baseline_letter(record: Mapping[str, Any] | None, entry: Mapping[str, Any]) -> str | None:
@@ -232,6 +531,14 @@ def _trace_rows(record: Mapping[str, Any]) -> list[str]:
             suffix_text = f"yes ({extra_actions} action{'s' if extra_actions != 1 else ''})"
         else:
             suffix_text = "no"
+        subject = (
+            arguments.get("request")
+            or arguments.get("grounding_id")
+            or arguments.get("label", "")
+        )
+        t_src = arguments.get("t_src")
+        if t_src is None and name == "query_d4rt" and arguments.get("grounding_id"):
+            t_src = "from qg"
         rows.append(
             "| {step} | {status} | {stage} | {name} | {label} | {t_src} | {t_tgt} | "
             "{t_cam} | {suffix} | {why} |".format(
@@ -239,8 +546,8 @@ def _trace_rows(record: Mapping[str, Any]) -> list[str]:
                 status=entry.get("status", ""),
                 stage=entry.get("failure_stage") or "—",
                 name=name,
-                label=str(arguments.get("label", ""))[:28].replace("|", "\\|"),
-                t_src=arguments.get("t_src", ""),
+                label=str(subject)[:28].replace("|", "\\|"),
+                t_src=t_src if t_src is not None else "",
                 t_tgt=(f"{target[0]}…{target[-1]} ({len(target)})" if isinstance(target, list) and len(target) > 3
                        else (target if target is not None else "")),
                 t_cam=arguments.get("t_cam", ""),
@@ -249,6 +556,153 @@ def _trace_rows(record: Mapping[str, Any]) -> list[str]:
             )
         )
     return rows
+
+
+def _grounding_cache_summary(row: Mapping[str, Any]) -> str:
+    grounding = row["grounding"]
+    host = _host_provenance(grounding)
+    hit_steps = [
+        step
+        for step in row["steps"]
+        if step.get("cache_hit") is True
+        or (
+            isinstance(step.get("result"), Mapping)
+            and step["result"].get("cache_hit") is True
+        )
+    ]
+    if hit_steps:
+        return f"created once; cache hit on {len(hit_steps)} later call(s)"
+    if grounding.get("cache_hit") is True or host.get("cache_hit") is True:
+        return "cache hit"
+    return "cache miss"
+
+
+def _d4rt_grounding_uses(row: Mapping[str, Any]) -> list[str]:
+    evidence_id = row["evidence_id"]
+    attempt = row["attempt_record"]
+    evidence = attempt.get("evidence")
+    if not isinstance(evidence, Mapping):
+        evidence = {}
+    uses: list[str] = []
+    for step in attempt.get("trace", []):
+        if not isinstance(step, Mapping):
+            continue
+        action = step.get("parsed_action")
+        if not isinstance(action, Mapping) or action.get("action") != "query_d4rt":
+            continue
+        arguments = action.get("arguments")
+        if not isinstance(arguments, Mapping) or arguments.get("grounding_id") != evidence_id:
+            continue
+        call_id = step.get("call_id")
+        result = evidence.get(call_id) if isinstance(call_id, str) else None
+        point_ids = arguments.get("point_ids")
+        if isinstance(result, Mapping) and result.get("point_ids"):
+            point_ids = result.get("point_ids")
+        target = arguments.get("t_tgt")
+        uses.append(
+            f"{row['attempt']}/{call_id or 'rejected'}"
+            f" (points {point_ids if point_ids else 'all'}, t_tgt={target}, "
+            f"t_cam={arguments.get('t_cam')})"
+        )
+    return uses
+
+
+def _markdown_grounding_geometry(grounding: Mapping[str, Any]) -> str:
+    if grounding.get("mode") == "bbox":
+        return f"`bbox_2d_1000={grounding.get('bbox_2d_1000')}`"
+    points = grounding.get("points_2d_1000")
+    if not isinstance(points, list):
+        return "`points_2d_1000=[]`"
+    values = []
+    for index, point in enumerate(points, start=1):
+        if not isinstance(point, Mapping):
+            continue
+        point_id = point.get("point_id") or f"p{index}"
+        description = str(point.get("description", "")).replace("|", "\\|")
+        values.append(f"`{point_id}={point.get('xy')}` ({description or 'no description'})")
+    return "; ".join(values) or "`points_2d_1000=[]`"
+
+
+def _grounding_details(
+    record: Mapping[str, Any] | None,
+    question_id: str,
+    video_slug: str,
+) -> list[str]:
+    rows = iter_grounding_evidence(record)
+    if not rows:
+        return []
+    lines = [
+        f"<details><summary>Qwen grounding evidence ({len(rows)} immutable groundings)</summary>",
+        "",
+        "Grounding IDs are prefixed with their attempt because strict and relaxed retries "
+        "have independent evidence registries.",
+        "",
+    ]
+    source_frames: list[int] = []
+    for row in rows:
+        grounding = row["grounding"]
+        display_id = row["display_id"]
+        host = _host_provenance(grounding)
+        t_src = grounding.get("t_src")
+        if isinstance(t_src, int) and not isinstance(t_src, bool):
+            source_frames.append(t_src)
+        original = host.get("original_t_src")
+        source = f"sampled frame `{t_src}`"
+        if original is not None:
+            source += f" / original frame `{original}`"
+        requested_count = grounding.get("requested_count")
+        returned_count = grounding.get("returned_count")
+        count = ""
+        if requested_count is not None:
+            count = f"; requested `{requested_count}`, returned `{returned_count}`"
+        uses = _d4rt_grounding_uses(row)
+        lines += [
+            f"### `{display_id}`",
+            "",
+            f"- Request: {grounding.get('request', '')}",
+            f"- Result: status `{grounding.get('status', '?')}`, mode "
+            f"`{grounding.get('mode', '?')}`{count}",
+            f"- Source: {source}",
+            f"- Cache: {_grounding_cache_summary(row)}",
+            f"- Parsed geometry: {_markdown_grounding_geometry(grounding)}",
+            (
+                "- D4RT provenance: " + "; ".join(f"`{value}`" for value in uses)
+                if uses
+                else "- D4RT provenance: not queried"
+            ),
+            "",
+        ]
+        raw_grounder = str(
+            host.get("raw_grounder_response", grounding.get("raw_grounder_response", ""))
+            or ""
+        )
+        if raw_grounder:
+            lines += [
+                "<details><summary>Raw grounding-model response</summary>",
+                "",
+                f"<pre><code>{html.escape(raw_grounder)}</code></pre>",
+                "",
+                "</details>",
+                "",
+            ]
+    lines += [
+        "**Combined exact-source overlays.** Boxes and points come only from "
+        "`ground_with_qwen`; no legacy agent-authored boxes are drawn.",
+        "",
+    ]
+    for t_src in sorted(set(source_frames)):
+        lines += [
+            f"![{question_id} grounding frame {t_src}]"
+            f"(grounding_frames/{question_id}_f{t_src:02d}.jpg)",
+            "",
+        ]
+    lines += [
+        f"![grounding contact sheet](groundings/{video_slug}.jpg)",
+        "",
+        "</details>",
+        "",
+    ]
+    return lines
 
 
 def _header(manifest: Mapping[str, Any], agent: Mapping[str, Any], baseline: Mapping[str, Any]) -> list[str]:
@@ -450,15 +904,21 @@ def _question_section(
                 f"<details><summary>{label} thinking log "
                 f"({len(rows)} steps)</summary>",
                 "",
-                *render_trace_markdown(attempt),
+                *render_trace_markdown(attempt, evidence_namespace=attempt_name),
                 "</details>",
                 "",
             ]
-    grounded = [
-        call_id
-        for call_id in (agent_record or {}).get("evidence", {})
-        if call_id.startswith("d4rt_")
-    ]
+    qwen_groundings = iter_grounding_evidence(agent_record)
+    if qwen_groundings:
+        lines += _grounding_details(agent_record, entry["question_id"], slug)
+    grounded = []
+    if not qwen_groundings and agent_record:
+        for attempt_name, attempt in iter_attempts(agent_record):
+            grounded.extend(
+                f"{attempt_name}/{call_id}"
+                for call_id in attempt.get("evidence", {})
+                if call_id.startswith("d4rt_")
+            )
     if grounded:
         lines += [
             f"<details><summary>Grounded objects ({len(grounded)} query_d4rt calls)</summary>",
@@ -485,7 +945,11 @@ def _question_section(
     return lines
 
 
-def build_report(results_dir: Path, skip_media: bool = False) -> Path:
+def build_report(
+    results_dir: Path,
+    skip_media: bool = False,
+    refresh_groundings: bool = False,
+) -> Path:
     results_dir = Path(results_dir)
     manifest = read_manifest(results_dir / "manifest.json")
     agent = _load_records(results_dir / "answers")
@@ -497,31 +961,76 @@ def build_report(results_dir: Path, skip_media: bool = False) -> Path:
 
     for index, entry in enumerate(manifest["questions"], start=1):
         slug = entry["video_slug"]
-        if not skip_media:
-            source = Path(entry["video_path"])
-            destination = results_dir / "videos" / f"{slug}.mp4"
-            destination.parent.mkdir(parents=True, exist_ok=True)
-            if not destination.exists():
-                shutil.copyfile(source, destination)
-            gif_path = results_dir / "gifs" / f"{slug}.gif"
-            sheet_path = results_dir / "contact_sheets" / f"{slug}.jpg"
-            grounding_path = results_dir / "groundings" / f"{slug}.jpg"
-            if not gif_path.exists() or not sheet_path.exists() or not grounding_path.exists():
-                # Re-sampled from the copy: the sampler is deterministic, so these
-                # are exactly the frames both models were shown.
-                sampled = sample_video_cpu(destination)
+        question_id = entry["question_id"]
+        agent_record = agent.get(question_id)
+        source = Path(entry["video_path"])
+        destination = results_dir / "videos" / f"{slug}.mp4"
+        gif_path = results_dir / "gifs" / f"{slug}.gif"
+        sheet_path = results_dir / "contact_sheets" / f"{slug}.jpg"
+        grounding_path = results_dir / "groundings" / f"{slug}.jpg"
+        grounding_frames_dir = results_dir / "grounding_frames"
+        qwen_groundings = iter_grounding_evidence(agent_record)
+        expected_qg_paths = [
+            grounding_frames_dir / f"{question_id}_f{t_src:02d}.jpg"
+            for t_src in sorted({
+                row["grounding"].get("t_src")
+                for row in qwen_groundings
+                if isinstance(row["grounding"].get("t_src"), int)
+                and not isinstance(row["grounding"].get("t_src"), bool)
+            })
+        ]
+        needs_standard = not skip_media and (
+            not gif_path.exists() or not sheet_path.exists()
+        )
+        needs_qg = bool(qwen_groundings) and (
+            refresh_groundings
+            or (
+                not skip_media
+                and (
+                    not grounding_path.exists()
+                    or any(not path.exists() for path in expected_qg_paths)
+                )
+            )
+        )
+        needs_legacy_grounding = not qwen_groundings and (
+            refresh_groundings or (not skip_media and not grounding_path.exists())
+        )
+        if needs_standard or needs_qg or needs_legacy_grounding:
+            if not skip_media:
+                destination.parent.mkdir(parents=True, exist_ok=True)
+                if not destination.exists():
+                    shutil.copyfile(source, destination)
+            sampling_source = destination if destination.exists() else source
+            sampled = sample_video_cpu(sampling_source)
+            if needs_standard:
                 if not gif_path.exists():
                     build_gif(sampled.frames_rgb, gif_path)
                 if not sheet_path.exists():
                     build_contact_sheet(sampled.frames_rgb, sheet_path)
-                if not grounding_path.exists():
-                    build_grounding_sheet(
-                        sampled.frames_rgb, agent.get(entry["question_id"]), grounding_path
-                    )
-                del sampled
-            print(f"[{index:2d}/{len(manifest['questions'])}] media ready for {slug[:48]}", flush=True)
+            if needs_qg:
+                build_qwen_grounding_media(
+                    sampled.frames_rgb,
+                    agent_record,
+                    question_id=question_id,
+                    frames_directory=grounding_frames_dir,
+                    sheet_destination=grounding_path,
+                    refresh=refresh_groundings,
+                )
+            elif needs_legacy_grounding:
+                if refresh_groundings and grounding_path.exists():
+                    grounding_path.unlink()
+                build_grounding_sheet(sampled.frames_rgb, agent_record, grounding_path)
+            del sampled
+        if not skip_media or refresh_groundings:
+            # Refresh only touches grounding artifacts. Videos, GIFs and ordinary
+            # contact sheets are neither rebuilt nor required by that operation.
+            media_label = "groundings refreshed" if refresh_groundings else "media ready"
+            print(
+                f"[{index:2d}/{len(manifest['questions'])}] {media_label} for {slug[:48]}",
+                flush=True,
+            )
         lines += _question_section(
-            index, entry, agent.get(entry["question_id"]), baseline.get(entry["question_id"])
+            index, entry, agent_record, baseline.get(question_id)
         )
 
     report_path = results_dir / REPORT_NAME
@@ -535,12 +1044,24 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     parser.add_argument(
         "--skip-media", action="store_true", help="rebuild only the markdown, reusing existing media"
     )
+    parser.add_argument(
+        "--refresh-groundings",
+        action="store_true",
+        help=(
+            "rebuild grounding frame overlays and grounding contact sheets; "
+            "leave videos, GIFs, and ordinary contact sheets untouched"
+        ),
+    )
     return parser.parse_args(argv)
 
 
 def main(argv: Sequence[str] | None = None) -> None:
     args = parse_args(argv)
-    path = build_report(args.results_dir, skip_media=args.skip_media)
+    path = build_report(
+        args.results_dir,
+        skip_media=args.skip_media,
+        refresh_groundings=args.refresh_groundings,
+    )
     print(f"Wrote: {path}")
 
 
