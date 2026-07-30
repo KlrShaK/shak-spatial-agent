@@ -430,7 +430,10 @@ class QwenGroundingTool:
         from PIL import Image
 
         messages: list[dict[str, Any]] = [
-            {"role": "system", "content": self.system_prompt},
+            {
+                "role": "system",
+                "content": [{"type": "text", "text": self.system_prompt}],
+            },
             {
                 "role": "user",
                 "content": [

@@ -240,8 +240,16 @@ class GroundingToolTests(unittest.TestCase):
         self.assertEqual(
             sum(item.get("type") == "image" for item in content), 1
         )
-        all_text = messages[0]["content"] + " " + " ".join(
-            str(item.get("text", "")) for item in content
+        self.assertTrue(
+            all(
+                isinstance(message["content"], list)
+                and all(isinstance(item, dict) for item in message["content"])
+                for message in messages
+            )
+        )
+        all_text = " ".join(
+            str(item.get("text", ""))
+            for item in messages[0]["content"] + content
         )
         self.assertIn("runner", all_text)
         self.assertNotIn("answer choice", messages[1]["content"][-1]["text"].lower())
@@ -379,7 +387,7 @@ class GroundingToolTests(unittest.TestCase):
             )
         self.assertEqual(
             qwen.calls[0]["messages"][0]["content"],
-            "isolated test prompt",
+            [{"type": "text", "text": "isolated test prompt"}],
         )
         self.assertEqual(
             result["host_provenance"]["grounding_system_prompt"],
