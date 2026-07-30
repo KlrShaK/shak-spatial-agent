@@ -1098,7 +1098,10 @@ def build_report(
         )
 
     report_path = results_dir / REPORT_NAME
-    report_path.write_text("\n".join(lines), encoding="utf-8")
+    report_path.write_text(
+        "\n".join(line.rstrip() for line in lines),
+        encoding="utf-8",
+    )
     return report_path
 
 
