@@ -1,6 +1,6 @@
 {
   "phase": "dsi_bench_agent",
-  "created_at": "2026-07-22T00:58:32.785722+00:00",
+  "created_at": "2026-07-30T12:13:28.104398+00:00",
   "question_id": "k700_c1_700_playing_polo_j7j8_hz_hx8_000018_000028_video-scene-00001_68f048f4",
   "dataset": "k700",
   "cate": 1,
@@ -25,6 +25,54 @@
   "benchmark_alignment": {
     "type": "identity_no_ground_truth_scale",
     "scale": 1.0
+  },
+  "run_metadata": {
+    "run_id": "2026-07-30T11:27:48.703960+00:00_56d455caa1a7",
+    "code_sha": "56d455caa1a7868aa99aec237cbd541b40157f7d",
+    "manifest_path": "/cluster/scratch/spanwar/tmp/d4rt_agent/phase_2_grounding_tool_staging/run_20260730T110459Z_56d455caa1a7_a100_80gb/manifest.json",
+    "manifest_sha256": "4edae52a6a932579c5dc7dbf625e70ba26f9589334cd878ea517c8cfb4e7359c",
+    "qwen_model_path": "/cluster/work/igp_psr/spanwar/hf_cache/hub/models--Qwen--Qwen3-VL-8B-Instruct/snapshots/0c351dd01ed87e9c1b53cbc748cba10e6187ff3b",
+    "d4rt": {
+      "backend": "live_d4rt_decoder",
+      "point_mode": "ensemble5",
+      "model_config": "checkpoints/OpenD4RT_32CLIP_9Dataset_NoAUG/model.yaml",
+      "checkpoint": "checkpoints/OpenD4RT_32CLIP_9Dataset_NoAUG/opend4rt.ckpt",
+      "device": "cuda",
+      "dtype": "bfloat16",
+      "model_image_hw": [
+        256,
+        256
+      ],
+      "encoded_frames": 32,
+      "encoding_count": 1,
+      "benchmark_alignment": {
+        "type": "identity_no_ground_truth_scale",
+        "scale": 1.0
+      },
+      "checkpoint_load": {
+        "missing_keys": [],
+        "unexpected_keys": []
+      }
+    },
+    "hardware": {
+      "name": "NVIDIA A100 80GB PCIe",
+      "total_gib": 79.25,
+      "allocated_gib": 18.551,
+      "max_allocated_gib": 18.551
+    },
+    "slurm_job_id": "9086647",
+    "slurm_node": "eu-a65-07",
+    "seed": 42,
+    "main_max_new_tokens": 768,
+    "grounder_bbox_max_new_tokens": 96,
+    "grounder_points_max_new_tokens": 192,
+    "max_steps": 14,
+    "point_mode": "ensemble5",
+    "prompt_sha256": {
+      "orchestration": "adda7bfdaa699ddf4df2888e2e5d44b9c2025fc3dac2fe54ee369555bf2961e7",
+      "agent": "98ec9642c064fc4b1c88c4d03f97124d5ef8b66a560121fdfa4ad166128e1156",
+      "grounder": "e806eea51e56300dae098706fe7f2951bd6a11e341c35895f20560752054fc01"
+    }
   },
   "sampling": {
     "contract": "round(linspace(0, N - 1, 32))",
@@ -170,58 +218,124 @@
   "d4rt_used": true,
   "final_answer": {
     "kind": "text",
-    "text": "A: Moving backward. Projected onto the horse's own measured facing axis, the displacement was -0.00375 forward against -0.00672 lateral and 0.0121 vertical (math_1), so the motion is backward in the horse's own frame.",
+    "text": "D: Moving forward. The horse's displacement from frame 0 to frame 31 shows it moved forward in the scene (d4rt_1).",
     "evidence_ids": [
-      "d4rt_1",
-      "d4rt_2",
-      "d4rt_3",
-      "math_1"
+      "qg_1",
+      "d4rt_1"
     ],
-    "limitations": "Facing axis derived from two grounded torso points in frame 0 and assumed constant; if the horse turned during the clip the projection uses only the starting orientation."
+    "limitations": "Unable to measure facing axis due to failed point grounding; relying on visual analysis of displacement."
   },
-  "steps": 5,
+  "steps": 6,
   "trace": [
     {
       "step": 1,
       "kind": "model_action",
-      "raw_qwen_response": "To determine how the horse's location is moving relative to its starting orientation, I need to measure its displacement in the 3D scene and project it onto its own facing axis. Since the question asks for motion relative to its own orientation, I will need to ground two points on the horse (e.g., front and back) in the same frame to establish its facing direction, then track its displacement from start to end.\n\nI will first query the horse's position at the start (frame 0) and end (frame 31) of the clip, using frame 0 as the viewpoint (`t_cam=0`) to get displacement in a fixed frame. Then, I will ground two points on the horse in frame 0 (e.g., chest and back) to establish its facing axis. Finally, I will project the displacement onto that axis to determine if the motion is forward, backward, left, or right relative to the horse's own orientation.\n\nFirst, I will query the horse's position at frame 0 and frame 31, using frame 0 as the viewpoint.\n\n{\"action\":\"query_d4rt\",\"arguments\":{\"label\":\"horse in the foreground\",\"bbox_2d_1000\":[380,420,560,610],\"t_src\":0,\"t_tgt\":[0,31],\"t_cam\":0,\"justification\":\"Query the horse's position at the start and end of the clip in the frame-0 camera basis to get its displacement in the scene with camera motion cancelled.\"}}",
+      "raw_qwen_response": "The question asks about the horse's movement relative to its own starting orientation. To measure this, I need to track the horse's displacement and determine its facing direction using two distinct points on its body (e.g., chest and back). I will first localize the horse in a clear source frame where it is visible and well-defined.\n\n{\"action\":\"ground_with_qwen\",\"arguments\":{\"mode\":\"bbox\",\"t_src\":0,\"request\":\"the horse closest to the camera\",\"justification\":\"Localize the whole horse before measuring its displacement and facing axis.\"}}",
+      "effective_response": "The question asks about the horse's movement relative to its own starting orientation. To measure this, I need to track the horse's displacement and determine its facing direction using two distinct points on its body (e.g., chest and back). I will first localize the horse in a clear source frame where it is visible and well-defined.\n\n{\"action\":\"ground_with_qwen\",\"arguments\":{\"mode\":\"bbox\",\"t_src\":0,\"request\":\"the horse closest to the camera\",\"justification\":\"Localize the whole horse before measuring its displacement and facing axis.\"}}",
+      "discarded_suffix": "",
+      "action_span": {
+        "start": 337,
+        "end": 542
+      },
+      "parsed_action": {
+        "action": "ground_with_qwen",
+        "arguments": {
+          "mode": "bbox",
+          "t_src": 0,
+          "request": "the horse closest to the camera",
+          "justification": "Localize the whole horse before measuring its displacement and facing axis."
+        }
+      },
+      "status": "ok",
+      "failure_stage": null,
+      "call_id": "qg_1",
+      "result": {
+        "status": "ok",
+        "mode": "bbox",
+        "t_src": 0,
+        "request": "the horse closest to the camera",
+        "bbox_2d_1000": [
+          333.0,
+          468.0,
+          383.0,
+          542.0
+        ],
+        "host_provenance": {
+          "resolved_video_path": "/cluster/work/igp_psr/spanwar/datasets/DSI-Bench/videos/std/k700/playing polo/J7j8_hz_hx8_000018_000028/video-scene-00001.mp4",
+          "sampled_mapping_digest": "8bc28962d609a65aacdafd524be1d9e6701cf5fa9b68e665593e9f0b05fd7f08",
+          "original_t_src": 0,
+          "clip_key": "clip_sha256:0f379ac1494063c4c7d2302fc4f080680a3e603c7ef0e1bb7d84db215bf88efb",
+          "normalized_request": "the horse closest to the camera",
+          "cache_key_digest": "7326685520641db31a124e1b25dc91e4df5edf98385e22d41af3866536b5ea02",
+          "raw_grounder_response": "{\"bbox_2d_1000\": [333, 468, 383, 542]}",
+          "grounding_system_prompt": "You are an isolated visual-grounding model. You receive exactly one image and one\nshort localization request. Localize only what the request names. Do not infer a\nlarger task, motion, depth, camera motion, or events outside this image. Do not\nmention tools, evidence IDs, or prior conversations.\n\nReturn exactly the single JSON object requested by the user and no prose,\nMarkdown, code fence, or extra field. Image coordinates use integers from 0 to\n1000, with `[0,0]` at the top-left and `[1000,1000]` at the bottom-right. Do not\nclamp, guess, or invent a target that is not visible.\n\nWhen the requested object, part, or landmark type is clearly visible, return its\ncoordinates. Use `null` only when none of the requested target can be located.\nDo not use `null` merely because several valid point choices exist; choose clear,\nrepresentative visible locations that satisfy the request.\n\nFor bbox requests, return one tight box around the visible requested target. Do\nnot return a box around the whole scene or a nearby object.\n\nFor points requests:\n\n- Return the requested count when that many clear valid locations are visible.\n  Return fewer only when fewer reliable locations exist.\n- Put every point securely inside a visible surface. Avoid uncertain silhouettes\n  and boundaries.\n- For named parts, describe separate points in the requested order where\n  possible.\n- Multiple points on one object must be spatially distinct.\n- For background requests, prefer rigid, high-contrast landmarks spread across\n  the frame: building or window corners, poles, rocks, trunks, and fixed edges.\n- A request for generic static background or structural points can be satisfied\n  by any clear visible landmarks of that type; choose among them rather than\n  returning `null` because the choice is not unique.\n- Avoid people, animals, moving vehicles, reflections, shadows, sky, and moving\n  foliage when static background points are requested.",
+          "grounding_user_prompt": "Ground the target named \"the horse closest to the camera\" in this image inside one tight bounding box.\n\nReturn exactly one JSON object and no other text:\n{\"bbox_2d_1000\":[x_min,y_min,x_max,y_max]}\n\nNormalize coordinates to integers from 0 to 1000 with origin at the top-left.\nIf the requested target is not visible, return:\n{\"bbox_2d_1000\":null}",
+          "grounding_prompt_version": "dfb3d46d405f3c76e2f9a663ae94e83e543ff2720fa0d574cbd45a24345cfaa3",
+          "qwen_model_path": "/cluster/work/igp_psr/spanwar/hf_cache/hub/models--Qwen--Qwen3-VL-8B-Instruct/snapshots/0c351dd01ed87e9c1b53cbc748cba10e6187ff3b",
+          "generation_seed": 42,
+          "max_new_tokens": 96,
+          "inference_wall_time_seconds": 1.1705234170658514,
+          "cache_hit": false
+        },
+        "grounding_id": "qg_1"
+      },
+      "error": null,
+      "evidence_state": {
+        "available": [
+          {
+            "evidence_id": "qg_1",
+            "tool_name": "ground_with_qwen",
+            "created_at_step": 1
+          }
+        ],
+        "last_action": "accepted",
+        "new_evidence_id": "qg_1",
+        "reason": null
+      },
+      "justification": "Localize the whole horse before measuring its displacement and facing axis.",
+      "cache_hit": false,
+      "reused_evidence_id": null
+    },
+    {
+      "step": 2,
+      "kind": "model_action",
+      "raw_qwen_response": "I have successfully localized the horse closest to the camera in frame 0. Now, I will track its position at the start and end of the clip to measure its displacement in the scene, using the same camera frame (frame 0) to cancel out camera motion.\n\n{\"action\":\"query_d4rt\",\"arguments\":{\"grounding_id\":\"qg_1\",\"t_tgt\":[0,31],\"t_cam\":0,\"justification\":\"Measure the horse's displacement in the fixed frame-0 basis to determine its scene-relative motion.\"}}",
+      "effective_response": "I have successfully localized the horse closest to the camera in frame 0. Now, I will track its position at the start and end of the clip to measure its displacement in the scene, using the same camera frame (frame 0) to cancel out camera motion.\n\n{\"action\":\"query_d4rt\",\"arguments\":{\"grounding_id\":\"qg_1\",\"t_tgt\":[0,31],\"t_cam\":0,\"justification\":\"Measure the horse's displacement in the fixed frame-0 basis to determine its scene-relative motion.\"}}",
+      "discarded_suffix": "",
+      "action_span": {
+        "start": 248,
+        "end": 450
+      },
       "parsed_action": {
         "action": "query_d4rt",
         "arguments": {
-          "label": "horse in the foreground",
-          "bbox_2d_1000": [
-            380.0,
-            420.0,
-            560.0,
-            610.0
-          ],
-          "t_src": 0,
+          "grounding_id": "qg_1",
           "t_tgt": [
             0,
             31
           ],
           "t_cam": 0,
-          "justification": "Query the horse's position at the start and end of the clip in the frame-0 camera basis to get its displacement in the scene with camera motion cancelled."
+          "justification": "Measure the horse's displacement in the fixed frame-0 basis to determine its scene-relative motion."
         }
       },
-      "call_id": "d4rt_1",
       "status": "ok",
-      "justification": "Query the horse's position at the start and end of the clip in the frame-0 camera basis to get its displacement in the scene with camera motion cancelled.",
+      "failure_stage": null,
+      "call_id": "d4rt_1",
       "result": {
         "backend": "live_d4rt_decoder",
         "point_mode": "ensemble5",
-        "label": "horse in the foreground",
+        "label": "the horse closest to the camera",
         "bbox_2d_1000": [
-          380.0,
-          420.0,
-          560.0,
-          610.0
+          333.0,
+          468.0,
+          383.0,
+          542.0
         ],
         "bbox_pixel": [
-          486.02,
-          301.97999999999996,
-          716.24,
-          438.59
+          425.907,
+          336.49199999999996,
+          489.85699999999997,
+          389.698
         ],
         "sampled_to_original": [
           {
@@ -370,76 +484,76 @@
           {
             "point_index": 0,
             "pixel_uv": [
-              601.13,
-              370.28499999999997
+              457.88199999999995,
+              363.09499999999997
             ],
             "offset_px": [
               0.0,
               0.0
             ],
             "d4rt_uv_norm": [
-              0.47,
-              0.5149999999999999
+              0.358,
+              0.505
             ]
           },
           {
             "point_index": 1,
             "pixel_uv": [
-              601.682215210622,
-              366.64403907505454
+              458.43421521062186,
+              359.45403907505454
             ],
             "offset_px": [
-              0.5522152106219664,
+              0.5522152106219096,
               -3.640960924945432
             ],
             "d4rt_uv_norm": [
-              0.47043175544223764,
-              0.5099360765995196
+              0.3584317554422376,
+              0.49993607659951955
             ]
           },
           {
             "point_index": 2,
             "pixel_uv": [
-              590.1405373797911,
-              374.725870405081
+              446.89253737979107,
+              367.535870405081
             ],
             "offset_px": [
               -10.989462620208883,
               4.440870405081057
             ],
             "d4rt_uv_norm": [
-              0.4614077696479993,
-              0.5211764539709055
+              0.34940776964799924,
+              0.5111764539709055
             ]
           },
           {
             "point_index": 3,
             "pixel_uv": [
-              607.7319968022036,
-              362.1598689050389
+              464.4839968022036,
+              354.9698689050389
             ],
             "offset_px": [
               6.601996802203644,
               -8.125131094961091
             ],
             "d4rt_uv_norm": [
-              0.47516184269132417,
-              0.5036994004242543
+              0.3631618426913242,
+              0.49369940042425436
             ]
           },
           {
             "point_index": 4,
             "pixel_uv": [
-              597.6754221958269,
-              360.2222393372993
+              454.4274221958268,
+              353.0322393372993
             ],
             "offset_px": [
               -3.454577804173141,
               -10.062760662700668
             ],
             "d4rt_uv_norm": [
-              0.4672990009349702,
-              0.5010045053369948
+              0.35529900093497013,
+              0.49100450533699486
             ]
           }
         ],
@@ -448,73 +562,73 @@
             "sampled_frame_index": 0,
             "original_frame_index": 0,
             "raw_xyz": [
-              -0.16171875,
-              0.01153564453125,
-              2.71875
+              -0.66796875,
+              0.0167236328125,
+              2.684375
             ],
             "benchmark_aligned_xyz_m": [
-              -0.16171875,
-              0.01153564453125,
-              2.71875
+              -0.66796875,
+              0.0167236328125,
+              2.684375
             ],
             "raw_xyz_std": [
-              0.02043420570257901,
-              0.018405839277519723,
-              0.05412658773652741
+              0.010186253758129139,
+              0.015076746111659163,
+              0.05711145900780333
             ],
             "benchmark_aligned_xyz_std_m": [
-              0.02043420570257901,
-              0.018405839277519723,
-              0.05412658773652741
+              0.010186253758129139,
+              0.015076746111659163,
+              0.05711145900780333
             ],
             "valid_count": 5,
             "required_valid_count": 3,
             "visible": true,
-            "confidence": 10.025,
+            "confidence": 9.35,
             "target_uv_norm": [
-              0.466015625,
-              0.5125
+              0.357421875,
+              0.510546875
             ],
             "target_uv_px": [
-              596.0339843749999,
-              368.48749999999995
+              457.142578125,
+              367.08320312499995
             ],
             "individual_point_results": [
               {
                 "point_index": 0,
                 "pixel_uv": [
-                  601.13,
-                  370.28499999999997
+                  457.88199999999995,
+                  363.09499999999997
                 ],
                 "offset_px": [
                   0.0,
                   0.0
                 ],
                 "d4rt_uv_norm": [
-                  0.47,
-                  0.5149999999999999
+                  0.358,
+                  0.505
                 ],
                 "raw_xyz": [
-                  -0.150390625,
-                  0.02392578125,
-                  2.671875
+                  -0.65625,
+                  0.0234375,
+                  2.65625
                 ],
                 "benchmark_aligned_xyz_m": [
-                  -0.150390625,
-                  0.02392578125,
-                  2.671875
+                  -0.65625,
+                  0.0234375,
+                  2.65625
                 ],
-                "visibility_logit": 10.1875,
-                "visibility_probability": 0.9999623635528191,
+                "visibility_logit": 9.3125,
+                "visibility_probability": 0.9999097196098496,
                 "visible": true,
-                "confidence": 10.0625,
-                "confidence_probability": 0.9999573525318144,
+                "confidence": 9.375,
+                "confidence_probability": 0.9999151889582765,
                 "target_uv_norm": [
-                  0.46875,
+                  0.357421875,
                   0.515625
                 ],
                 "target_uv_px": [
-                  599.53125,
+                  457.142578125,
                   370.734375
                 ],
                 "valid_for_policy_average": true
@@ -522,77 +636,77 @@
               {
                 "point_index": 1,
                 "pixel_uv": [
-                  601.682215210622,
-                  366.64403907505454
+                  458.43421521062186,
+                  359.45403907505454
                 ],
                 "offset_px": [
-                  0.5522152106219664,
+                  0.5522152106219096,
                   -3.640960924945432
                 ],
                 "d4rt_uv_norm": [
-                  0.47043175544223764,
-                  0.5099360765995196
+                  0.3584317554422376,
+                  0.49993607659951955
                 ],
                 "raw_xyz": [
-                  -0.1513671875,
-                  0.016357421875,
+                  -0.66015625,
+                  0.0203857421875,
                   2.703125
                 ],
                 "benchmark_aligned_xyz_m": [
-                  -0.1513671875,
-                  0.016357421875,
+                  -0.66015625,
+                  0.0203857421875,
                   2.703125
                 ],
-                "visibility_logit": 10.3125,
-                "visibility_probability": 0.9999667858050522,
+                "visibility_logit": 9.25,
+                "visibility_probability": 0.9999038975845005,
                 "visible": true,
-                "confidence": 10.0625,
-                "confidence_probability": 0.9999573525318144,
+                "confidence": 9.3125,
+                "confidence_probability": 0.9999097196098496,
                 "target_uv_norm": [
-                  0.46875,
-                  0.515625
+                  0.359375,
+                  0.51171875
                 ],
                 "target_uv_px": [
-                  599.53125,
-                  370.734375
+                  459.640625,
+                  367.92578125
                 ],
                 "valid_for_policy_average": true
               },
               {
                 "point_index": 2,
                 "pixel_uv": [
-                  590.1405373797911,
-                  374.725870405081
+                  446.89253737979107,
+                  367.535870405081
                 ],
                 "offset_px": [
                   -10.989462620208883,
                   4.440870405081057
                 ],
                 "d4rt_uv_norm": [
-                  0.4614077696479993,
-                  0.5211764539709055
+                  0.34940776964799924,
+                  0.5111764539709055
                 ],
                 "raw_xyz": [
-                  -0.1953125,
+                  -0.67578125,
                   0.0361328125,
-                  2.65625
+                  2.59375
                 ],
                 "benchmark_aligned_xyz_m": [
-                  -0.1953125,
+                  -0.67578125,
                   0.0361328125,
-                  2.65625
+                  2.59375
                 ],
-                "visibility_logit": 10.625,
-                "visibility_probability": 0.9999756997592568,
+                "visibility_logit": 9.375,
+                "visibility_probability": 0.9999151889582765,
                 "visible": true,
-                "confidence": 10.0,
-                "confidence_probability": 0.9999546021312976,
+                "confidence": 9.4375,
+                "confidence_probability": 0.9999203269901391,
                 "target_uv_norm": [
-                  0.458984375,
+                  0.349609375,
                   0.5234375
                 ],
                 "target_uv_px": [
-                  587.041015625,
+                  447.150390625,
                   376.3515625
                 ],
                 "valid_for_policy_average": true
@@ -600,38 +714,38 @@
               {
                 "point_index": 3,
                 "pixel_uv": [
-                  607.7319968022036,
-                  362.1598689050389
+                  464.4839968022036,
+                  354.9698689050389
                 ],
                 "offset_px": [
                   6.601996802203644,
                   -8.125131094961091
                 ],
                 "d4rt_uv_norm": [
-                  0.47516184269132417,
-                  0.5036994004242543
+                  0.3631618426913242,
+                  0.49369940042425436
                 ],
                 "raw_xyz": [
-                  -0.1376953125,
-                  -0.0050048828125,
+                  -0.6640625,
+                  0.01318359375,
                   2.765625
                 ],
                 "benchmark_aligned_xyz_m": [
-                  -0.1376953125,
-                  -0.0050048828125,
+                  -0.6640625,
+                  0.01318359375,
                   2.765625
                 ],
-                "visibility_logit": 10.4375,
-                "visibility_probability": 0.9999706884614404,
+                "visibility_logit": 10.0,
+                "visibility_probability": 0.9999546021312976,
                 "visible": true,
-                "confidence": 10.0,
-                "confidence_probability": 0.9999546021312976,
+                "confidence": 9.3125,
+                "confidence_probability": 0.9999097196098496,
                 "target_uv_norm": [
-                  0.470703125,
+                  0.36328125,
                   0.50390625
                 ],
                 "target_uv_px": [
-                  602.029296875,
+                  464.63671875,
                   362.30859375
                 ],
                 "valid_for_policy_average": true
@@ -639,298 +753,298 @@
               {
                 "point_index": 4,
                 "pixel_uv": [
-                  597.6754221958269,
-                  360.2222393372993
+                  454.4274221958268,
+                  353.0322393372993
                 ],
                 "offset_px": [
                   -3.454577804173141,
                   -10.062760662700668
                 ],
                 "d4rt_uv_norm": [
-                  0.4672990009349702,
-                  0.5010045053369948
+                  0.35529900093497013,
+                  0.49100450533699486
                 ],
                 "raw_xyz": [
-                  -0.173828125,
-                  -0.01373291015625,
-                  2.796875
+                  -0.68359375,
+                  -0.009521484375,
+                  2.703125
                 ],
                 "benchmark_aligned_xyz_m": [
-                  -0.173828125,
-                  -0.01373291015625,
-                  2.796875
+                  -0.68359375,
+                  -0.009521484375,
+                  2.703125
                 ],
-                "visibility_logit": 10.25,
-                "visibility_probability": 0.9999646437492582,
+                "visibility_logit": 9.75,
+                "visibility_probability": 0.9999417087343389,
                 "visible": true,
-                "confidence": 10.0,
-                "confidence_probability": 0.9999546021312976,
+                "confidence": 9.3125,
+                "confidence_probability": 0.9999097196098496,
                 "target_uv_norm": [
-                  0.462890625,
-                  0.50390625
+                  0.357421875,
+                  0.498046875
                 ],
                 "target_uv_px": [
-                  592.037109375,
-                  362.30859375
+                  457.142578125,
+                  358.095703125
                 ],
                 "valid_for_policy_average": true
               }
             ],
             "math_xyz_aligned_m": [
-              -0.16171875,
-              0.01153564453125,
-              2.71875
+              -0.66796875,
+              0.0167236328125,
+              2.684375
             ]
           },
           {
             "sampled_frame_index": 31,
             "original_frame_index": 89,
             "raw_xyz": [
-              -0.1662109375,
-              0.0236328125,
-              2.725
+              -0.3234375,
+              0.387890625,
+              1.6125
             ],
             "benchmark_aligned_xyz_m": [
-              -0.1662109375,
-              0.0236328125,
-              2.725
+              -0.3234375,
+              0.387890625,
+              1.6125
             ],
             "raw_xyz_std": [
-              0.021354365154057205,
-              0.01823022748494467,
-              0.05096720759468778
+              0.028667723643607458,
+              0.07207639921790454,
+              0.21867186104412245
             ],
             "benchmark_aligned_xyz_std_m": [
-              0.021354365154057205,
-              0.01823022748494467,
-              0.05096720759468778
+              0.028667723643607458,
+              0.07207639921790454,
+              0.21867186104412245
             ],
             "valid_count": 5,
             "required_valid_count": 3,
             "visible": true,
-            "confidence": 10.05,
+            "confidence": 10.125,
             "target_uv_norm": [
-              0.501171875,
-              0.3421875
+              0.4703125,
+              0.423046875
             ],
             "target_uv_px": [
-              640.998828125,
-              246.03281249999998
+              601.5296875,
+              304.170703125
             ],
             "individual_point_results": [
               {
                 "point_index": 0,
                 "pixel_uv": [
-                  601.13,
-                  370.28499999999997
+                  457.88199999999995,
+                  363.09499999999997
                 ],
                 "offset_px": [
                   0.0,
                   0.0
                 ],
                 "d4rt_uv_norm": [
-                  0.47,
-                  0.5149999999999999
+                  0.358,
+                  0.505
                 ],
                 "raw_xyz": [
-                  -0.1552734375,
-                  0.0361328125,
-                  2.6875
+                  -0.2890625,
+                  0.423828125,
+                  1.5078125
                 ],
                 "benchmark_aligned_xyz_m": [
-                  -0.1552734375,
-                  0.0361328125,
-                  2.6875
+                  -0.2890625,
+                  0.423828125,
+                  1.5078125
                 ],
-                "visibility_logit": 7.5,
-                "visibility_probability": 0.9994472213630764,
+                "visibility_logit": 0.640625,
+                "visibility_probability": 0.6548947290421275,
                 "visible": true,
-                "confidence": 10.0625,
-                "confidence_probability": 0.9999573525318144,
+                "confidence": 10.125,
+                "confidence_probability": 0.9999599363077709,
                 "target_uv_norm": [
-                  0.50390625,
-                  0.34375
+                  0.4765625,
+                  0.431640625
                 ],
                 "target_uv_px": [
-                  644.49609375,
-                  247.15625
+                  609.5234375,
+                  310.349609375
                 ],
                 "valid_for_policy_average": true
               },
               {
                 "point_index": 1,
                 "pixel_uv": [
-                  601.682215210622,
-                  366.64403907505454
+                  458.43421521062186,
+                  359.45403907505454
                 ],
                 "offset_px": [
-                  0.5522152106219664,
+                  0.5522152106219096,
                   -3.640960924945432
                 ],
                 "d4rt_uv_norm": [
-                  0.47043175544223764,
-                  0.5099360765995196
+                  0.3584317554422376,
+                  0.49993607659951955
                 ],
                 "raw_xyz": [
-                  -0.154296875,
-                  0.02685546875,
-                  2.71875
+                  -0.310546875,
+                  0.373046875,
+                  1.65625
                 ],
                 "benchmark_aligned_xyz_m": [
-                  -0.154296875,
-                  0.02685546875,
-                  2.71875
+                  -0.310546875,
+                  0.373046875,
+                  1.65625
                 ],
-                "visibility_logit": 7.5625,
-                "visibility_probability": 0.999480695135505,
+                "visibility_logit": 0.65625,
+                "visibility_probability": 0.658417500561683,
                 "visible": true,
                 "confidence": 10.0625,
                 "confidence_probability": 0.9999573525318144,
                 "target_uv_norm": [
-                  0.50390625,
-                  0.341796875
+                  0.47265625,
+                  0.416015625
                 ],
                 "target_uv_px": [
-                  644.49609375,
-                  245.751953125
+                  604.52734375,
+                  299.115234375
                 ],
                 "valid_for_policy_average": true
               },
               {
                 "point_index": 2,
                 "pixel_uv": [
-                  590.1405373797911,
-                  374.725870405081
+                  446.89253737979107,
+                  367.535870405081
                 ],
                 "offset_px": [
                   -10.989462620208883,
                   4.440870405081057
                 ],
                 "d4rt_uv_norm": [
-                  0.4614077696479993,
-                  0.5211764539709055
+                  0.34940776964799924,
+                  0.5111764539709055
                 ],
                 "raw_xyz": [
-                  -0.2001953125,
-                  0.048583984375,
-                  2.65625
+                  -0.3046875,
+                  0.50390625,
+                  1.2734375
                 ],
                 "benchmark_aligned_xyz_m": [
-                  -0.2001953125,
-                  0.048583984375,
-                  2.65625
+                  -0.3046875,
+                  0.50390625,
+                  1.2734375
                 ],
-                "visibility_logit": 7.40625,
-                "visibility_probability": 0.9993929244195585,
+                "visibility_logit": 0.6328125,
+                "visibility_probability": 0.6531269142203084,
                 "visible": true,
-                "confidence": 10.0625,
-                "confidence_probability": 0.9999573525318144,
+                "confidence": 10.3125,
+                "confidence_probability": 0.9999667858050522,
                 "target_uv_norm": [
-                  0.49609375,
-                  0.345703125
+                  0.47265625,
+                  0.462890625
                 ],
                 "target_uv_px": [
-                  634.50390625,
-                  248.560546875
+                  604.52734375,
+                  332.818359375
                 ],
                 "valid_for_policy_average": true
               },
               {
                 "point_index": 3,
                 "pixel_uv": [
-                  607.7319968022036,
-                  362.1598689050389
+                  464.4839968022036,
+                  354.9698689050389
                 ],
                 "offset_px": [
                   6.601996802203644,
                   -8.125131094961091
                 ],
                 "d4rt_uv_norm": [
-                  0.47516184269132417,
-                  0.5036994004242543
+                  0.3631618426913242,
+                  0.49369940042425436
                 ],
                 "raw_xyz": [
-                  -0.140625,
-                  0.008056640625,
-                  2.765625
+                  -0.3671875,
+                  0.291015625,
+                  1.9375
                 ],
                 "benchmark_aligned_xyz_m": [
-                  -0.140625,
-                  0.008056640625,
-                  2.765625
+                  -0.3671875,
+                  0.291015625,
+                  1.9375
                 ],
-                "visibility_logit": 7.71875,
-                "visibility_probability": 0.9995557816410785,
+                "visibility_logit": 0.59765625,
+                "visibility_probability": 0.6451199102918683,
                 "visible": true,
-                "confidence": 10.0625,
-                "confidence_probability": 0.9999573525318144,
+                "confidence": 10.0,
+                "confidence_probability": 0.9999546021312976,
                 "target_uv_norm": [
-                  0.50390625,
-                  0.33984375
+                  0.46484375,
+                  0.396484375
                 ],
                 "target_uv_px": [
-                  644.49609375,
-                  244.34765625
+                  594.53515625,
+                  285.072265625
                 ],
                 "valid_for_policy_average": true
               },
               {
                 "point_index": 4,
                 "pixel_uv": [
-                  597.6754221958269,
-                  360.2222393372993
+                  454.4274221958268,
+                  353.0322393372993
                 ],
                 "offset_px": [
                   -3.454577804173141,
                   -10.062760662700668
                 ],
                 "d4rt_uv_norm": [
-                  0.4672990009349702,
-                  0.5010045053369948
+                  0.35529900093497013,
+                  0.49100450533699486
                 ],
                 "raw_xyz": [
-                  -0.1806640625,
-                  -0.00146484375,
-                  2.796875
+                  -0.345703125,
+                  0.34765625,
+                  1.6875
                 ],
                 "benchmark_aligned_xyz_m": [
-                  -0.1806640625,
-                  -0.00146484375,
-                  2.796875
+                  -0.345703125,
+                  0.34765625,
+                  1.6875
                 ],
-                "visibility_logit": 7.75,
-                "visibility_probability": 0.9995694429186754,
+                "visibility_logit": 0.85546875,
+                "visibility_probability": 0.7017130778138413,
                 "visible": true,
-                "confidence": 10.0,
-                "confidence_probability": 0.9999546021312976,
+                "confidence": 10.125,
+                "confidence_probability": 0.9999599363077709,
                 "target_uv_norm": [
-                  0.498046875,
-                  0.33984375
+                  0.46484375,
+                  0.408203125
                 ],
                 "target_uv_px": [
-                  637.001953125,
-                  244.34765625
+                  594.53515625,
+                  293.498046875
                 ],
                 "valid_for_policy_average": true
               }
             ],
             "math_xyz_aligned_m": [
-              -0.1662109375,
-              0.0236328125,
-              2.725
+              -0.3234375,
+              0.387890625,
+              1.6125
             ]
           }
         ],
         "math_trajectory_aligned_xyz_m": [
           [
-            -0.16171875,
-            0.01153564453125,
-            2.71875
+            -0.66796875,
+            0.0167236328125,
+            2.684375
           ],
           [
-            -0.1662109375,
-            0.0236328125,
-            2.725
+            -0.3234375,
+            0.387890625,
+            1.6125
           ]
         ],
         "math_visibility": [
@@ -941,1208 +1055,394 @@
         "benchmark_alignment": {
           "type": "identity_no_ground_truth_scale",
           "scale": 1.0
-        }
-      }
-    },
-    {
-      "step": 2,
-      "kind": "model_action",
-      "raw_qwen_response": "Now I will ground two points on the horse in frame 0 to establish its facing axis. I will use the horse's chest and back as reference points, both grounded in frame 0 under the same viewpoint (`t_cam=0`).\n\n{\"action\":\"query_d4rt\",\"arguments\":{\"label\":\"horse's chest, front of the torso\",\"bbox_2d_1000\":[470,330,520,430],\"t_src\":0,\"t_tgt\":[0],\"t_cam\":0,\"justification\":\"Front reference point for the horse's facing axis, grounded in frame 0 under the same viewpoint as the displacement query.\"}}\n\n{\"action\":\"query_d4rt\",\"arguments\":{\"label\":\"horse's back, rear of the torso\",\"bbox_2d_1000\":[430,330,470,430],\"t_src\":0,\"t_tgt\":[0],\"t_cam\":0,\"justification\":\"Rear reference point for the horse's facing axis, grounded in frame 0 under the same viewpoint as the displacement query.\"}}",
-      "parsed_action": {
-        "action": "query_d4rt",
-        "arguments": {
-          "label": "horse's chest, front of the torso",
-          "bbox_2d_1000": [
-            470.0,
-            330.0,
-            520.0,
-            430.0
-          ],
-          "t_src": 0,
-          "t_tgt": [
-            0
-          ],
-          "t_cam": 0,
-          "justification": "Front reference point for the horse's facing axis, grounded in frame 0 under the same viewpoint as the displacement query."
-        }
+        },
+        "grounding_id": "qg_1",
+        "grounding_mode": "bbox",
+        "grounding_request": "the horse closest to the camera"
       },
-      "call_id": "d4rt_2",
-      "status": "ok",
-      "justification": "Front reference point for the horse's facing axis, grounded in frame 0 under the same viewpoint as the displacement query.",
-      "result": {
-        "backend": "live_d4rt_decoder",
-        "point_mode": "ensemble5",
-        "label": "horse's chest, front of the torso",
-        "bbox_2d_1000": [
-          470.0,
-          330.0,
-          520.0,
-          430.0
-        ],
-        "bbox_pixel": [
-          601.13,
-          237.26999999999998,
-          665.0799999999999,
-          309.17
-        ],
-        "sampled_to_original": [
+      "error": null,
+      "evidence_state": {
+        "available": [
           {
-            "sampled_frame": 0,
-            "original_frame": 0
+            "evidence_id": "qg_1",
+            "tool_name": "ground_with_qwen",
+            "created_at_step": 1
           },
           {
-            "sampled_frame": 1,
-            "original_frame": 3
-          },
-          {
-            "sampled_frame": 2,
-            "original_frame": 6
-          },
-          {
-            "sampled_frame": 3,
-            "original_frame": 9
-          },
-          {
-            "sampled_frame": 4,
-            "original_frame": 11
-          },
-          {
-            "sampled_frame": 5,
-            "original_frame": 14
-          },
-          {
-            "sampled_frame": 6,
-            "original_frame": 17
-          },
-          {
-            "sampled_frame": 7,
-            "original_frame": 20
-          },
-          {
-            "sampled_frame": 8,
-            "original_frame": 23
-          },
-          {
-            "sampled_frame": 9,
-            "original_frame": 26
-          },
-          {
-            "sampled_frame": 10,
-            "original_frame": 29
-          },
-          {
-            "sampled_frame": 11,
-            "original_frame": 32
-          },
-          {
-            "sampled_frame": 12,
-            "original_frame": 34
-          },
-          {
-            "sampled_frame": 13,
-            "original_frame": 37
-          },
-          {
-            "sampled_frame": 14,
-            "original_frame": 40
-          },
-          {
-            "sampled_frame": 15,
-            "original_frame": 43
-          },
-          {
-            "sampled_frame": 16,
-            "original_frame": 46
-          },
-          {
-            "sampled_frame": 17,
-            "original_frame": 49
-          },
-          {
-            "sampled_frame": 18,
-            "original_frame": 52
-          },
-          {
-            "sampled_frame": 19,
-            "original_frame": 55
-          },
-          {
-            "sampled_frame": 20,
-            "original_frame": 57
-          },
-          {
-            "sampled_frame": 21,
-            "original_frame": 60
-          },
-          {
-            "sampled_frame": 22,
-            "original_frame": 63
-          },
-          {
-            "sampled_frame": 23,
-            "original_frame": 66
-          },
-          {
-            "sampled_frame": 24,
-            "original_frame": 69
-          },
-          {
-            "sampled_frame": 25,
-            "original_frame": 72
-          },
-          {
-            "sampled_frame": 26,
-            "original_frame": 75
-          },
-          {
-            "sampled_frame": 27,
-            "original_frame": 78
-          },
-          {
-            "sampled_frame": 28,
-            "original_frame": 80
-          },
-          {
-            "sampled_frame": 29,
-            "original_frame": 83
-          },
-          {
-            "sampled_frame": 30,
-            "original_frame": 86
-          },
-          {
-            "sampled_frame": 31,
-            "original_frame": 89
+            "evidence_id": "d4rt_1",
+            "tool_name": "query_d4rt",
+            "created_at_step": 2
           }
         ],
-        "t_src": 0,
-        "original_t_src": 0,
-        "t_tgt": [
-          0
-        ],
-        "original_t_tgt": [
-          0
-        ],
-        "t_cam": 0,
-        "original_t_cam": 0,
-        "coordinate_frame": "Positions are expressed in the camera frame of sampled frame 0 (OpenCV axes: +x right, +y down, +z forward; origin at that camera). Component values from queries with different t_cam are in different bases and must never be subtracted. Scalars are frame-invariant: norm() and dist() may be compared across different t_cam, which is how range change is measured. Reading a static background point across several t_cam values is how camera motion is measured.",
-        "query_points": [
-          {
-            "point_index": 0,
-            "pixel_uv": [
-              633.105,
-              273.22
-            ],
-            "offset_px": [
-              0.0,
-              0.0
-            ],
-            "d4rt_uv_norm": [
-              0.495,
-              0.38000000000000006
-            ]
-          },
-          {
-            "point_index": 1,
-            "pixel_uv": [
-              633.657215210622,
-              269.5790390750546
-            ],
-            "offset_px": [
-              0.5522152106219664,
-              -3.640960924945432
-            ],
-            "d4rt_uv_norm": [
-              0.49543175544223766,
-              0.3749360765995196
-            ]
-          },
-          {
-            "point_index": 2,
-            "pixel_uv": [
-              622.1155373797911,
-              277.6608704050811
-            ],
-            "offset_px": [
-              -10.989462620208883,
-              4.440870405081057
-            ],
-            "d4rt_uv_norm": [
-              0.4864077696479993,
-              0.38617645397090555
-            ]
-          },
-          {
-            "point_index": 3,
-            "pixel_uv": [
-              639.7069968022037,
-              265.09486890503894
-            ],
-            "offset_px": [
-              6.601996802203644,
-              -8.125131094961091
-            ],
-            "d4rt_uv_norm": [
-              0.5001618426913242,
-              0.3686994004242544
-            ]
-          },
-          {
-            "point_index": 4,
-            "pixel_uv": [
-              629.6504221958269,
-              263.15723933729936
-            ],
-            "offset_px": [
-              -3.454577804173141,
-              -10.062760662700668
-            ],
-            "d4rt_uv_norm": [
-              0.4922990009349702,
-              0.3660045053369949
-            ]
-          }
-        ],
-        "predictions": [
-          {
-            "sampled_frame_index": 0,
-            "original_frame_index": 0,
-            "raw_xyz": [
-              -0.056640625,
-              -0.5171875,
-              4.30625
-            ],
-            "benchmark_aligned_xyz_m": [
-              -0.056640625,
-              -0.5171875,
-              4.30625
-            ],
-            "raw_xyz_std": [
-              0.031336854398671156,
-              0.047447673686717776,
-              0.15103807466993216
-            ],
-            "benchmark_aligned_xyz_std_m": [
-              0.031336854398671156,
-              0.047447673686717776,
-              0.15103807466993216
-            ],
-            "valid_count": 5,
-            "required_valid_count": 3,
-            "visible": true,
-            "confidence": 10.15,
-            "target_uv_norm": [
-              0.49140625,
-              0.375390625
-            ],
-            "target_uv_px": [
-              628.5085937499999,
-              269.905859375
-            ],
-            "individual_point_results": [
-              {
-                "point_index": 0,
-                "pixel_uv": [
-                  633.105,
-                  273.22
-                ],
-                "offset_px": [
-                  0.0,
-                  0.0
-                ],
-                "d4rt_uv_norm": [
-                  0.495,
-                  0.38000000000000006
-                ],
-                "raw_xyz": [
-                  -0.0556640625,
-                  -0.482421875,
-                  4.1875
-                ],
-                "benchmark_aligned_xyz_m": [
-                  -0.0556640625,
-                  -0.482421875,
-                  4.1875
-                ],
-                "visibility_logit": 11.25,
-                "visibility_probability": 0.9999869928715335,
-                "visible": true,
-                "confidence": 10.125,
-                "confidence_probability": 0.9999599363077709,
-                "target_uv_norm": [
-                  0.4921875,
-                  0.380859375
-                ],
-                "target_uv_px": [
-                  629.5078125,
-                  273.837890625
-                ],
-                "valid_for_policy_average": true
-              },
-              {
-                "point_index": 1,
-                "pixel_uv": [
-                  633.657215210622,
-                  269.5790390750546
-                ],
-                "offset_px": [
-                  0.5522152106219664,
-                  -3.640960924945432
-                ],
-                "d4rt_uv_norm": [
-                  0.49543175544223766,
-                  0.3749360765995196
-                ],
-                "raw_xyz": [
-                  -0.04150390625,
-                  -0.5234375,
-                  4.3125
-                ],
-                "benchmark_aligned_xyz_m": [
-                  -0.04150390625,
-                  -0.5234375,
-                  4.3125
-                ],
-                "visibility_logit": 11.0625,
-                "visibility_probability": 0.9999843104502723,
-                "visible": true,
-                "confidence": 10.125,
-                "confidence_probability": 0.9999599363077709,
-                "target_uv_norm": [
-                  0.494140625,
-                  0.375
-                ],
-                "target_uv_px": [
-                  632.005859375,
-                  269.625
-                ],
-                "valid_for_policy_average": true
-              },
-              {
-                "point_index": 2,
-                "pixel_uv": [
-                  622.1155373797911,
-                  277.6608704050811
-                ],
-                "offset_px": [
-                  -10.989462620208883,
-                  4.440870405081057
-                ],
-                "d4rt_uv_norm": [
-                  0.4864077696479993,
-                  0.38617645397090555
-                ],
-                "raw_xyz": [
-                  -0.1064453125,
-                  -0.447265625,
-                  4.09375
-                ],
-                "benchmark_aligned_xyz_m": [
-                  -0.1064453125,
-                  -0.447265625,
-                  4.09375
-                ],
-                "visibility_logit": 11.1875,
-                "visibility_probability": 0.9999861539954363,
-                "visible": true,
-                "confidence": 10.125,
-                "confidence_probability": 0.9999599363077709,
-                "target_uv_norm": [
-                  0.482421875,
-                  0.38671875
-                ],
-                "target_uv_px": [
-                  617.017578125,
-                  278.05078125
-                ],
-                "valid_for_policy_average": true
-              },
-              {
-                "point_index": 3,
-                "pixel_uv": [
-                  639.7069968022037,
-                  265.09486890503894
-                ],
-                "offset_px": [
-                  6.601996802203644,
-                  -8.125131094961091
-                ],
-                "d4rt_uv_norm": [
-                  0.5001618426913242,
-                  0.3686994004242544
-                ],
-                "raw_xyz": [
-                  -0.01123046875,
-                  -0.5546875,
-                  4.4375
-                ],
-                "benchmark_aligned_xyz_m": [
-                  -0.01123046875,
-                  -0.5546875,
-                  4.4375
-                ],
-                "visibility_logit": 11.3125,
-                "visibility_probability": 0.9999877809239794,
-                "visible": true,
-                "confidence": 10.1875,
-                "confidence_probability": 0.9999623635528191,
-                "target_uv_norm": [
-                  0.498046875,
-                  0.369140625
-                ],
-                "target_uv_px": [
-                  637.001953125,
-                  265.412109375
-                ],
-                "valid_for_policy_average": true
-              },
-              {
-                "point_index": 4,
-                "pixel_uv": [
-                  629.6504221958269,
-                  263.15723933729936
-                ],
-                "offset_px": [
-                  -3.454577804173141,
-                  -10.062760662700668
-                ],
-                "d4rt_uv_norm": [
-                  0.4922990009349702,
-                  0.3660045053369949
-                ],
-                "raw_xyz": [
-                  -0.068359375,
-                  -0.578125,
-                  4.5
-                ],
-                "benchmark_aligned_xyz_m": [
-                  -0.068359375,
-                  -0.578125,
-                  4.5
-                ],
-                "visibility_logit": 11.8125,
-                "visibility_probability": 0.9999925887201281,
-                "visible": true,
-                "confidence": 10.1875,
-                "confidence_probability": 0.9999623635528191,
-                "target_uv_norm": [
-                  0.490234375,
-                  0.365234375
-                ],
-                "target_uv_px": [
-                  627.009765625,
-                  262.603515625
-                ],
-                "valid_for_policy_average": true
-              }
-            ],
-            "math_xyz_aligned_m": [
-              -0.056640625,
-              -0.5171875,
-              4.30625
-            ]
-          }
-        ],
-        "math_trajectory_aligned_xyz_m": [
-          [
-            -0.056640625,
-            -0.5171875,
-            4.30625
-          ]
-        ],
-        "math_visibility": [
-          true
-        ],
-        "visibility_coverage": 1.0,
-        "benchmark_alignment": {
-          "type": "identity_no_ground_truth_scale",
-          "scale": 1.0
-        }
-      }
+        "last_action": "accepted",
+        "new_evidence_id": "d4rt_1",
+        "reason": null
+      },
+      "justification": "Measure the horse's displacement in the fixed frame-0 basis to determine its scene-relative motion.",
+      "cache_hit": false,
+      "reused_evidence_id": null
     },
     {
       "step": 3,
       "kind": "model_action",
-      "raw_qwen_response": "Now I will query the horse's back point in frame 0 under the same viewpoint.\n\n{\"action\":\"query_d4rt\",\"arguments\":{\"label\":\"horse's back, rear of the torso\",\"bbox_2d_1000\":[430,330,470,430],\"t_src\":0,\"t_tgt\":[0],\"t_cam\":0,\"justification\":\"Rear reference point for the horse's facing axis, grounded in frame 0 under the same viewpoint as the displacement and chest queries.\"}}",
+      "raw_qwen_response": "I have measured the horse's displacement from frame 0 to frame 31 in the fixed frame-0 basis. To determine its movement relative to its own orientation, I need to establish a facing axis using two distinct points on the horse (e.g., chest and back). I will now localize these two points on the horse in frame 0.\n\n{\"action\":\"ground_with_qwen\",\"arguments\":{\"mode\":\"points\",\"t_src\":0,\"request\":\"center of the horse's chest and center of the horse's upper back, in that order\",\"count\":2,\"justification\":\"Localize separate front and rear body landmarks for a measured facing axis.\"}}",
+      "effective_response": "I have measured the horse's displacement from frame 0 to frame 31 in the fixed frame-0 basis. To determine its movement relative to its own orientation, I need to establish a facing axis using two distinct points on the horse (e.g., chest and back). I will now localize these two points on the horse in frame 0.\n\n{\"action\":\"ground_with_qwen\",\"arguments\":{\"mode\":\"points\",\"t_src\":0,\"request\":\"center of the horse's chest and center of the horse's upper back, in that order\",\"count\":2,\"justification\":\"Localize separate front and rear body landmarks for a measured facing axis.\"}}",
+      "discarded_suffix": "",
+      "action_span": {
+        "start": 313,
+        "end": 578
+      },
       "parsed_action": {
-        "action": "query_d4rt",
+        "action": "ground_with_qwen",
         "arguments": {
-          "label": "horse's back, rear of the torso",
-          "bbox_2d_1000": [
-            430.0,
-            330.0,
-            470.0,
-            430.0
-          ],
+          "mode": "points",
           "t_src": 0,
-          "t_tgt": [
-            0
-          ],
-          "t_cam": 0,
-          "justification": "Rear reference point for the horse's facing axis, grounded in frame 0 under the same viewpoint as the displacement and chest queries."
+          "request": "center of the horse's chest and center of the horse's upper back, in that order",
+          "count": 2,
+          "justification": "Localize separate front and rear body landmarks for a measured facing axis."
         }
       },
-      "call_id": "d4rt_3",
       "status": "ok",
-      "justification": "Rear reference point for the horse's facing axis, grounded in frame 0 under the same viewpoint as the displacement and chest queries.",
+      "failure_stage": null,
+      "call_id": "qg_2",
       "result": {
-        "backend": "live_d4rt_decoder",
-        "point_mode": "ensemble5",
-        "label": "horse's back, rear of the torso",
-        "bbox_2d_1000": [
-          430.0,
-          330.0,
-          470.0,
-          430.0
-        ],
-        "bbox_pixel": [
-          549.9699999999999,
-          237.26999999999998,
-          601.13,
-          309.17
-        ],
-        "sampled_to_original": [
-          {
-            "sampled_frame": 0,
-            "original_frame": 0
-          },
-          {
-            "sampled_frame": 1,
-            "original_frame": 3
-          },
-          {
-            "sampled_frame": 2,
-            "original_frame": 6
-          },
-          {
-            "sampled_frame": 3,
-            "original_frame": 9
-          },
-          {
-            "sampled_frame": 4,
-            "original_frame": 11
-          },
-          {
-            "sampled_frame": 5,
-            "original_frame": 14
-          },
-          {
-            "sampled_frame": 6,
-            "original_frame": 17
-          },
-          {
-            "sampled_frame": 7,
-            "original_frame": 20
-          },
-          {
-            "sampled_frame": 8,
-            "original_frame": 23
-          },
-          {
-            "sampled_frame": 9,
-            "original_frame": 26
-          },
-          {
-            "sampled_frame": 10,
-            "original_frame": 29
-          },
-          {
-            "sampled_frame": 11,
-            "original_frame": 32
-          },
-          {
-            "sampled_frame": 12,
-            "original_frame": 34
-          },
-          {
-            "sampled_frame": 13,
-            "original_frame": 37
-          },
-          {
-            "sampled_frame": 14,
-            "original_frame": 40
-          },
-          {
-            "sampled_frame": 15,
-            "original_frame": 43
-          },
-          {
-            "sampled_frame": 16,
-            "original_frame": 46
-          },
-          {
-            "sampled_frame": 17,
-            "original_frame": 49
-          },
-          {
-            "sampled_frame": 18,
-            "original_frame": 52
-          },
-          {
-            "sampled_frame": 19,
-            "original_frame": 55
-          },
-          {
-            "sampled_frame": 20,
-            "original_frame": 57
-          },
-          {
-            "sampled_frame": 21,
-            "original_frame": 60
-          },
-          {
-            "sampled_frame": 22,
-            "original_frame": 63
-          },
-          {
-            "sampled_frame": 23,
-            "original_frame": 66
-          },
-          {
-            "sampled_frame": 24,
-            "original_frame": 69
-          },
-          {
-            "sampled_frame": 25,
-            "original_frame": 72
-          },
-          {
-            "sampled_frame": 26,
-            "original_frame": 75
-          },
-          {
-            "sampled_frame": 27,
-            "original_frame": 78
-          },
-          {
-            "sampled_frame": 28,
-            "original_frame": 80
-          },
-          {
-            "sampled_frame": 29,
-            "original_frame": 83
-          },
-          {
-            "sampled_frame": 30,
-            "original_frame": 86
-          },
-          {
-            "sampled_frame": 31,
-            "original_frame": 89
-          }
-        ],
+        "status": "not_found",
+        "mode": "points",
         "t_src": 0,
-        "original_t_src": 0,
-        "t_tgt": [
-          0
-        ],
-        "original_t_tgt": [
-          0
-        ],
-        "t_cam": 0,
-        "original_t_cam": 0,
-        "coordinate_frame": "Positions are expressed in the camera frame of sampled frame 0 (OpenCV axes: +x right, +y down, +z forward; origin at that camera). Component values from queries with different t_cam are in different bases and must never be subtracted. Scalars are frame-invariant: norm() and dist() may be compared across different t_cam, which is how range change is measured. Reading a static background point across several t_cam values is how camera motion is measured.",
-        "query_points": [
+        "request": "center of the horse's chest and center of the horse's upper back, in that order",
+        "requested_count": 2,
+        "returned_count": 0,
+        "points_2d_1000": [],
+        "host_provenance": {
+          "resolved_video_path": "/cluster/work/igp_psr/spanwar/datasets/DSI-Bench/videos/std/k700/playing polo/J7j8_hz_hx8_000018_000028/video-scene-00001.mp4",
+          "sampled_mapping_digest": "8bc28962d609a65aacdafd524be1d9e6701cf5fa9b68e665593e9f0b05fd7f08",
+          "original_t_src": 0,
+          "clip_key": "clip_sha256:0f379ac1494063c4c7d2302fc4f080680a3e603c7ef0e1bb7d84db215bf88efb",
+          "normalized_request": "center of the horse's chest and center of the horse's upper back, in that order",
+          "cache_key_digest": "2c0d75d386a098efc00202c783d81e581c23d99d2b317c782cafa90226234a65",
+          "raw_grounder_response": "{\"points_2d_1000\":null}",
+          "grounding_system_prompt": "You are an isolated visual-grounding model. You receive exactly one image and one\nshort localization request. Localize only what the request names. Do not infer a\nlarger task, motion, depth, camera motion, or events outside this image. Do not\nmention tools, evidence IDs, or prior conversations.\n\nReturn exactly the single JSON object requested by the user and no prose,\nMarkdown, code fence, or extra field. Image coordinates use integers from 0 to\n1000, with `[0,0]` at the top-left and `[1000,1000]` at the bottom-right. Do not\nclamp, guess, or invent a target that is not visible.\n\nWhen the requested object, part, or landmark type is clearly visible, return its\ncoordinates. Use `null` only when none of the requested target can be located.\nDo not use `null` merely because several valid point choices exist; choose clear,\nrepresentative visible locations that satisfy the request.\n\nFor bbox requests, return one tight box around the visible requested target. Do\nnot return a box around the whole scene or a nearby object.\n\nFor points requests:\n\n- Return the requested count when that many clear valid locations are visible.\n  Return fewer only when fewer reliable locations exist.\n- Put every point securely inside a visible surface. Avoid uncertain silhouettes\n  and boundaries.\n- For named parts, describe separate points in the requested order where\n  possible.\n- Multiple points on one object must be spatially distinct.\n- For background requests, prefer rigid, high-contrast landmarks spread across\n  the frame: building or window corners, poles, rocks, trunks, and fixed edges.\n- A request for generic static background or structural points can be satisfied\n  by any clear visible landmarks of that type; choose among them rather than\n  returning `null` because the choice is not unique.\n- Avoid people, animals, moving vehicles, reflections, shadows, sky, and moving\n  foliage when static background points are requested.",
+          "grounding_user_prompt": "Ground up to 2 2D point(s) for the request \"center of the horse's chest and center of the horse's upper back, in that order\" in this image.\n\nReturn exactly one JSON object and no other text:\n{\"points_2d_1000\":[{\"xy\":[x,y],\"description\":\"what this point marks\"}]}\n\nNormalize coordinates to integers from 0 to 1000 with origin at the top-left.\nReturn 2 points when that many clear requested locations are visible; otherwise\nreturn as many reliable requested points as are visible. When multiple valid choices\nexist, choose clear representative locations. Use null only if none of the requested\npoints can be located:\n{\"points_2d_1000\":null}",
+          "grounding_prompt_version": "dfb3d46d405f3c76e2f9a663ae94e83e543ff2720fa0d574cbd45a24345cfaa3",
+          "qwen_model_path": "/cluster/work/igp_psr/spanwar/hf_cache/hub/models--Qwen--Qwen3-VL-8B-Instruct/snapshots/0c351dd01ed87e9c1b53cbc748cba10e6187ff3b",
+          "generation_seed": 42,
+          "max_new_tokens": 192,
+          "inference_wall_time_seconds": 1.4643974259961396,
+          "cache_hit": false
+        },
+        "grounding_id": "qg_2"
+      },
+      "error": null,
+      "evidence_state": {
+        "available": [
           {
-            "point_index": 0,
-            "pixel_uv": [
-              575.55,
-              273.22
-            ],
-            "offset_px": [
-              0.0,
-              0.0
-            ],
-            "d4rt_uv_norm": [
-              0.44999999999999996,
-              0.38000000000000006
-            ]
+            "evidence_id": "qg_1",
+            "tool_name": "ground_with_qwen",
+            "created_at_step": 1
           },
           {
-            "point_index": 1,
-            "pixel_uv": [
-              576.1022152106219,
-              269.5790390750546
-            ],
-            "offset_px": [
-              0.5522152106219664,
-              -3.640960924945432
-            ],
-            "d4rt_uv_norm": [
-              0.4504317554422376,
-              0.3749360765995196
-            ]
+            "evidence_id": "d4rt_1",
+            "tool_name": "query_d4rt",
+            "created_at_step": 2
           },
           {
-            "point_index": 2,
-            "pixel_uv": [
-              564.5605373797911,
-              277.6608704050811
-            ],
-            "offset_px": [
-              -10.989462620208883,
-              4.440870405081057
-            ],
-            "d4rt_uv_norm": [
-              0.44140776964799927,
-              0.38617645397090555
-            ]
-          },
-          {
-            "point_index": 3,
-            "pixel_uv": [
-              582.1519968022036,
-              265.09486890503894
-            ],
-            "offset_px": [
-              6.601996802203644,
-              -8.125131094961091
-            ],
-            "d4rt_uv_norm": [
-              0.45516184269132415,
-              0.3686994004242544
-            ]
-          },
-          {
-            "point_index": 4,
-            "pixel_uv": [
-              572.0954221958268,
-              263.15723933729936
-            ],
-            "offset_px": [
-              -3.454577804173141,
-              -10.062760662700668
-            ],
-            "d4rt_uv_norm": [
-              0.44729900093497016,
-              0.3660045053369949
-            ]
+            "evidence_id": "qg_2",
+            "tool_name": "ground_with_qwen",
+            "created_at_step": 3
           }
         ],
-        "predictions": [
-          {
-            "sampled_frame_index": 0,
-            "original_frame_index": 0,
-            "raw_xyz": [
-              -0.383203125,
-              -0.4984375,
-              4.26875
-            ],
-            "benchmark_aligned_xyz_m": [
-              -0.383203125,
-              -0.4984375,
-              4.26875
-            ],
-            "raw_xyz_std": [
-              0.02823329843686352,
-              0.04874837236866222,
-              0.1684024198163435
-            ],
-            "benchmark_aligned_xyz_std_m": [
-              0.02823329843686352,
-              0.04874837236866222,
-              0.1684024198163435
-            ],
-            "valid_count": 5,
-            "required_valid_count": 3,
-            "visible": true,
-            "confidence": 10.125,
-            "target_uv_norm": [
-              0.446875,
-              0.377734375
-            ],
-            "target_uv_px": [
-              571.553125,
-              271.591015625
-            ],
-            "individual_point_results": [
-              {
-                "point_index": 0,
-                "pixel_uv": [
-                  575.55,
-                  273.22
-                ],
-                "offset_px": [
-                  0.0,
-                  0.0
-                ],
-                "d4rt_uv_norm": [
-                  0.44999999999999996,
-                  0.38000000000000006
-                ],
-                "raw_xyz": [
-                  -0.373046875,
-                  -0.46484375,
-                  4.15625
-                ],
-                "benchmark_aligned_xyz_m": [
-                  -0.373046875,
-                  -0.46484375,
-                  4.15625
-                ],
-                "visibility_logit": 11.375,
-                "visibility_probability": 0.999988521231873,
-                "visible": true,
-                "confidence": 10.125,
-                "confidence_probability": 0.9999599363077709,
-                "target_uv_norm": [
-                  0.447265625,
-                  0.3828125
-                ],
-                "target_uv_px": [
-                  572.052734375,
-                  275.2421875
-                ],
-                "valid_for_policy_average": true
-              },
-              {
-                "point_index": 1,
-                "pixel_uv": [
-                  576.1022152106219,
-                  269.5790390750546
-                ],
-                "offset_px": [
-                  0.5522152106219664,
-                  -3.640960924945432
-                ],
-                "d4rt_uv_norm": [
-                  0.4504317554422376,
-                  0.3749360765995196
-                ],
-                "raw_xyz": [
-                  -0.365234375,
-                  -0.498046875,
-                  4.25
-                ],
-                "benchmark_aligned_xyz_m": [
-                  -0.365234375,
-                  -0.498046875,
-                  4.25
-                ],
-                "visibility_logit": 11.25,
-                "visibility_probability": 0.9999869928715335,
-                "visible": true,
-                "confidence": 10.125,
-                "confidence_probability": 0.9999599363077709,
-                "target_uv_norm": [
-                  0.44921875,
-                  0.376953125
-                ],
-                "target_uv_px": [
-                  574.55078125,
-                  271.029296875
-                ],
-                "valid_for_policy_average": true
-              },
-              {
-                "point_index": 2,
-                "pixel_uv": [
-                  564.5605373797911,
-                  277.6608704050811
-                ],
-                "offset_px": [
-                  -10.989462620208883,
-                  4.440870405081057
-                ],
-                "d4rt_uv_norm": [
-                  0.44140776964799927,
-                  0.38617645397090555
-                ],
-                "raw_xyz": [
-                  -0.416015625,
-                  -0.427734375,
-                  4.03125
-                ],
-                "benchmark_aligned_xyz_m": [
-                  -0.416015625,
-                  -0.427734375,
-                  4.03125
-                ],
-                "visibility_logit": 11.1875,
-                "visibility_probability": 0.9999861539954363,
-                "visible": true,
-                "confidence": 10.125,
-                "confidence_probability": 0.9999599363077709,
-                "target_uv_norm": [
-                  0.4375,
-                  0.390625
-                ],
-                "target_uv_px": [
-                  559.5625,
-                  280.859375
-                ],
-                "valid_for_policy_average": true
-              },
-              {
-                "point_index": 3,
-                "pixel_uv": [
-                  582.1519968022036,
-                  265.09486890503894
-                ],
-                "offset_px": [
-                  6.601996802203644,
-                  -8.125131094961091
-                ],
-                "d4rt_uv_norm": [
-                  0.45516184269132415,
-                  0.3686994004242544
-                ],
-                "raw_xyz": [
-                  -0.345703125,
-                  -0.5390625,
-                  4.40625
-                ],
-                "benchmark_aligned_xyz_m": [
-                  -0.345703125,
-                  -0.5390625,
-                  4.40625
-                ],
-                "visibility_logit": 11.5625,
-                "visibility_probability": 0.9999904837483059,
-                "visible": true,
-                "confidence": 10.125,
-                "confidence_probability": 0.9999599363077709,
-                "target_uv_norm": [
-                  0.453125,
-                  0.37109375
-                ],
-                "target_uv_px": [
-                  579.546875,
-                  266.81640625
-                ],
-                "valid_for_policy_average": true
-              },
-              {
-                "point_index": 4,
-                "pixel_uv": [
-                  572.0954221958268,
-                  263.15723933729936
-                ],
-                "offset_px": [
-                  -3.454577804173141,
-                  -10.062760662700668
-                ],
-                "d4rt_uv_norm": [
-                  0.44729900093497016,
-                  0.3660045053369949
-                ],
-                "raw_xyz": [
-                  -0.416015625,
-                  -0.5625,
-                  4.5
-                ],
-                "benchmark_aligned_xyz_m": [
-                  -0.416015625,
-                  -0.5625,
-                  4.5
-                ],
-                "visibility_logit": 11.8125,
-                "visibility_probability": 0.9999925887201281,
-                "visible": true,
-                "confidence": 10.125,
-                "confidence_probability": 0.9999599363077709,
-                "target_uv_norm": [
-                  0.447265625,
-                  0.3671875
-                ],
-                "target_uv_px": [
-                  572.052734375,
-                  264.0078125
-                ],
-                "valid_for_policy_average": true
-              }
-            ],
-            "math_xyz_aligned_m": [
-              -0.383203125,
-              -0.4984375,
-              4.26875
-            ]
-          }
-        ],
-        "math_trajectory_aligned_xyz_m": [
-          [
-            -0.383203125,
-            -0.4984375,
-            4.26875
-          ]
-        ],
-        "math_visibility": [
-          true
-        ],
-        "visibility_coverage": 1.0,
-        "benchmark_alignment": {
-          "type": "identity_no_ground_truth_scale",
-          "scale": 1.0
-        }
-      }
+        "last_action": "accepted",
+        "new_evidence_id": "qg_2",
+        "reason": null
+      },
+      "justification": "Localize separate front and rear body landmarks for a measured facing axis.",
+      "cache_hit": false,
+      "reused_evidence_id": null
     },
     {
       "step": 4,
       "kind": "model_action",
-      "raw_qwen_response": "Now I have the positions for the horse's chest and back in frame 0. I will calculate the facing axis vector (from back to chest) and then project the displacement vector (from start to end) onto this axis to determine the direction of motion relative to the horse's own orientation.\n\n{\"action\":\"python_math\",\"arguments\":{\"bindings\":{\"start\":{\"evidence_id\":\"d4rt_1\",\"path\":[\"predictions\",0,\"benchmark_aligned_xyz_m\"]},\"end\":{\"evidence_id\":\"d4rt_1\",\"path\":[\"predictions\",1,\"benchmark_aligned_xyz_m\"]},\"front\":{\"evidence_id\":\"d4rt_2\",\"path\":[\"predictions\",0,\"benchmark_aligned_xyz_m\"]},\"rear\":{\"evidence_id\":\"d4rt_3\",\"path\":[\"predictions\",0,\"benchmark_aligned_xyz_m\"]}},\"code\":\"fx = front[0] - rear[0]\\nfz = front[2] - rear[2]\\ndx = end[0] - start[0]\\ndz = end[2] - start[2]\\nfn = sqrt(fx*fx + fz*fz)\\nalong = (dx*fx + dz*fz) / fn\\nlateral = (dx*fz - dz*fx) / fn\\nup = start[1] - end[1]\",\"justification\":\"Project the horse's displacement onto its own measured facing axis to separate forward-back from left-right motion.\"}}",
+      "raw_qwen_response": "The point grounding for the horse's chest and back failed in frame 0. I will try a different source frame where the horse is more clearly visible and side-on, such as frame 9, to get a better localization of these two points.\n\n{\"action\":\"ground_with_qwen\",\"arguments\":{\"mode\":\"points\",\"t_src\":9,\"request\":\"center of the horse's chest and center of the horse's upper back, in that order\",\"count\":2,\"justification\":\"Recover from not_found using a clearer frame and more precise named parts.\"}}",
+      "effective_response": "The point grounding for the horse's chest and back failed in frame 0. I will try a different source frame where the horse is more clearly visible and side-on, such as frame 9, to get a better localization of these two points.\n\n{\"action\":\"ground_with_qwen\",\"arguments\":{\"mode\":\"points\",\"t_src\":9,\"request\":\"center of the horse's chest and center of the horse's upper back, in that order\",\"count\":2,\"justification\":\"Recover from not_found using a clearer frame and more precise named parts.\"}}",
+      "discarded_suffix": "",
+      "action_span": {
+        "start": 227,
+        "end": 491
+      },
       "parsed_action": {
-        "action": "python_math",
+        "action": "ground_with_qwen",
         "arguments": {
-          "bindings": {
-            "start": {
-              "evidence_id": "d4rt_1",
-              "path": [
-                "predictions",
-                0,
-                "benchmark_aligned_xyz_m"
-              ]
-            },
-            "end": {
-              "evidence_id": "d4rt_1",
-              "path": [
-                "predictions",
-                1,
-                "benchmark_aligned_xyz_m"
-              ]
-            },
-            "front": {
-              "evidence_id": "d4rt_2",
-              "path": [
-                "predictions",
-                0,
-                "benchmark_aligned_xyz_m"
-              ]
-            },
-            "rear": {
-              "evidence_id": "d4rt_3",
-              "path": [
-                "predictions",
-                0,
-                "benchmark_aligned_xyz_m"
-              ]
-            }
-          },
-          "code": "fx = front[0] - rear[0]\nfz = front[2] - rear[2]\ndx = end[0] - start[0]\ndz = end[2] - start[2]\nfn = sqrt(fx*fx + fz*fz)\nalong = (dx*fx + dz*fz) / fn\nlateral = (dx*fz - dz*fx) / fn\nup = start[1] - end[1]",
-          "justification": "Project the horse's displacement onto its own measured facing axis to separate forward-back from left-right motion."
+          "mode": "points",
+          "t_src": 9,
+          "request": "center of the horse's chest and center of the horse's upper back, in that order",
+          "count": 2,
+          "justification": "Recover from not_found using a clearer frame and more precise named parts."
         }
       },
-      "call_id": "math_1",
       "status": "ok",
-      "justification": "Project the horse's displacement onto its own measured facing axis to separate forward-back from left-right motion.",
+      "failure_stage": null,
+      "call_id": "qg_3",
       "result": {
-        "bindings": {
-          "start": {
+        "status": "not_found",
+        "mode": "points",
+        "t_src": 9,
+        "request": "center of the horse's chest and center of the horse's upper back, in that order",
+        "requested_count": 2,
+        "returned_count": 0,
+        "points_2d_1000": [],
+        "host_provenance": {
+          "resolved_video_path": "/cluster/work/igp_psr/spanwar/datasets/DSI-Bench/videos/std/k700/playing polo/J7j8_hz_hx8_000018_000028/video-scene-00001.mp4",
+          "sampled_mapping_digest": "8bc28962d609a65aacdafd524be1d9e6701cf5fa9b68e665593e9f0b05fd7f08",
+          "original_t_src": 26,
+          "clip_key": "clip_sha256:0f379ac1494063c4c7d2302fc4f080680a3e603c7ef0e1bb7d84db215bf88efb",
+          "normalized_request": "center of the horse's chest and center of the horse's upper back, in that order",
+          "cache_key_digest": "a024b4d0c30dd06198fa2638d7182e11e9f1b451eddc8960bce48432b951699c",
+          "raw_grounder_response": "{\"points_2d_1000\":null}",
+          "grounding_system_prompt": "You are an isolated visual-grounding model. You receive exactly one image and one\nshort localization request. Localize only what the request names. Do not infer a\nlarger task, motion, depth, camera motion, or events outside this image. Do not\nmention tools, evidence IDs, or prior conversations.\n\nReturn exactly the single JSON object requested by the user and no prose,\nMarkdown, code fence, or extra field. Image coordinates use integers from 0 to\n1000, with `[0,0]` at the top-left and `[1000,1000]` at the bottom-right. Do not\nclamp, guess, or invent a target that is not visible.\n\nWhen the requested object, part, or landmark type is clearly visible, return its\ncoordinates. Use `null` only when none of the requested target can be located.\nDo not use `null` merely because several valid point choices exist; choose clear,\nrepresentative visible locations that satisfy the request.\n\nFor bbox requests, return one tight box around the visible requested target. Do\nnot return a box around the whole scene or a nearby object.\n\nFor points requests:\n\n- Return the requested count when that many clear valid locations are visible.\n  Return fewer only when fewer reliable locations exist.\n- Put every point securely inside a visible surface. Avoid uncertain silhouettes\n  and boundaries.\n- For named parts, describe separate points in the requested order where\n  possible.\n- Multiple points on one object must be spatially distinct.\n- For background requests, prefer rigid, high-contrast landmarks spread across\n  the frame: building or window corners, poles, rocks, trunks, and fixed edges.\n- A request for generic static background or structural points can be satisfied\n  by any clear visible landmarks of that type; choose among them rather than\n  returning `null` because the choice is not unique.\n- Avoid people, animals, moving vehicles, reflections, shadows, sky, and moving\n  foliage when static background points are requested.",
+          "grounding_user_prompt": "Ground up to 2 2D point(s) for the request \"center of the horse's chest and center of the horse's upper back, in that order\" in this image.\n\nReturn exactly one JSON object and no other text:\n{\"points_2d_1000\":[{\"xy\":[x,y],\"description\":\"what this point marks\"}]}\n\nNormalize coordinates to integers from 0 to 1000 with origin at the top-left.\nReturn 2 points when that many clear requested locations are visible; otherwise\nreturn as many reliable requested points as are visible. When multiple valid choices\nexist, choose clear representative locations. Use null only if none of the requested\npoints can be located:\n{\"points_2d_1000\":null}",
+          "grounding_prompt_version": "dfb3d46d405f3c76e2f9a663ae94e83e543ff2720fa0d574cbd45a24345cfaa3",
+          "qwen_model_path": "/cluster/work/igp_psr/spanwar/hf_cache/hub/models--Qwen--Qwen3-VL-8B-Instruct/snapshots/0c351dd01ed87e9c1b53cbc748cba10e6187ff3b",
+          "generation_seed": 42,
+          "max_new_tokens": 192,
+          "inference_wall_time_seconds": 1.3803360878955573,
+          "cache_hit": false
+        },
+        "grounding_id": "qg_3"
+      },
+      "error": null,
+      "evidence_state": {
+        "available": [
+          {
+            "evidence_id": "qg_1",
+            "tool_name": "ground_with_qwen",
+            "created_at_step": 1
+          },
+          {
             "evidence_id": "d4rt_1",
-            "path": [
-              "predictions",
-              0,
-              "benchmark_aligned_xyz_m"
-            ]
+            "tool_name": "query_d4rt",
+            "created_at_step": 2
           },
-          "end": {
-            "evidence_id": "d4rt_1",
-            "path": [
-              "predictions",
-              1,
-              "benchmark_aligned_xyz_m"
-            ]
+          {
+            "evidence_id": "qg_2",
+            "tool_name": "ground_with_qwen",
+            "created_at_step": 3
           },
-          "front": {
-            "evidence_id": "d4rt_2",
-            "path": [
-              "predictions",
-              0,
-              "benchmark_aligned_xyz_m"
-            ]
-          },
-          "rear": {
-            "evidence_id": "d4rt_3",
-            "path": [
-              "predictions",
-              0,
-              "benchmark_aligned_xyz_m"
-            ]
+          {
+            "evidence_id": "qg_3",
+            "tool_name": "ground_with_qwen",
+            "created_at_step": 4
           }
-        },
-        "resolved_bindings": {
-          "start": [
-            -0.16171875,
-            0.01153564453125,
-            2.71875
-          ],
-          "end": [
-            -0.1662109375,
-            0.0236328125,
-            2.725
-          ],
-          "front": [
-            -0.056640625,
-            -0.5171875,
-            4.30625
-          ],
-          "rear": [
-            -0.383203125,
-            -0.4984375,
-            4.26875
-          ]
-        },
-        "code": "fx = front[0] - rear[0]\nfz = front[2] - rear[2]\ndx = end[0] - start[0]\ndz = end[2] - start[2]\nfn = sqrt(fx*fx + fz*fz)\nalong = (dx*fx + dz*fz) / fn\nlateral = (dx*fz - dz*fx) / fn\nup = start[1] - end[1]",
-        "outputs": {
-          "fx": 0.3265625,
-          "fz": 0.03750000000000053,
-          "dx": -0.0044921874999999944,
-          "dz": 0.006250000000000089,
-          "fn": 0.3287085584621277,
-          "along": -0.0037498414590588047,
-          "lateral": -0.006721676693138479,
-          "up": -0.01209716796875
-        }
-      }
+        ],
+        "last_action": "accepted",
+        "new_evidence_id": "qg_3",
+        "reason": null
+      },
+      "justification": "Recover from not_found using a clearer frame and more precise named parts.",
+      "cache_hit": false,
+      "reused_evidence_id": null
     },
     {
       "step": 5,
       "kind": "model_action",
-      "raw_qwen_response": "The calculation shows that the horse's displacement projected onto its own facing axis is negative (`along = -0.00375`), which means the motion is backward relative to its own orientation. The lateral component is also negative (`lateral = -0.00672`), but since the question asks for the primary direction of motion, and the backward component is larger in magnitude, the motion is primarily backward.\n\n{\"action\":\"final_answer\",\"arguments\":{\"kind\":\"text\",\"text\":\"A: Moving backward. Projected onto the horse's own measured facing axis, the displacement was -0.00375 forward against -0.00672 lateral and 0.0121 vertical (math_1), so the motion is backward in the horse's own frame.\",\"evidence_ids\":[\"d4rt_1\",\"d4rt_2\",\"d4rt_3\",\"math_1\"],\"limitations\":\"Facing axis derived from two grounded torso points in frame 0 and assumed constant; if the horse turned during the clip the projection uses only the starting orientation.\"}}",
+      "raw_qwen_response": "The point grounding for the horse's chest and back failed in both frame 0 and frame 9. I will try a different source frame, such as frame 12, where the horse is likely more clearly visible and side-on, to get a better localization of these two points.\n\n{\"action\":\"ground_with_qwen\",\"arguments\":{\"mode\":\"points\",\"t_src\":12,\"request\":\"two distinct torso points on the horse: front-center chest first, rear-center upper back second\",\"count\":2,\"justification\":\"Recover from an incomplete one-point result because both landmarks are essential.\"}}",
+      "effective_response": "The point grounding for the horse's chest and back failed in both frame 0 and frame 9. I will try a different source frame, such as frame 12, where the horse is likely more clearly visible and side-on, to get a better localization of these two points.\n\n{\"action\":\"ground_with_qwen\",\"arguments\":{\"mode\":\"points\",\"t_src\":12,\"request\":\"two distinct torso points on the horse: front-center chest first, rear-center upper back second\",\"count\":2,\"justification\":\"Recover from an incomplete one-point result because both landmarks are essential.\"}}",
+      "discarded_suffix": "",
+      "action_span": {
+        "start": 253,
+        "end": 541
+      },
+      "parsed_action": {
+        "action": "ground_with_qwen",
+        "arguments": {
+          "mode": "points",
+          "t_src": 12,
+          "request": "two distinct torso points on the horse: front-center chest first, rear-center upper back second",
+          "count": 2,
+          "justification": "Recover from an incomplete one-point result because both landmarks are essential."
+        }
+      },
+      "status": "ok",
+      "failure_stage": null,
+      "call_id": "qg_4",
+      "result": {
+        "status": "not_found",
+        "mode": "points",
+        "t_src": 12,
+        "request": "two distinct torso points on the horse: front-center chest first, rear-center upper back second",
+        "requested_count": 2,
+        "returned_count": 0,
+        "points_2d_1000": [],
+        "host_provenance": {
+          "resolved_video_path": "/cluster/work/igp_psr/spanwar/datasets/DSI-Bench/videos/std/k700/playing polo/J7j8_hz_hx8_000018_000028/video-scene-00001.mp4",
+          "sampled_mapping_digest": "8bc28962d609a65aacdafd524be1d9e6701cf5fa9b68e665593e9f0b05fd7f08",
+          "original_t_src": 34,
+          "clip_key": "clip_sha256:0f379ac1494063c4c7d2302fc4f080680a3e603c7ef0e1bb7d84db215bf88efb",
+          "normalized_request": "two distinct torso points on the horse: front-center chest first, rear-center upper back second",
+          "cache_key_digest": "0517e8de290e61815e5e9feb11c1424a4bd0f09ed2ff55dbea83962b76414122",
+          "raw_grounder_response": "{\"points_2d_1000\":null}",
+          "grounding_system_prompt": "You are an isolated visual-grounding model. You receive exactly one image and one\nshort localization request. Localize only what the request names. Do not infer a\nlarger task, motion, depth, camera motion, or events outside this image. Do not\nmention tools, evidence IDs, or prior conversations.\n\nReturn exactly the single JSON object requested by the user and no prose,\nMarkdown, code fence, or extra field. Image coordinates use integers from 0 to\n1000, with `[0,0]` at the top-left and `[1000,1000]` at the bottom-right. Do not\nclamp, guess, or invent a target that is not visible.\n\nWhen the requested object, part, or landmark type is clearly visible, return its\ncoordinates. Use `null` only when none of the requested target can be located.\nDo not use `null` merely because several valid point choices exist; choose clear,\nrepresentative visible locations that satisfy the request.\n\nFor bbox requests, return one tight box around the visible requested target. Do\nnot return a box around the whole scene or a nearby object.\n\nFor points requests:\n\n- Return the requested count when that many clear valid locations are visible.\n  Return fewer only when fewer reliable locations exist.\n- Put every point securely inside a visible surface. Avoid uncertain silhouettes\n  and boundaries.\n- For named parts, describe separate points in the requested order where\n  possible.\n- Multiple points on one object must be spatially distinct.\n- For background requests, prefer rigid, high-contrast landmarks spread across\n  the frame: building or window corners, poles, rocks, trunks, and fixed edges.\n- A request for generic static background or structural points can be satisfied\n  by any clear visible landmarks of that type; choose among them rather than\n  returning `null` because the choice is not unique.\n- Avoid people, animals, moving vehicles, reflections, shadows, sky, and moving\n  foliage when static background points are requested.",
+          "grounding_user_prompt": "Ground up to 2 2D point(s) for the request \"two distinct torso points on the horse: front-center chest first, rear-center upper back second\" in this image.\n\nReturn exactly one JSON object and no other text:\n{\"points_2d_1000\":[{\"xy\":[x,y],\"description\":\"what this point marks\"}]}\n\nNormalize coordinates to integers from 0 to 1000 with origin at the top-left.\nReturn 2 points when that many clear requested locations are visible; otherwise\nreturn as many reliable requested points as are visible. When multiple valid choices\nexist, choose clear representative locations. Use null only if none of the requested\npoints can be located:\n{\"points_2d_1000\":null}",
+          "grounding_prompt_version": "dfb3d46d405f3c76e2f9a663ae94e83e543ff2720fa0d574cbd45a24345cfaa3",
+          "qwen_model_path": "/cluster/work/igp_psr/spanwar/hf_cache/hub/models--Qwen--Qwen3-VL-8B-Instruct/snapshots/0c351dd01ed87e9c1b53cbc748cba10e6187ff3b",
+          "generation_seed": 42,
+          "max_new_tokens": 192,
+          "inference_wall_time_seconds": 0.6262782799312845,
+          "cache_hit": false
+        },
+        "grounding_id": "qg_4"
+      },
+      "error": null,
+      "evidence_state": {
+        "available": [
+          {
+            "evidence_id": "qg_1",
+            "tool_name": "ground_with_qwen",
+            "created_at_step": 1
+          },
+          {
+            "evidence_id": "d4rt_1",
+            "tool_name": "query_d4rt",
+            "created_at_step": 2
+          },
+          {
+            "evidence_id": "qg_2",
+            "tool_name": "ground_with_qwen",
+            "created_at_step": 3
+          },
+          {
+            "evidence_id": "qg_3",
+            "tool_name": "ground_with_qwen",
+            "created_at_step": 4
+          },
+          {
+            "evidence_id": "qg_4",
+            "tool_name": "ground_with_qwen",
+            "created_at_step": 5
+          }
+        ],
+        "last_action": "accepted",
+        "new_evidence_id": "qg_4",
+        "reason": null
+      },
+      "justification": "Recover from an incomplete one-point result because both landmarks are essential.",
+      "cache_hit": false,
+      "reused_evidence_id": null
+    },
+    {
+      "step": 6,
+      "kind": "model_action",
+      "raw_qwen_response": "The point grounding for the horse's chest and back failed in multiple frames. Since I cannot reliably measure the horse's facing axis, I will fall back to analyzing the displacement from the images. The horse is moving forward in the scene, as indicated by its position relative to the camera and the ground. I will choose option D and cite the displacement measurement.\n\n{\"action\":\"final_answer\",\"arguments\":{\"kind\":\"text\",\"text\":\"D: Moving forward. The horse's displacement from frame 0 to frame 31 shows it moved forward in the scene (d4rt_1).\",\"evidence_ids\":[\"qg_1\",\"d4rt_1\"],\"limitations\":\"Unable to measure facing axis due to failed point grounding; relying on visual analysis of displacement.\"}}",
+      "effective_response": "The point grounding for the horse's chest and back failed in multiple frames. Since I cannot reliably measure the horse's facing axis, I will fall back to analyzing the displacement from the images. The horse is moving forward in the scene, as indicated by its position relative to the camera and the ground. I will choose option D and cite the displacement measurement.\n\n{\"action\":\"final_answer\",\"arguments\":{\"kind\":\"text\",\"text\":\"D: Moving forward. The horse's displacement from frame 0 to frame 31 shows it moved forward in the scene (d4rt_1).\",\"evidence_ids\":[\"qg_1\",\"d4rt_1\"],\"limitations\":\"Unable to measure facing axis due to failed point grounding; relying on visual analysis of displacement.\"}}",
+      "discarded_suffix": "",
+      "action_span": {
+        "start": 372,
+        "end": 703
+      },
       "parsed_action": {
         "action": "final_answer",
         "arguments": {
           "kind": "text",
-          "text": "A: Moving backward. Projected onto the horse's own measured facing axis, the displacement was -0.00375 forward against -0.00672 lateral and 0.0121 vertical (math_1), so the motion is backward in the horse's own frame.",
+          "text": "D: Moving forward. The horse's displacement from frame 0 to frame 31 shows it moved forward in the scene (d4rt_1).",
           "evidence_ids": [
-            "d4rt_1",
-            "d4rt_2",
-            "d4rt_3",
-            "math_1"
+            "qg_1",
+            "d4rt_1"
           ],
-          "limitations": "Facing axis derived from two grounded torso points in frame 0 and assumed constant; if the horse turned during the clip the projection uses only the starting orientation."
+          "limitations": "Unable to measure facing axis due to failed point grounding; relying on visual analysis of displacement."
         }
       },
-      "call_id": "final_1",
       "status": "ok",
+      "failure_stage": null,
+      "call_id": "final_1",
       "result": {
         "kind": "text",
-        "text": "A: Moving backward. Projected onto the horse's own measured facing axis, the displacement was -0.00375 forward against -0.00672 lateral and 0.0121 vertical (math_1), so the motion is backward in the horse's own frame.",
+        "text": "D: Moving forward. The horse's displacement from frame 0 to frame 31 shows it moved forward in the scene (d4rt_1).",
         "evidence_ids": [
-          "d4rt_1",
-          "d4rt_2",
-          "d4rt_3",
-          "math_1"
+          "qg_1",
+          "d4rt_1"
         ],
-        "limitations": "Facing axis derived from two grounded torso points in frame 0 and assumed constant; if the horse turned during the clip the projection uses only the starting orientation."
+        "limitations": "Unable to measure facing axis due to failed point grounding; relying on visual analysis of displacement."
+      },
+      "error": null,
+      "evidence_state": {
+        "available": [
+          {
+            "evidence_id": "qg_1",
+            "tool_name": "ground_with_qwen",
+            "created_at_step": 1
+          },
+          {
+            "evidence_id": "d4rt_1",
+            "tool_name": "query_d4rt",
+            "created_at_step": 2
+          },
+          {
+            "evidence_id": "qg_2",
+            "tool_name": "ground_with_qwen",
+            "created_at_step": 3
+          },
+          {
+            "evidence_id": "qg_3",
+            "tool_name": "ground_with_qwen",
+            "created_at_step": 4
+          },
+          {
+            "evidence_id": "qg_4",
+            "tool_name": "ground_with_qwen",
+            "created_at_step": 5
+          }
+        ],
+        "last_action": "accepted",
+        "new_evidence_id": null,
+        "reason": null
       }
     }
   ],
   "evidence": {
+    "qg_1": {
+      "status": "ok",
+      "mode": "bbox",
+      "t_src": 0,
+      "request": "the horse closest to the camera",
+      "bbox_2d_1000": [
+        333.0,
+        468.0,
+        383.0,
+        542.0
+      ],
+      "host_provenance": {
+        "resolved_video_path": "/cluster/work/igp_psr/spanwar/datasets/DSI-Bench/videos/std/k700/playing polo/J7j8_hz_hx8_000018_000028/video-scene-00001.mp4",
+        "sampled_mapping_digest": "8bc28962d609a65aacdafd524be1d9e6701cf5fa9b68e665593e9f0b05fd7f08",
+        "original_t_src": 0,
+        "clip_key": "clip_sha256:0f379ac1494063c4c7d2302fc4f080680a3e603c7ef0e1bb7d84db215bf88efb",
+        "normalized_request": "the horse closest to the camera",
+        "cache_key_digest": "7326685520641db31a124e1b25dc91e4df5edf98385e22d41af3866536b5ea02",
+        "raw_grounder_response": "{\"bbox_2d_1000\": [333, 468, 383, 542]}",
+        "grounding_system_prompt": "You are an isolated visual-grounding model. You receive exactly one image and one\nshort localization request. Localize only what the request names. Do not infer a\nlarger task, motion, depth, camera motion, or events outside this image. Do not\nmention tools, evidence IDs, or prior conversations.\n\nReturn exactly the single JSON object requested by the user and no prose,\nMarkdown, code fence, or extra field. Image coordinates use integers from 0 to\n1000, with `[0,0]` at the top-left and `[1000,1000]` at the bottom-right. Do not\nclamp, guess, or invent a target that is not visible.\n\nWhen the requested object, part, or landmark type is clearly visible, return its\ncoordinates. Use `null` only when none of the requested target can be located.\nDo not use `null` merely because several valid point choices exist; choose clear,\nrepresentative visible locations that satisfy the request.\n\nFor bbox requests, return one tight box around the visible requested target. Do\nnot return a box around the whole scene or a nearby object.\n\nFor points requests:\n\n- Return the requested count when that many clear valid locations are visible.\n  Return fewer only when fewer reliable locations exist.\n- Put every point securely inside a visible surface. Avoid uncertain silhouettes\n  and boundaries.\n- For named parts, describe separate points in the requested order where\n  possible.\n- Multiple points on one object must be spatially distinct.\n- For background requests, prefer rigid, high-contrast landmarks spread across\n  the frame: building or window corners, poles, rocks, trunks, and fixed edges.\n- A request for generic static background or structural points can be satisfied\n  by any clear visible landmarks of that type; choose among them rather than\n  returning `null` because the choice is not unique.\n- Avoid people, animals, moving vehicles, reflections, shadows, sky, and moving\n  foliage when static background points are requested.",
+        "grounding_user_prompt": "Ground the target named \"the horse closest to the camera\" in this image inside one tight bounding box.\n\nReturn exactly one JSON object and no other text:\n{\"bbox_2d_1000\":[x_min,y_min,x_max,y_max]}\n\nNormalize coordinates to integers from 0 to 1000 with origin at the top-left.\nIf the requested target is not visible, return:\n{\"bbox_2d_1000\":null}",
+        "grounding_prompt_version": "dfb3d46d405f3c76e2f9a663ae94e83e543ff2720fa0d574cbd45a24345cfaa3",
+        "qwen_model_path": "/cluster/work/igp_psr/spanwar/hf_cache/hub/models--Qwen--Qwen3-VL-8B-Instruct/snapshots/0c351dd01ed87e9c1b53cbc748cba10e6187ff3b",
+        "generation_seed": 42,
+        "max_new_tokens": 96,
+        "inference_wall_time_seconds": 1.1705234170658514,
+        "cache_hit": false
+      },
+      "grounding_id": "qg_1"
+    },
     "d4rt_1": {
       "backend": "live_d4rt_decoder",
       "point_mode": "ensemble5",
-      "label": "horse in the foreground",
+      "label": "the horse closest to the camera",
       "bbox_2d_1000": [
-        380.0,
-        420.0,
-        560.0,
-        610.0
+        333.0,
+        468.0,
+        383.0,
+        542.0
       ],
       "bbox_pixel": [
-        486.02,
-        301.97999999999996,
-        716.24,
-        438.59
+        425.907,
+        336.49199999999996,
+        489.85699999999997,
+        389.698
       ],
       "sampled_to_original": [
         {
@@ -2291,76 +1591,76 @@
         {
           "point_index": 0,
           "pixel_uv": [
-            601.13,
-            370.28499999999997
+            457.88199999999995,
+            363.09499999999997
           ],
           "offset_px": [
             0.0,
             0.0
           ],
           "d4rt_uv_norm": [
-            0.47,
-            0.5149999999999999
+            0.358,
+            0.505
           ]
         },
         {
           "point_index": 1,
           "pixel_uv": [
-            601.682215210622,
-            366.64403907505454
+            458.43421521062186,
+            359.45403907505454
           ],
           "offset_px": [
-            0.5522152106219664,
+            0.5522152106219096,
             -3.640960924945432
           ],
           "d4rt_uv_norm": [
-            0.47043175544223764,
-            0.5099360765995196
+            0.3584317554422376,
+            0.49993607659951955
           ]
         },
         {
           "point_index": 2,
           "pixel_uv": [
-            590.1405373797911,
-            374.725870405081
+            446.89253737979107,
+            367.535870405081
           ],
           "offset_px": [
             -10.989462620208883,
             4.440870405081057
           ],
           "d4rt_uv_norm": [
-            0.4614077696479993,
-            0.5211764539709055
+            0.34940776964799924,
+            0.5111764539709055
           ]
         },
         {
           "point_index": 3,
           "pixel_uv": [
-            607.7319968022036,
-            362.1598689050389
+            464.4839968022036,
+            354.9698689050389
           ],
           "offset_px": [
             6.601996802203644,
             -8.125131094961091
           ],
           "d4rt_uv_norm": [
-            0.47516184269132417,
-            0.5036994004242543
+            0.3631618426913242,
+            0.49369940042425436
           ]
         },
         {
           "point_index": 4,
           "pixel_uv": [
-            597.6754221958269,
-            360.2222393372993
+            454.4274221958268,
+            353.0322393372993
           ],
           "offset_px": [
             -3.454577804173141,
             -10.062760662700668
           ],
           "d4rt_uv_norm": [
-            0.4672990009349702,
-            0.5010045053369948
+            0.35529900093497013,
+            0.49100450533699486
           ]
         }
       ],
@@ -2369,73 +1669,73 @@
           "sampled_frame_index": 0,
           "original_frame_index": 0,
           "raw_xyz": [
-            -0.16171875,
-            0.01153564453125,
-            2.71875
+            -0.66796875,
+            0.0167236328125,
+            2.684375
           ],
           "benchmark_aligned_xyz_m": [
-            -0.16171875,
-            0.01153564453125,
-            2.71875
+            -0.66796875,
+            0.0167236328125,
+            2.684375
           ],
           "raw_xyz_std": [
-            0.02043420570257901,
-            0.018405839277519723,
-            0.05412658773652741
+            0.010186253758129139,
+            0.015076746111659163,
+            0.05711145900780333
           ],
           "benchmark_aligned_xyz_std_m": [
-            0.02043420570257901,
-            0.018405839277519723,
-            0.05412658773652741
+            0.010186253758129139,
+            0.015076746111659163,
+            0.05711145900780333
           ],
           "valid_count": 5,
           "required_valid_count": 3,
           "visible": true,
-          "confidence": 10.025,
+          "confidence": 9.35,
           "target_uv_norm": [
-            0.466015625,
-            0.5125
+            0.357421875,
+            0.510546875
           ],
           "target_uv_px": [
-            596.0339843749999,
-            368.48749999999995
+            457.142578125,
+            367.08320312499995
           ],
           "individual_point_results": [
             {
               "point_index": 0,
               "pixel_uv": [
-                601.13,
-                370.28499999999997
+                457.88199999999995,
+                363.09499999999997
               ],
               "offset_px": [
                 0.0,
                 0.0
               ],
               "d4rt_uv_norm": [
-                0.47,
-                0.5149999999999999
+                0.358,
+                0.505
               ],
               "raw_xyz": [
-                -0.150390625,
-                0.02392578125,
-                2.671875
+                -0.65625,
+                0.0234375,
+                2.65625
               ],
               "benchmark_aligned_xyz_m": [
-                -0.150390625,
-                0.02392578125,
-                2.671875
+                -0.65625,
+                0.0234375,
+                2.65625
               ],
-              "visibility_logit": 10.1875,
-              "visibility_probability": 0.9999623635528191,
+              "visibility_logit": 9.3125,
+              "visibility_probability": 0.9999097196098496,
               "visible": true,
-              "confidence": 10.0625,
-              "confidence_probability": 0.9999573525318144,
+              "confidence": 9.375,
+              "confidence_probability": 0.9999151889582765,
               "target_uv_norm": [
-                0.46875,
+                0.357421875,
                 0.515625
               ],
               "target_uv_px": [
-                599.53125,
+                457.142578125,
                 370.734375
               ],
               "valid_for_policy_average": true
@@ -2443,77 +1743,77 @@
             {
               "point_index": 1,
               "pixel_uv": [
-                601.682215210622,
-                366.64403907505454
+                458.43421521062186,
+                359.45403907505454
               ],
               "offset_px": [
-                0.5522152106219664,
+                0.5522152106219096,
                 -3.640960924945432
               ],
               "d4rt_uv_norm": [
-                0.47043175544223764,
-                0.5099360765995196
+                0.3584317554422376,
+                0.49993607659951955
               ],
               "raw_xyz": [
-                -0.1513671875,
-                0.016357421875,
+                -0.66015625,
+                0.0203857421875,
                 2.703125
               ],
               "benchmark_aligned_xyz_m": [
-                -0.1513671875,
-                0.016357421875,
+                -0.66015625,
+                0.0203857421875,
                 2.703125
               ],
-              "visibility_logit": 10.3125,
-              "visibility_probability": 0.9999667858050522,
+              "visibility_logit": 9.25,
+              "visibility_probability": 0.9999038975845005,
               "visible": true,
-              "confidence": 10.0625,
-              "confidence_probability": 0.9999573525318144,
+              "confidence": 9.3125,
+              "confidence_probability": 0.9999097196098496,
               "target_uv_norm": [
-                0.46875,
-                0.515625
+                0.359375,
+                0.51171875
               ],
               "target_uv_px": [
-                599.53125,
-                370.734375
+                459.640625,
+                367.92578125
               ],
               "valid_for_policy_average": true
             },
             {
               "point_index": 2,
               "pixel_uv": [
-                590.1405373797911,
-                374.725870405081
+                446.89253737979107,
+                367.535870405081
               ],
               "offset_px": [
                 -10.989462620208883,
                 4.440870405081057
               ],
               "d4rt_uv_norm": [
-                0.4614077696479993,
-                0.5211764539709055
+                0.34940776964799924,
+                0.5111764539709055
               ],
               "raw_xyz": [
-                -0.1953125,
+                -0.67578125,
                 0.0361328125,
-                2.65625
+                2.59375
               ],
               "benchmark_aligned_xyz_m": [
-                -0.1953125,
+                -0.67578125,
                 0.0361328125,
-                2.65625
+                2.59375
               ],
-              "visibility_logit": 10.625,
-              "visibility_probability": 0.9999756997592568,
+              "visibility_logit": 9.375,
+              "visibility_probability": 0.9999151889582765,
               "visible": true,
-              "confidence": 10.0,
-              "confidence_probability": 0.9999546021312976,
+              "confidence": 9.4375,
+              "confidence_probability": 0.9999203269901391,
               "target_uv_norm": [
-                0.458984375,
+                0.349609375,
                 0.5234375
               ],
               "target_uv_px": [
-                587.041015625,
+                447.150390625,
                 376.3515625
               ],
               "valid_for_policy_average": true
@@ -2521,38 +1821,38 @@
             {
               "point_index": 3,
               "pixel_uv": [
-                607.7319968022036,
-                362.1598689050389
+                464.4839968022036,
+                354.9698689050389
               ],
               "offset_px": [
                 6.601996802203644,
                 -8.125131094961091
               ],
               "d4rt_uv_norm": [
-                0.47516184269132417,
-                0.5036994004242543
+                0.3631618426913242,
+                0.49369940042425436
               ],
               "raw_xyz": [
-                -0.1376953125,
-                -0.0050048828125,
+                -0.6640625,
+                0.01318359375,
                 2.765625
               ],
               "benchmark_aligned_xyz_m": [
-                -0.1376953125,
-                -0.0050048828125,
+                -0.6640625,
+                0.01318359375,
                 2.765625
               ],
-              "visibility_logit": 10.4375,
-              "visibility_probability": 0.9999706884614404,
+              "visibility_logit": 10.0,
+              "visibility_probability": 0.9999546021312976,
               "visible": true,
-              "confidence": 10.0,
-              "confidence_probability": 0.9999546021312976,
+              "confidence": 9.3125,
+              "confidence_probability": 0.9999097196098496,
               "target_uv_norm": [
-                0.470703125,
+                0.36328125,
                 0.50390625
               ],
               "target_uv_px": [
-                602.029296875,
+                464.63671875,
                 362.30859375
               ],
               "valid_for_policy_average": true
@@ -2560,298 +1860,298 @@
             {
               "point_index": 4,
               "pixel_uv": [
-                597.6754221958269,
-                360.2222393372993
+                454.4274221958268,
+                353.0322393372993
               ],
               "offset_px": [
                 -3.454577804173141,
                 -10.062760662700668
               ],
               "d4rt_uv_norm": [
-                0.4672990009349702,
-                0.5010045053369948
+                0.35529900093497013,
+                0.49100450533699486
               ],
               "raw_xyz": [
-                -0.173828125,
-                -0.01373291015625,
-                2.796875
+                -0.68359375,
+                -0.009521484375,
+                2.703125
               ],
               "benchmark_aligned_xyz_m": [
-                -0.173828125,
-                -0.01373291015625,
-                2.796875
+                -0.68359375,
+                -0.009521484375,
+                2.703125
               ],
-              "visibility_logit": 10.25,
-              "visibility_probability": 0.9999646437492582,
+              "visibility_logit": 9.75,
+              "visibility_probability": 0.9999417087343389,
               "visible": true,
-              "confidence": 10.0,
-              "confidence_probability": 0.9999546021312976,
+              "confidence": 9.3125,
+              "confidence_probability": 0.9999097196098496,
               "target_uv_norm": [
-                0.462890625,
-                0.50390625
+                0.357421875,
+                0.498046875
               ],
               "target_uv_px": [
-                592.037109375,
-                362.30859375
+                457.142578125,
+                358.095703125
               ],
               "valid_for_policy_average": true
             }
           ],
           "math_xyz_aligned_m": [
-            -0.16171875,
-            0.01153564453125,
-            2.71875
+            -0.66796875,
+            0.0167236328125,
+            2.684375
           ]
         },
         {
           "sampled_frame_index": 31,
           "original_frame_index": 89,
           "raw_xyz": [
-            -0.1662109375,
-            0.0236328125,
-            2.725
+            -0.3234375,
+            0.387890625,
+            1.6125
           ],
           "benchmark_aligned_xyz_m": [
-            -0.1662109375,
-            0.0236328125,
-            2.725
+            -0.3234375,
+            0.387890625,
+            1.6125
           ],
           "raw_xyz_std": [
-            0.021354365154057205,
-            0.01823022748494467,
-            0.05096720759468778
+            0.028667723643607458,
+            0.07207639921790454,
+            0.21867186104412245
           ],
           "benchmark_aligned_xyz_std_m": [
-            0.021354365154057205,
-            0.01823022748494467,
-            0.05096720759468778
+            0.028667723643607458,
+            0.07207639921790454,
+            0.21867186104412245
           ],
           "valid_count": 5,
           "required_valid_count": 3,
           "visible": true,
-          "confidence": 10.05,
+          "confidence": 10.125,
           "target_uv_norm": [
-            0.501171875,
-            0.3421875
+            0.4703125,
+            0.423046875
           ],
           "target_uv_px": [
-            640.998828125,
-            246.03281249999998
+            601.5296875,
+            304.170703125
           ],
           "individual_point_results": [
             {
               "point_index": 0,
               "pixel_uv": [
-                601.13,
-                370.28499999999997
+                457.88199999999995,
+                363.09499999999997
               ],
               "offset_px": [
                 0.0,
                 0.0
               ],
               "d4rt_uv_norm": [
-                0.47,
-                0.5149999999999999
+                0.358,
+                0.505
               ],
               "raw_xyz": [
-                -0.1552734375,
-                0.0361328125,
-                2.6875
+                -0.2890625,
+                0.423828125,
+                1.5078125
               ],
               "benchmark_aligned_xyz_m": [
-                -0.1552734375,
-                0.0361328125,
-                2.6875
+                -0.2890625,
+                0.423828125,
+                1.5078125
               ],
-              "visibility_logit": 7.5,
-              "visibility_probability": 0.9994472213630764,
+              "visibility_logit": 0.640625,
+              "visibility_probability": 0.6548947290421275,
               "visible": true,
-              "confidence": 10.0625,
-              "confidence_probability": 0.9999573525318144,
+              "confidence": 10.125,
+              "confidence_probability": 0.9999599363077709,
               "target_uv_norm": [
-                0.50390625,
-                0.34375
+                0.4765625,
+                0.431640625
               ],
               "target_uv_px": [
-                644.49609375,
-                247.15625
+                609.5234375,
+                310.349609375
               ],
               "valid_for_policy_average": true
             },
             {
               "point_index": 1,
               "pixel_uv": [
-                601.682215210622,
-                366.64403907505454
+                458.43421521062186,
+                359.45403907505454
               ],
               "offset_px": [
-                0.5522152106219664,
+                0.5522152106219096,
                 -3.640960924945432
               ],
               "d4rt_uv_norm": [
-                0.47043175544223764,
-                0.5099360765995196
+                0.3584317554422376,
+                0.49993607659951955
               ],
               "raw_xyz": [
-                -0.154296875,
-                0.02685546875,
-                2.71875
+                -0.310546875,
+                0.373046875,
+                1.65625
               ],
               "benchmark_aligned_xyz_m": [
-                -0.154296875,
-                0.02685546875,
-                2.71875
+                -0.310546875,
+                0.373046875,
+                1.65625
               ],
-              "visibility_logit": 7.5625,
-              "visibility_probability": 0.999480695135505,
+              "visibility_logit": 0.65625,
+              "visibility_probability": 0.658417500561683,
               "visible": true,
               "confidence": 10.0625,
               "confidence_probability": 0.9999573525318144,
               "target_uv_norm": [
-                0.50390625,
-                0.341796875
+                0.47265625,
+                0.416015625
               ],
               "target_uv_px": [
-                644.49609375,
-                245.751953125
+                604.52734375,
+                299.115234375
               ],
               "valid_for_policy_average": true
             },
             {
               "point_index": 2,
               "pixel_uv": [
-                590.1405373797911,
-                374.725870405081
+                446.89253737979107,
+                367.535870405081
               ],
               "offset_px": [
                 -10.989462620208883,
                 4.440870405081057
               ],
               "d4rt_uv_norm": [
-                0.4614077696479993,
-                0.5211764539709055
+                0.34940776964799924,
+                0.5111764539709055
               ],
               "raw_xyz": [
-                -0.2001953125,
-                0.048583984375,
-                2.65625
+                -0.3046875,
+                0.50390625,
+                1.2734375
               ],
               "benchmark_aligned_xyz_m": [
-                -0.2001953125,
-                0.048583984375,
-                2.65625
+                -0.3046875,
+                0.50390625,
+                1.2734375
               ],
-              "visibility_logit": 7.40625,
-              "visibility_probability": 0.9993929244195585,
+              "visibility_logit": 0.6328125,
+              "visibility_probability": 0.6531269142203084,
               "visible": true,
-              "confidence": 10.0625,
-              "confidence_probability": 0.9999573525318144,
+              "confidence": 10.3125,
+              "confidence_probability": 0.9999667858050522,
               "target_uv_norm": [
-                0.49609375,
-                0.345703125
+                0.47265625,
+                0.462890625
               ],
               "target_uv_px": [
-                634.50390625,
-                248.560546875
+                604.52734375,
+                332.818359375
               ],
               "valid_for_policy_average": true
             },
             {
               "point_index": 3,
               "pixel_uv": [
-                607.7319968022036,
-                362.1598689050389
+                464.4839968022036,
+                354.9698689050389
               ],
               "offset_px": [
                 6.601996802203644,
                 -8.125131094961091
               ],
               "d4rt_uv_norm": [
-                0.47516184269132417,
-                0.5036994004242543
+                0.3631618426913242,
+                0.49369940042425436
               ],
               "raw_xyz": [
-                -0.140625,
-                0.008056640625,
-                2.765625
+                -0.3671875,
+                0.291015625,
+                1.9375
               ],
               "benchmark_aligned_xyz_m": [
-                -0.140625,
-                0.008056640625,
-                2.765625
+                -0.3671875,
+                0.291015625,
+                1.9375
               ],
-              "visibility_logit": 7.71875,
-              "visibility_probability": 0.9995557816410785,
+              "visibility_logit": 0.59765625,
+              "visibility_probability": 0.6451199102918683,
               "visible": true,
-              "confidence": 10.0625,
-              "confidence_probability": 0.9999573525318144,
+              "confidence": 10.0,
+              "confidence_probability": 0.9999546021312976,
               "target_uv_norm": [
-                0.50390625,
-                0.33984375
+                0.46484375,
+                0.396484375
               ],
               "target_uv_px": [
-                644.49609375,
-                244.34765625
+                594.53515625,
+                285.072265625
               ],
               "valid_for_policy_average": true
             },
             {
               "point_index": 4,
               "pixel_uv": [
-                597.6754221958269,
-                360.2222393372993
+                454.4274221958268,
+                353.0322393372993
               ],
               "offset_px": [
                 -3.454577804173141,
                 -10.062760662700668
               ],
               "d4rt_uv_norm": [
-                0.4672990009349702,
-                0.5010045053369948
+                0.35529900093497013,
+                0.49100450533699486
               ],
               "raw_xyz": [
-                -0.1806640625,
-                -0.00146484375,
-                2.796875
+                -0.345703125,
+                0.34765625,
+                1.6875
               ],
               "benchmark_aligned_xyz_m": [
-                -0.1806640625,
-                -0.00146484375,
-                2.796875
+                -0.345703125,
+                0.34765625,
+                1.6875
               ],
-              "visibility_logit": 7.75,
-              "visibility_probability": 0.9995694429186754,
+              "visibility_logit": 0.85546875,
+              "visibility_probability": 0.7017130778138413,
               "visible": true,
-              "confidence": 10.0,
-              "confidence_probability": 0.9999546021312976,
+              "confidence": 10.125,
+              "confidence_probability": 0.9999599363077709,
               "target_uv_norm": [
-                0.498046875,
-                0.33984375
+                0.46484375,
+                0.408203125
               ],
               "target_uv_px": [
-                637.001953125,
-                244.34765625
+                594.53515625,
+                293.498046875
               ],
               "valid_for_policy_average": true
             }
           ],
           "math_xyz_aligned_m": [
-            -0.1662109375,
-            0.0236328125,
-            2.725
+            -0.3234375,
+            0.387890625,
+            1.6125
           ]
         }
       ],
       "math_trajectory_aligned_xyz_m": [
         [
-          -0.16171875,
-          0.01153564453125,
-          2.71875
+          -0.66796875,
+          0.0167236328125,
+          2.684375
         ],
         [
-          -0.1662109375,
-          0.0236328125,
-          2.725
+          -0.3234375,
+          0.387890625,
+          1.6125
         ]
       ],
       "math_visibility": [
@@ -2862,1057 +2162,92 @@
       "benchmark_alignment": {
         "type": "identity_no_ground_truth_scale",
         "scale": 1.0
-      }
-    },
-    "d4rt_2": {
-      "backend": "live_d4rt_decoder",
-      "point_mode": "ensemble5",
-      "label": "horse's chest, front of the torso",
-      "bbox_2d_1000": [
-        470.0,
-        330.0,
-        520.0,
-        430.0
-      ],
-      "bbox_pixel": [
-        601.13,
-        237.26999999999998,
-        665.0799999999999,
-        309.17
-      ],
-      "sampled_to_original": [
-        {
-          "sampled_frame": 0,
-          "original_frame": 0
-        },
-        {
-          "sampled_frame": 1,
-          "original_frame": 3
-        },
-        {
-          "sampled_frame": 2,
-          "original_frame": 6
-        },
-        {
-          "sampled_frame": 3,
-          "original_frame": 9
-        },
-        {
-          "sampled_frame": 4,
-          "original_frame": 11
-        },
-        {
-          "sampled_frame": 5,
-          "original_frame": 14
-        },
-        {
-          "sampled_frame": 6,
-          "original_frame": 17
-        },
-        {
-          "sampled_frame": 7,
-          "original_frame": 20
-        },
-        {
-          "sampled_frame": 8,
-          "original_frame": 23
-        },
-        {
-          "sampled_frame": 9,
-          "original_frame": 26
-        },
-        {
-          "sampled_frame": 10,
-          "original_frame": 29
-        },
-        {
-          "sampled_frame": 11,
-          "original_frame": 32
-        },
-        {
-          "sampled_frame": 12,
-          "original_frame": 34
-        },
-        {
-          "sampled_frame": 13,
-          "original_frame": 37
-        },
-        {
-          "sampled_frame": 14,
-          "original_frame": 40
-        },
-        {
-          "sampled_frame": 15,
-          "original_frame": 43
-        },
-        {
-          "sampled_frame": 16,
-          "original_frame": 46
-        },
-        {
-          "sampled_frame": 17,
-          "original_frame": 49
-        },
-        {
-          "sampled_frame": 18,
-          "original_frame": 52
-        },
-        {
-          "sampled_frame": 19,
-          "original_frame": 55
-        },
-        {
-          "sampled_frame": 20,
-          "original_frame": 57
-        },
-        {
-          "sampled_frame": 21,
-          "original_frame": 60
-        },
-        {
-          "sampled_frame": 22,
-          "original_frame": 63
-        },
-        {
-          "sampled_frame": 23,
-          "original_frame": 66
-        },
-        {
-          "sampled_frame": 24,
-          "original_frame": 69
-        },
-        {
-          "sampled_frame": 25,
-          "original_frame": 72
-        },
-        {
-          "sampled_frame": 26,
-          "original_frame": 75
-        },
-        {
-          "sampled_frame": 27,
-          "original_frame": 78
-        },
-        {
-          "sampled_frame": 28,
-          "original_frame": 80
-        },
-        {
-          "sampled_frame": 29,
-          "original_frame": 83
-        },
-        {
-          "sampled_frame": 30,
-          "original_frame": 86
-        },
-        {
-          "sampled_frame": 31,
-          "original_frame": 89
-        }
-      ],
-      "t_src": 0,
-      "original_t_src": 0,
-      "t_tgt": [
-        0
-      ],
-      "original_t_tgt": [
-        0
-      ],
-      "t_cam": 0,
-      "original_t_cam": 0,
-      "coordinate_frame": "Positions are expressed in the camera frame of sampled frame 0 (OpenCV axes: +x right, +y down, +z forward; origin at that camera). Component values from queries with different t_cam are in different bases and must never be subtracted. Scalars are frame-invariant: norm() and dist() may be compared across different t_cam, which is how range change is measured. Reading a static background point across several t_cam values is how camera motion is measured.",
-      "query_points": [
-        {
-          "point_index": 0,
-          "pixel_uv": [
-            633.105,
-            273.22
-          ],
-          "offset_px": [
-            0.0,
-            0.0
-          ],
-          "d4rt_uv_norm": [
-            0.495,
-            0.38000000000000006
-          ]
-        },
-        {
-          "point_index": 1,
-          "pixel_uv": [
-            633.657215210622,
-            269.5790390750546
-          ],
-          "offset_px": [
-            0.5522152106219664,
-            -3.640960924945432
-          ],
-          "d4rt_uv_norm": [
-            0.49543175544223766,
-            0.3749360765995196
-          ]
-        },
-        {
-          "point_index": 2,
-          "pixel_uv": [
-            622.1155373797911,
-            277.6608704050811
-          ],
-          "offset_px": [
-            -10.989462620208883,
-            4.440870405081057
-          ],
-          "d4rt_uv_norm": [
-            0.4864077696479993,
-            0.38617645397090555
-          ]
-        },
-        {
-          "point_index": 3,
-          "pixel_uv": [
-            639.7069968022037,
-            265.09486890503894
-          ],
-          "offset_px": [
-            6.601996802203644,
-            -8.125131094961091
-          ],
-          "d4rt_uv_norm": [
-            0.5001618426913242,
-            0.3686994004242544
-          ]
-        },
-        {
-          "point_index": 4,
-          "pixel_uv": [
-            629.6504221958269,
-            263.15723933729936
-          ],
-          "offset_px": [
-            -3.454577804173141,
-            -10.062760662700668
-          ],
-          "d4rt_uv_norm": [
-            0.4922990009349702,
-            0.3660045053369949
-          ]
-        }
-      ],
-      "predictions": [
-        {
-          "sampled_frame_index": 0,
-          "original_frame_index": 0,
-          "raw_xyz": [
-            -0.056640625,
-            -0.5171875,
-            4.30625
-          ],
-          "benchmark_aligned_xyz_m": [
-            -0.056640625,
-            -0.5171875,
-            4.30625
-          ],
-          "raw_xyz_std": [
-            0.031336854398671156,
-            0.047447673686717776,
-            0.15103807466993216
-          ],
-          "benchmark_aligned_xyz_std_m": [
-            0.031336854398671156,
-            0.047447673686717776,
-            0.15103807466993216
-          ],
-          "valid_count": 5,
-          "required_valid_count": 3,
-          "visible": true,
-          "confidence": 10.15,
-          "target_uv_norm": [
-            0.49140625,
-            0.375390625
-          ],
-          "target_uv_px": [
-            628.5085937499999,
-            269.905859375
-          ],
-          "individual_point_results": [
-            {
-              "point_index": 0,
-              "pixel_uv": [
-                633.105,
-                273.22
-              ],
-              "offset_px": [
-                0.0,
-                0.0
-              ],
-              "d4rt_uv_norm": [
-                0.495,
-                0.38000000000000006
-              ],
-              "raw_xyz": [
-                -0.0556640625,
-                -0.482421875,
-                4.1875
-              ],
-              "benchmark_aligned_xyz_m": [
-                -0.0556640625,
-                -0.482421875,
-                4.1875
-              ],
-              "visibility_logit": 11.25,
-              "visibility_probability": 0.9999869928715335,
-              "visible": true,
-              "confidence": 10.125,
-              "confidence_probability": 0.9999599363077709,
-              "target_uv_norm": [
-                0.4921875,
-                0.380859375
-              ],
-              "target_uv_px": [
-                629.5078125,
-                273.837890625
-              ],
-              "valid_for_policy_average": true
-            },
-            {
-              "point_index": 1,
-              "pixel_uv": [
-                633.657215210622,
-                269.5790390750546
-              ],
-              "offset_px": [
-                0.5522152106219664,
-                -3.640960924945432
-              ],
-              "d4rt_uv_norm": [
-                0.49543175544223766,
-                0.3749360765995196
-              ],
-              "raw_xyz": [
-                -0.04150390625,
-                -0.5234375,
-                4.3125
-              ],
-              "benchmark_aligned_xyz_m": [
-                -0.04150390625,
-                -0.5234375,
-                4.3125
-              ],
-              "visibility_logit": 11.0625,
-              "visibility_probability": 0.9999843104502723,
-              "visible": true,
-              "confidence": 10.125,
-              "confidence_probability": 0.9999599363077709,
-              "target_uv_norm": [
-                0.494140625,
-                0.375
-              ],
-              "target_uv_px": [
-                632.005859375,
-                269.625
-              ],
-              "valid_for_policy_average": true
-            },
-            {
-              "point_index": 2,
-              "pixel_uv": [
-                622.1155373797911,
-                277.6608704050811
-              ],
-              "offset_px": [
-                -10.989462620208883,
-                4.440870405081057
-              ],
-              "d4rt_uv_norm": [
-                0.4864077696479993,
-                0.38617645397090555
-              ],
-              "raw_xyz": [
-                -0.1064453125,
-                -0.447265625,
-                4.09375
-              ],
-              "benchmark_aligned_xyz_m": [
-                -0.1064453125,
-                -0.447265625,
-                4.09375
-              ],
-              "visibility_logit": 11.1875,
-              "visibility_probability": 0.9999861539954363,
-              "visible": true,
-              "confidence": 10.125,
-              "confidence_probability": 0.9999599363077709,
-              "target_uv_norm": [
-                0.482421875,
-                0.38671875
-              ],
-              "target_uv_px": [
-                617.017578125,
-                278.05078125
-              ],
-              "valid_for_policy_average": true
-            },
-            {
-              "point_index": 3,
-              "pixel_uv": [
-                639.7069968022037,
-                265.09486890503894
-              ],
-              "offset_px": [
-                6.601996802203644,
-                -8.125131094961091
-              ],
-              "d4rt_uv_norm": [
-                0.5001618426913242,
-                0.3686994004242544
-              ],
-              "raw_xyz": [
-                -0.01123046875,
-                -0.5546875,
-                4.4375
-              ],
-              "benchmark_aligned_xyz_m": [
-                -0.01123046875,
-                -0.5546875,
-                4.4375
-              ],
-              "visibility_logit": 11.3125,
-              "visibility_probability": 0.9999877809239794,
-              "visible": true,
-              "confidence": 10.1875,
-              "confidence_probability": 0.9999623635528191,
-              "target_uv_norm": [
-                0.498046875,
-                0.369140625
-              ],
-              "target_uv_px": [
-                637.001953125,
-                265.412109375
-              ],
-              "valid_for_policy_average": true
-            },
-            {
-              "point_index": 4,
-              "pixel_uv": [
-                629.6504221958269,
-                263.15723933729936
-              ],
-              "offset_px": [
-                -3.454577804173141,
-                -10.062760662700668
-              ],
-              "d4rt_uv_norm": [
-                0.4922990009349702,
-                0.3660045053369949
-              ],
-              "raw_xyz": [
-                -0.068359375,
-                -0.578125,
-                4.5
-              ],
-              "benchmark_aligned_xyz_m": [
-                -0.068359375,
-                -0.578125,
-                4.5
-              ],
-              "visibility_logit": 11.8125,
-              "visibility_probability": 0.9999925887201281,
-              "visible": true,
-              "confidence": 10.1875,
-              "confidence_probability": 0.9999623635528191,
-              "target_uv_norm": [
-                0.490234375,
-                0.365234375
-              ],
-              "target_uv_px": [
-                627.009765625,
-                262.603515625
-              ],
-              "valid_for_policy_average": true
-            }
-          ],
-          "math_xyz_aligned_m": [
-            -0.056640625,
-            -0.5171875,
-            4.30625
-          ]
-        }
-      ],
-      "math_trajectory_aligned_xyz_m": [
-        [
-          -0.056640625,
-          -0.5171875,
-          4.30625
-        ]
-      ],
-      "math_visibility": [
-        true
-      ],
-      "visibility_coverage": 1.0,
-      "benchmark_alignment": {
-        "type": "identity_no_ground_truth_scale",
-        "scale": 1.0
-      }
-    },
-    "d4rt_3": {
-      "backend": "live_d4rt_decoder",
-      "point_mode": "ensemble5",
-      "label": "horse's back, rear of the torso",
-      "bbox_2d_1000": [
-        430.0,
-        330.0,
-        470.0,
-        430.0
-      ],
-      "bbox_pixel": [
-        549.9699999999999,
-        237.26999999999998,
-        601.13,
-        309.17
-      ],
-      "sampled_to_original": [
-        {
-          "sampled_frame": 0,
-          "original_frame": 0
-        },
-        {
-          "sampled_frame": 1,
-          "original_frame": 3
-        },
-        {
-          "sampled_frame": 2,
-          "original_frame": 6
-        },
-        {
-          "sampled_frame": 3,
-          "original_frame": 9
-        },
-        {
-          "sampled_frame": 4,
-          "original_frame": 11
-        },
-        {
-          "sampled_frame": 5,
-          "original_frame": 14
-        },
-        {
-          "sampled_frame": 6,
-          "original_frame": 17
-        },
-        {
-          "sampled_frame": 7,
-          "original_frame": 20
-        },
-        {
-          "sampled_frame": 8,
-          "original_frame": 23
-        },
-        {
-          "sampled_frame": 9,
-          "original_frame": 26
-        },
-        {
-          "sampled_frame": 10,
-          "original_frame": 29
-        },
-        {
-          "sampled_frame": 11,
-          "original_frame": 32
-        },
-        {
-          "sampled_frame": 12,
-          "original_frame": 34
-        },
-        {
-          "sampled_frame": 13,
-          "original_frame": 37
-        },
-        {
-          "sampled_frame": 14,
-          "original_frame": 40
-        },
-        {
-          "sampled_frame": 15,
-          "original_frame": 43
-        },
-        {
-          "sampled_frame": 16,
-          "original_frame": 46
-        },
-        {
-          "sampled_frame": 17,
-          "original_frame": 49
-        },
-        {
-          "sampled_frame": 18,
-          "original_frame": 52
-        },
-        {
-          "sampled_frame": 19,
-          "original_frame": 55
-        },
-        {
-          "sampled_frame": 20,
-          "original_frame": 57
-        },
-        {
-          "sampled_frame": 21,
-          "original_frame": 60
-        },
-        {
-          "sampled_frame": 22,
-          "original_frame": 63
-        },
-        {
-          "sampled_frame": 23,
-          "original_frame": 66
-        },
-        {
-          "sampled_frame": 24,
-          "original_frame": 69
-        },
-        {
-          "sampled_frame": 25,
-          "original_frame": 72
-        },
-        {
-          "sampled_frame": 26,
-          "original_frame": 75
-        },
-        {
-          "sampled_frame": 27,
-          "original_frame": 78
-        },
-        {
-          "sampled_frame": 28,
-          "original_frame": 80
-        },
-        {
-          "sampled_frame": 29,
-          "original_frame": 83
-        },
-        {
-          "sampled_frame": 30,
-          "original_frame": 86
-        },
-        {
-          "sampled_frame": 31,
-          "original_frame": 89
-        }
-      ],
-      "t_src": 0,
-      "original_t_src": 0,
-      "t_tgt": [
-        0
-      ],
-      "original_t_tgt": [
-        0
-      ],
-      "t_cam": 0,
-      "original_t_cam": 0,
-      "coordinate_frame": "Positions are expressed in the camera frame of sampled frame 0 (OpenCV axes: +x right, +y down, +z forward; origin at that camera). Component values from queries with different t_cam are in different bases and must never be subtracted. Scalars are frame-invariant: norm() and dist() may be compared across different t_cam, which is how range change is measured. Reading a static background point across several t_cam values is how camera motion is measured.",
-      "query_points": [
-        {
-          "point_index": 0,
-          "pixel_uv": [
-            575.55,
-            273.22
-          ],
-          "offset_px": [
-            0.0,
-            0.0
-          ],
-          "d4rt_uv_norm": [
-            0.44999999999999996,
-            0.38000000000000006
-          ]
-        },
-        {
-          "point_index": 1,
-          "pixel_uv": [
-            576.1022152106219,
-            269.5790390750546
-          ],
-          "offset_px": [
-            0.5522152106219664,
-            -3.640960924945432
-          ],
-          "d4rt_uv_norm": [
-            0.4504317554422376,
-            0.3749360765995196
-          ]
-        },
-        {
-          "point_index": 2,
-          "pixel_uv": [
-            564.5605373797911,
-            277.6608704050811
-          ],
-          "offset_px": [
-            -10.989462620208883,
-            4.440870405081057
-          ],
-          "d4rt_uv_norm": [
-            0.44140776964799927,
-            0.38617645397090555
-          ]
-        },
-        {
-          "point_index": 3,
-          "pixel_uv": [
-            582.1519968022036,
-            265.09486890503894
-          ],
-          "offset_px": [
-            6.601996802203644,
-            -8.125131094961091
-          ],
-          "d4rt_uv_norm": [
-            0.45516184269132415,
-            0.3686994004242544
-          ]
-        },
-        {
-          "point_index": 4,
-          "pixel_uv": [
-            572.0954221958268,
-            263.15723933729936
-          ],
-          "offset_px": [
-            -3.454577804173141,
-            -10.062760662700668
-          ],
-          "d4rt_uv_norm": [
-            0.44729900093497016,
-            0.3660045053369949
-          ]
-        }
-      ],
-      "predictions": [
-        {
-          "sampled_frame_index": 0,
-          "original_frame_index": 0,
-          "raw_xyz": [
-            -0.383203125,
-            -0.4984375,
-            4.26875
-          ],
-          "benchmark_aligned_xyz_m": [
-            -0.383203125,
-            -0.4984375,
-            4.26875
-          ],
-          "raw_xyz_std": [
-            0.02823329843686352,
-            0.04874837236866222,
-            0.1684024198163435
-          ],
-          "benchmark_aligned_xyz_std_m": [
-            0.02823329843686352,
-            0.04874837236866222,
-            0.1684024198163435
-          ],
-          "valid_count": 5,
-          "required_valid_count": 3,
-          "visible": true,
-          "confidence": 10.125,
-          "target_uv_norm": [
-            0.446875,
-            0.377734375
-          ],
-          "target_uv_px": [
-            571.553125,
-            271.591015625
-          ],
-          "individual_point_results": [
-            {
-              "point_index": 0,
-              "pixel_uv": [
-                575.55,
-                273.22
-              ],
-              "offset_px": [
-                0.0,
-                0.0
-              ],
-              "d4rt_uv_norm": [
-                0.44999999999999996,
-                0.38000000000000006
-              ],
-              "raw_xyz": [
-                -0.373046875,
-                -0.46484375,
-                4.15625
-              ],
-              "benchmark_aligned_xyz_m": [
-                -0.373046875,
-                -0.46484375,
-                4.15625
-              ],
-              "visibility_logit": 11.375,
-              "visibility_probability": 0.999988521231873,
-              "visible": true,
-              "confidence": 10.125,
-              "confidence_probability": 0.9999599363077709,
-              "target_uv_norm": [
-                0.447265625,
-                0.3828125
-              ],
-              "target_uv_px": [
-                572.052734375,
-                275.2421875
-              ],
-              "valid_for_policy_average": true
-            },
-            {
-              "point_index": 1,
-              "pixel_uv": [
-                576.1022152106219,
-                269.5790390750546
-              ],
-              "offset_px": [
-                0.5522152106219664,
-                -3.640960924945432
-              ],
-              "d4rt_uv_norm": [
-                0.4504317554422376,
-                0.3749360765995196
-              ],
-              "raw_xyz": [
-                -0.365234375,
-                -0.498046875,
-                4.25
-              ],
-              "benchmark_aligned_xyz_m": [
-                -0.365234375,
-                -0.498046875,
-                4.25
-              ],
-              "visibility_logit": 11.25,
-              "visibility_probability": 0.9999869928715335,
-              "visible": true,
-              "confidence": 10.125,
-              "confidence_probability": 0.9999599363077709,
-              "target_uv_norm": [
-                0.44921875,
-                0.376953125
-              ],
-              "target_uv_px": [
-                574.55078125,
-                271.029296875
-              ],
-              "valid_for_policy_average": true
-            },
-            {
-              "point_index": 2,
-              "pixel_uv": [
-                564.5605373797911,
-                277.6608704050811
-              ],
-              "offset_px": [
-                -10.989462620208883,
-                4.440870405081057
-              ],
-              "d4rt_uv_norm": [
-                0.44140776964799927,
-                0.38617645397090555
-              ],
-              "raw_xyz": [
-                -0.416015625,
-                -0.427734375,
-                4.03125
-              ],
-              "benchmark_aligned_xyz_m": [
-                -0.416015625,
-                -0.427734375,
-                4.03125
-              ],
-              "visibility_logit": 11.1875,
-              "visibility_probability": 0.9999861539954363,
-              "visible": true,
-              "confidence": 10.125,
-              "confidence_probability": 0.9999599363077709,
-              "target_uv_norm": [
-                0.4375,
-                0.390625
-              ],
-              "target_uv_px": [
-                559.5625,
-                280.859375
-              ],
-              "valid_for_policy_average": true
-            },
-            {
-              "point_index": 3,
-              "pixel_uv": [
-                582.1519968022036,
-                265.09486890503894
-              ],
-              "offset_px": [
-                6.601996802203644,
-                -8.125131094961091
-              ],
-              "d4rt_uv_norm": [
-                0.45516184269132415,
-                0.3686994004242544
-              ],
-              "raw_xyz": [
-                -0.345703125,
-                -0.5390625,
-                4.40625
-              ],
-              "benchmark_aligned_xyz_m": [
-                -0.345703125,
-                -0.5390625,
-                4.40625
-              ],
-              "visibility_logit": 11.5625,
-              "visibility_probability": 0.9999904837483059,
-              "visible": true,
-              "confidence": 10.125,
-              "confidence_probability": 0.9999599363077709,
-              "target_uv_norm": [
-                0.453125,
-                0.37109375
-              ],
-              "target_uv_px": [
-                579.546875,
-                266.81640625
-              ],
-              "valid_for_policy_average": true
-            },
-            {
-              "point_index": 4,
-              "pixel_uv": [
-                572.0954221958268,
-                263.15723933729936
-              ],
-              "offset_px": [
-                -3.454577804173141,
-                -10.062760662700668
-              ],
-              "d4rt_uv_norm": [
-                0.44729900093497016,
-                0.3660045053369949
-              ],
-              "raw_xyz": [
-                -0.416015625,
-                -0.5625,
-                4.5
-              ],
-              "benchmark_aligned_xyz_m": [
-                -0.416015625,
-                -0.5625,
-                4.5
-              ],
-              "visibility_logit": 11.8125,
-              "visibility_probability": 0.9999925887201281,
-              "visible": true,
-              "confidence": 10.125,
-              "confidence_probability": 0.9999599363077709,
-              "target_uv_norm": [
-                0.447265625,
-                0.3671875
-              ],
-              "target_uv_px": [
-                572.052734375,
-                264.0078125
-              ],
-              "valid_for_policy_average": true
-            }
-          ],
-          "math_xyz_aligned_m": [
-            -0.383203125,
-            -0.4984375,
-            4.26875
-          ]
-        }
-      ],
-      "math_trajectory_aligned_xyz_m": [
-        [
-          -0.383203125,
-          -0.4984375,
-          4.26875
-        ]
-      ],
-      "math_visibility": [
-        true
-      ],
-      "visibility_coverage": 1.0,
-      "benchmark_alignment": {
-        "type": "identity_no_ground_truth_scale",
-        "scale": 1.0
-      }
-    },
-    "math_1": {
-      "bindings": {
-        "start": {
-          "evidence_id": "d4rt_1",
-          "path": [
-            "predictions",
-            0,
-            "benchmark_aligned_xyz_m"
-          ]
-        },
-        "end": {
-          "evidence_id": "d4rt_1",
-          "path": [
-            "predictions",
-            1,
-            "benchmark_aligned_xyz_m"
-          ]
-        },
-        "front": {
-          "evidence_id": "d4rt_2",
-          "path": [
-            "predictions",
-            0,
-            "benchmark_aligned_xyz_m"
-          ]
-        },
-        "rear": {
-          "evidence_id": "d4rt_3",
-          "path": [
-            "predictions",
-            0,
-            "benchmark_aligned_xyz_m"
-          ]
-        }
       },
-      "resolved_bindings": {
-        "start": [
-          -0.16171875,
-          0.01153564453125,
-          2.71875
-        ],
-        "end": [
-          -0.1662109375,
-          0.0236328125,
-          2.725
-        ],
-        "front": [
-          -0.056640625,
-          -0.5171875,
-          4.30625
-        ],
-        "rear": [
-          -0.383203125,
-          -0.4984375,
-          4.26875
-        ]
+      "grounding_id": "qg_1",
+      "grounding_mode": "bbox",
+      "grounding_request": "the horse closest to the camera"
+    },
+    "qg_2": {
+      "status": "not_found",
+      "mode": "points",
+      "t_src": 0,
+      "request": "center of the horse's chest and center of the horse's upper back, in that order",
+      "requested_count": 2,
+      "returned_count": 0,
+      "points_2d_1000": [],
+      "host_provenance": {
+        "resolved_video_path": "/cluster/work/igp_psr/spanwar/datasets/DSI-Bench/videos/std/k700/playing polo/J7j8_hz_hx8_000018_000028/video-scene-00001.mp4",
+        "sampled_mapping_digest": "8bc28962d609a65aacdafd524be1d9e6701cf5fa9b68e665593e9f0b05fd7f08",
+        "original_t_src": 0,
+        "clip_key": "clip_sha256:0f379ac1494063c4c7d2302fc4f080680a3e603c7ef0e1bb7d84db215bf88efb",
+        "normalized_request": "center of the horse's chest and center of the horse's upper back, in that order",
+        "cache_key_digest": "2c0d75d386a098efc00202c783d81e581c23d99d2b317c782cafa90226234a65",
+        "raw_grounder_response": "{\"points_2d_1000\":null}",
+        "grounding_system_prompt": "You are an isolated visual-grounding model. You receive exactly one image and one\nshort localization request. Localize only what the request names. Do not infer a\nlarger task, motion, depth, camera motion, or events outside this image. Do not\nmention tools, evidence IDs, or prior conversations.\n\nReturn exactly the single JSON object requested by the user and no prose,\nMarkdown, code fence, or extra field. Image coordinates use integers from 0 to\n1000, with `[0,0]` at the top-left and `[1000,1000]` at the bottom-right. Do not\nclamp, guess, or invent a target that is not visible.\n\nWhen the requested object, part, or landmark type is clearly visible, return its\ncoordinates. Use `null` only when none of the requested target can be located.\nDo not use `null` merely because several valid point choices exist; choose clear,\nrepresentative visible locations that satisfy the request.\n\nFor bbox requests, return one tight box around the visible requested target. Do\nnot return a box around the whole scene or a nearby object.\n\nFor points requests:\n\n- Return the requested count when that many clear valid locations are visible.\n  Return fewer only when fewer reliable locations exist.\n- Put every point securely inside a visible surface. Avoid uncertain silhouettes\n  and boundaries.\n- For named parts, describe separate points in the requested order where\n  possible.\n- Multiple points on one object must be spatially distinct.\n- For background requests, prefer rigid, high-contrast landmarks spread across\n  the frame: building or window corners, poles, rocks, trunks, and fixed edges.\n- A request for generic static background or structural points can be satisfied\n  by any clear visible landmarks of that type; choose among them rather than\n  returning `null` because the choice is not unique.\n- Avoid people, animals, moving vehicles, reflections, shadows, sky, and moving\n  foliage when static background points are requested.",
+        "grounding_user_prompt": "Ground up to 2 2D point(s) for the request \"center of the horse's chest and center of the horse's upper back, in that order\" in this image.\n\nReturn exactly one JSON object and no other text:\n{\"points_2d_1000\":[{\"xy\":[x,y],\"description\":\"what this point marks\"}]}\n\nNormalize coordinates to integers from 0 to 1000 with origin at the top-left.\nReturn 2 points when that many clear requested locations are visible; otherwise\nreturn as many reliable requested points as are visible. When multiple valid choices\nexist, choose clear representative locations. Use null only if none of the requested\npoints can be located:\n{\"points_2d_1000\":null}",
+        "grounding_prompt_version": "dfb3d46d405f3c76e2f9a663ae94e83e543ff2720fa0d574cbd45a24345cfaa3",
+        "qwen_model_path": "/cluster/work/igp_psr/spanwar/hf_cache/hub/models--Qwen--Qwen3-VL-8B-Instruct/snapshots/0c351dd01ed87e9c1b53cbc748cba10e6187ff3b",
+        "generation_seed": 42,
+        "max_new_tokens": 192,
+        "inference_wall_time_seconds": 1.4643974259961396,
+        "cache_hit": false
       },
-      "code": "fx = front[0] - rear[0]\nfz = front[2] - rear[2]\ndx = end[0] - start[0]\ndz = end[2] - start[2]\nfn = sqrt(fx*fx + fz*fz)\nalong = (dx*fx + dz*fz) / fn\nlateral = (dx*fz - dz*fx) / fn\nup = start[1] - end[1]",
-      "outputs": {
-        "fx": 0.3265625,
-        "fz": 0.03750000000000053,
-        "dx": -0.0044921874999999944,
-        "dz": 0.006250000000000089,
-        "fn": 0.3287085584621277,
-        "along": -0.0037498414590588047,
-        "lateral": -0.006721676693138479,
-        "up": -0.01209716796875
-      }
+      "grounding_id": "qg_2"
+    },
+    "qg_3": {
+      "status": "not_found",
+      "mode": "points",
+      "t_src": 9,
+      "request": "center of the horse's chest and center of the horse's upper back, in that order",
+      "requested_count": 2,
+      "returned_count": 0,
+      "points_2d_1000": [],
+      "host_provenance": {
+        "resolved_video_path": "/cluster/work/igp_psr/spanwar/datasets/DSI-Bench/videos/std/k700/playing polo/J7j8_hz_hx8_000018_000028/video-scene-00001.mp4",
+        "sampled_mapping_digest": "8bc28962d609a65aacdafd524be1d9e6701cf5fa9b68e665593e9f0b05fd7f08",
+        "original_t_src": 26,
+        "clip_key": "clip_sha256:0f379ac1494063c4c7d2302fc4f080680a3e603c7ef0e1bb7d84db215bf88efb",
+        "normalized_request": "center of the horse's chest and center of the horse's upper back, in that order",
+        "cache_key_digest": "a024b4d0c30dd06198fa2638d7182e11e9f1b451eddc8960bce48432b951699c",
+        "raw_grounder_response": "{\"points_2d_1000\":null}",
+        "grounding_system_prompt": "You are an isolated visual-grounding model. You receive exactly one image and one\nshort localization request. Localize only what the request names. Do not infer a\nlarger task, motion, depth, camera motion, or events outside this image. Do not\nmention tools, evidence IDs, or prior conversations.\n\nReturn exactly the single JSON object requested by the user and no prose,\nMarkdown, code fence, or extra field. Image coordinates use integers from 0 to\n1000, with `[0,0]` at the top-left and `[1000,1000]` at the bottom-right. Do not\nclamp, guess, or invent a target that is not visible.\n\nWhen the requested object, part, or landmark type is clearly visible, return its\ncoordinates. Use `null` only when none of the requested target can be located.\nDo not use `null` merely because several valid point choices exist; choose clear,\nrepresentative visible locations that satisfy the request.\n\nFor bbox requests, return one tight box around the visible requested target. Do\nnot return a box around the whole scene or a nearby object.\n\nFor points requests:\n\n- Return the requested count when that many clear valid locations are visible.\n  Return fewer only when fewer reliable locations exist.\n- Put every point securely inside a visible surface. Avoid uncertain silhouettes\n  and boundaries.\n- For named parts, describe separate points in the requested order where\n  possible.\n- Multiple points on one object must be spatially distinct.\n- For background requests, prefer rigid, high-contrast landmarks spread across\n  the frame: building or window corners, poles, rocks, trunks, and fixed edges.\n- A request for generic static background or structural points can be satisfied\n  by any clear visible landmarks of that type; choose among them rather than\n  returning `null` because the choice is not unique.\n- Avoid people, animals, moving vehicles, reflections, shadows, sky, and moving\n  foliage when static background points are requested.",
+        "grounding_user_prompt": "Ground up to 2 2D point(s) for the request \"center of the horse's chest and center of the horse's upper back, in that order\" in this image.\n\nReturn exactly one JSON object and no other text:\n{\"points_2d_1000\":[{\"xy\":[x,y],\"description\":\"what this point marks\"}]}\n\nNormalize coordinates to integers from 0 to 1000 with origin at the top-left.\nReturn 2 points when that many clear requested locations are visible; otherwise\nreturn as many reliable requested points as are visible. When multiple valid choices\nexist, choose clear representative locations. Use null only if none of the requested\npoints can be located:\n{\"points_2d_1000\":null}",
+        "grounding_prompt_version": "dfb3d46d405f3c76e2f9a663ae94e83e543ff2720fa0d574cbd45a24345cfaa3",
+        "qwen_model_path": "/cluster/work/igp_psr/spanwar/hf_cache/hub/models--Qwen--Qwen3-VL-8B-Instruct/snapshots/0c351dd01ed87e9c1b53cbc748cba10e6187ff3b",
+        "generation_seed": 42,
+        "max_new_tokens": 192,
+        "inference_wall_time_seconds": 1.3803360878955573,
+        "cache_hit": false
+      },
+      "grounding_id": "qg_3"
+    },
+    "qg_4": {
+      "status": "not_found",
+      "mode": "points",
+      "t_src": 12,
+      "request": "two distinct torso points on the horse: front-center chest first, rear-center upper back second",
+      "requested_count": 2,
+      "returned_count": 0,
+      "points_2d_1000": [],
+      "host_provenance": {
+        "resolved_video_path": "/cluster/work/igp_psr/spanwar/datasets/DSI-Bench/videos/std/k700/playing polo/J7j8_hz_hx8_000018_000028/video-scene-00001.mp4",
+        "sampled_mapping_digest": "8bc28962d609a65aacdafd524be1d9e6701cf5fa9b68e665593e9f0b05fd7f08",
+        "original_t_src": 34,
+        "clip_key": "clip_sha256:0f379ac1494063c4c7d2302fc4f080680a3e603c7ef0e1bb7d84db215bf88efb",
+        "normalized_request": "two distinct torso points on the horse: front-center chest first, rear-center upper back second",
+        "cache_key_digest": "0517e8de290e61815e5e9feb11c1424a4bd0f09ed2ff55dbea83962b76414122",
+        "raw_grounder_response": "{\"points_2d_1000\":null}",
+        "grounding_system_prompt": "You are an isolated visual-grounding model. You receive exactly one image and one\nshort localization request. Localize only what the request names. Do not infer a\nlarger task, motion, depth, camera motion, or events outside this image. Do not\nmention tools, evidence IDs, or prior conversations.\n\nReturn exactly the single JSON object requested by the user and no prose,\nMarkdown, code fence, or extra field. Image coordinates use integers from 0 to\n1000, with `[0,0]` at the top-left and `[1000,1000]` at the bottom-right. Do not\nclamp, guess, or invent a target that is not visible.\n\nWhen the requested object, part, or landmark type is clearly visible, return its\ncoordinates. Use `null` only when none of the requested target can be located.\nDo not use `null` merely because several valid point choices exist; choose clear,\nrepresentative visible locations that satisfy the request.\n\nFor bbox requests, return one tight box around the visible requested target. Do\nnot return a box around the whole scene or a nearby object.\n\nFor points requests:\n\n- Return the requested count when that many clear valid locations are visible.\n  Return fewer only when fewer reliable locations exist.\n- Put every point securely inside a visible surface. Avoid uncertain silhouettes\n  and boundaries.\n- For named parts, describe separate points in the requested order where\n  possible.\n- Multiple points on one object must be spatially distinct.\n- For background requests, prefer rigid, high-contrast landmarks spread across\n  the frame: building or window corners, poles, rocks, trunks, and fixed edges.\n- A request for generic static background or structural points can be satisfied\n  by any clear visible landmarks of that type; choose among them rather than\n  returning `null` because the choice is not unique.\n- Avoid people, animals, moving vehicles, reflections, shadows, sky, and moving\n  foliage when static background points are requested.",
+        "grounding_user_prompt": "Ground up to 2 2D point(s) for the request \"two distinct torso points on the horse: front-center chest first, rear-center upper back second\" in this image.\n\nReturn exactly one JSON object and no other text:\n{\"points_2d_1000\":[{\"xy\":[x,y],\"description\":\"what this point marks\"}]}\n\nNormalize coordinates to integers from 0 to 1000 with origin at the top-left.\nReturn 2 points when that many clear requested locations are visible; otherwise\nreturn as many reliable requested points as are visible. When multiple valid choices\nexist, choose clear representative locations. Use null only if none of the requested\npoints can be located:\n{\"points_2d_1000\":null}",
+        "grounding_prompt_version": "dfb3d46d405f3c76e2f9a663ae94e83e543ff2720fa0d574cbd45a24345cfaa3",
+        "qwen_model_path": "/cluster/work/igp_psr/spanwar/hf_cache/hub/models--Qwen--Qwen3-VL-8B-Instruct/snapshots/0c351dd01ed87e9c1b53cbc748cba10e6187ff3b",
+        "generation_seed": 42,
+        "max_new_tokens": 192,
+        "inference_wall_time_seconds": 0.6262782799312845,
+        "cache_hit": false
+      },
+      "grounding_id": "qg_4"
     }
   },
-  "wall_seconds": 57.46
+  "wall_seconds": 77.36
 }

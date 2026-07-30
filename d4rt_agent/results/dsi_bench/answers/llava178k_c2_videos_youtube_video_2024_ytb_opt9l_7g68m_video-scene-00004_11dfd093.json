@@ -1,6 +1,6 @@
 {
   "phase": "dsi_bench_agent",
-  "created_at": "2026-07-22T01:10:25.806175+00:00",
+  "created_at": "2026-07-30T12:20:49.552146+00:00",
   "question_id": "llava178k_c2_videos_youtube_video_2024_ytb_opt9l_7g68m_video-scene-00004_11dfd093",
   "dataset": "llava178k",
   "cate": 2,
@@ -25,6 +25,54 @@
   "benchmark_alignment": {
     "type": "identity_no_ground_truth_scale",
     "scale": 1.0
+  },
+  "run_metadata": {
+    "run_id": "2026-07-30T11:27:48.703960+00:00_56d455caa1a7",
+    "code_sha": "56d455caa1a7868aa99aec237cbd541b40157f7d",
+    "manifest_path": "/cluster/scratch/spanwar/tmp/d4rt_agent/phase_2_grounding_tool_staging/run_20260730T110459Z_56d455caa1a7_a100_80gb/manifest.json",
+    "manifest_sha256": "4edae52a6a932579c5dc7dbf625e70ba26f9589334cd878ea517c8cfb4e7359c",
+    "qwen_model_path": "/cluster/work/igp_psr/spanwar/hf_cache/hub/models--Qwen--Qwen3-VL-8B-Instruct/snapshots/0c351dd01ed87e9c1b53cbc748cba10e6187ff3b",
+    "d4rt": {
+      "backend": "live_d4rt_decoder",
+      "point_mode": "ensemble5",
+      "model_config": "checkpoints/OpenD4RT_32CLIP_9Dataset_NoAUG/model.yaml",
+      "checkpoint": "checkpoints/OpenD4RT_32CLIP_9Dataset_NoAUG/opend4rt.ckpt",
+      "device": "cuda",
+      "dtype": "bfloat16",
+      "model_image_hw": [
+        256,
+        256
+      ],
+      "encoded_frames": 32,
+      "encoding_count": 1,
+      "benchmark_alignment": {
+        "type": "identity_no_ground_truth_scale",
+        "scale": 1.0
+      },
+      "checkpoint_load": {
+        "missing_keys": [],
+        "unexpected_keys": []
+      }
+    },
+    "hardware": {
+      "name": "NVIDIA A100 80GB PCIe",
+      "total_gib": 79.25,
+      "allocated_gib": 18.551,
+      "max_allocated_gib": 18.551
+    },
+    "slurm_job_id": "9086647",
+    "slurm_node": "eu-a65-07",
+    "seed": 42,
+    "main_max_new_tokens": 768,
+    "grounder_bbox_max_new_tokens": 96,
+    "grounder_points_max_new_tokens": 192,
+    "max_steps": 14,
+    "point_mode": "ensemble5",
+    "prompt_sha256": {
+      "orchestration": "adda7bfdaa699ddf4df2888e2e5d44b9c2025fc3dac2fe54ee369555bf2961e7",
+      "agent": "98ec9642c064fc4b1c88c4d03f97124d5ef8b66a560121fdfa4ad166128e1156",
+      "grounder": "e806eea51e56300dae098706fe7f2951bd6a11e341c35895f20560752054fc01"
+    }
   },
   "sampling": {
     "contract": "round(linspace(0, N - 1, 32))",
@@ -170,56 +218,148 @@
   "d4rt_used": true,
   "final_answer": {
     "kind": "text",
-    "text": "C: Moving forward. The camera moved backward by 0.15 units and left by 1.85 units (math_1), which is primarily leftward motion, but since 'Moving forward' is the closest option among the given choices, I choose it. However, the motion is actually backward, not forward.",
+    "text": "D: Moving forward-right. The camera moved forward by -0.34375 and right by -1.34505 (math_1).",
     "evidence_ids": [
+      "qg_1",
       "d4rt_1",
       "d4rt_2",
       "math_1"
     ],
-    "limitations": "The camera's motion is primarily leftward and slightly backward, which does not match any of the options directly. 'Moving forward' is the closest option, but the motion is actually backward. The measurement does not support orbiting, so A and B are incorrect."
+    "limitations": "Egomotion inferred from rigid background points; translation cannot be perfectly separated from camera rotation."
   },
-  "steps": 4,
+  "steps": 5,
   "trace": [
     {
       "step": 1,
       "kind": "model_action",
-      "raw_qwen_response": "To determine how the observer (camera) is moving relative to its starting orientation and location, I need to measure the camera's egomotion. This is done by tracking a static background point (like a corner of the castle or a fixed structure) in multiple frames and observing its apparent motion. The inverse of that motion tells us how the camera moved.\n\nI will:\n1. Ground a static point (e.g., a corner of the castle) in frame 0.\n2. Query the position of that point in frame 0's camera basis (t_cam=0).\n3. Query the position of that same point in frame 31's camera basis (t_cam=31).\n4. Invert the displacement to get the camera's motion.\n\nThe camera's motion will be inferred from the change in the position of the static point. If the point appears to move backward in the camera's view, the camera moved forward. If it moves left, the camera moved right, and so on.\n\nI will start by querying the static point in frame 0's camera basis.\n\n{\"action\":\"query_d4rt\",\"arguments\":{\"label\":\"corner of the castle\",\"bbox_2d_1000\":[120,180,190,300],\"t_src\":0,\"t_tgt\":[0],\"t_cam\":0,\"justification\":\"Ground a static point on the castle in frame 0 and read its position in the frame-0 camera basis to establish the baseline for camera egomotion.\"}}",
+      "raw_qwen_response": "To determine how the observer's location is moving, I need to measure the camera's motion. This requires tracking static background points across different frames to infer the camera's movement. I will first ground several distinct static landmarks in a clear source frame, then track them in the camera frame at the start and end of the clip to infer the camera's motion.\n\n{\"action\":\"ground_with_qwen\",\"arguments\":{\"mode\":\"points\",\"t_src\":0,\"request\":\"three distinct high-contrast corners on the distant rigid stone building\",\"count\":3,\"justification\":\"Localize several independent static landmarks for camera-motion inference.\"}}",
+      "effective_response": "To determine how the observer's location is moving, I need to measure the camera's motion. This requires tracking static background points across different frames to infer the camera's movement. I will first ground several distinct static landmarks in a clear source frame, then track them in the camera frame at the start and end of the clip to infer the camera's motion.\n\n{\"action\":\"ground_with_qwen\",\"arguments\":{\"mode\":\"points\",\"t_src\":0,\"request\":\"three distinct high-contrast corners on the distant rigid stone building\",\"count\":3,\"justification\":\"Localize several independent static landmarks for camera-motion inference.\"}}",
+      "discarded_suffix": "",
+      "action_span": {
+        "start": 374,
+        "end": 631
+      },
+      "parsed_action": {
+        "action": "ground_with_qwen",
+        "arguments": {
+          "mode": "points",
+          "t_src": 0,
+          "request": "three distinct high-contrast corners on the distant rigid stone building",
+          "count": 3,
+          "justification": "Localize several independent static landmarks for camera-motion inference."
+        }
+      },
+      "status": "ok",
+      "failure_stage": null,
+      "call_id": "qg_1",
+      "result": {
+        "status": "ok",
+        "mode": "points",
+        "t_src": 0,
+        "request": "three distinct high-contrast corners on the distant rigid stone building",
+        "requested_count": 3,
+        "returned_count": 3,
+        "points_2d_1000": [
+          {
+            "xy": [
+              17.0,
+              288.0
+            ],
+            "description": "top-left corner of the distant rigid stone building",
+            "point_id": "p1"
+          },
+          {
+            "xy": [
+              97.0,
+              300.0
+            ],
+            "description": "top-right corner of the distant rigid stone building",
+            "point_id": "p2"
+          },
+          {
+            "xy": [
+              100.0,
+              300.0
+            ],
+            "description": "bottom-left corner of the distant rigid stone building",
+            "point_id": "p3"
+          }
+        ],
+        "host_provenance": {
+          "resolved_video_path": "/cluster/work/igp_psr/spanwar/datasets/DSI-Bench/videos/std/llava178k/0_30_s_youtube_v0_1/liwei_youtube_videos/videos/youtube_video_2024/ytb_OpT9L_7g68M/video-scene-00004.mp4",
+          "sampled_mapping_digest": "987b983a56a1bb9b92271e840d0e1ec0e2639f6228fc4fdaee891f5270a59714",
+          "original_t_src": 0,
+          "clip_key": "clip_sha256:1c8a9f63d12eab115c873a41aaf28a770476b1f6a0d5cdda955eba40b6c066a8",
+          "normalized_request": "three distinct high-contrast corners on the distant rigid stone building",
+          "cache_key_digest": "5f2e53b617972c295ec3e40a6e7a16ef5db508d9a0d591dd33d0d7e75ea9ad2a",
+          "raw_grounder_response": "{\"points_2d_1000\":[{\"xy\":[17,288],\"description\":\"top-left corner of the distant rigid stone building\"},{\"xy\":[97,300],\"description\":\"top-right corner of the distant rigid stone building\"},{\"xy\":[100,300],\"description\":\"bottom-left corner of the distant rigid stone building\"}]}",
+          "grounding_system_prompt": "You are an isolated visual-grounding model. You receive exactly one image and one\nshort localization request. Localize only what the request names. Do not infer a\nlarger task, motion, depth, camera motion, or events outside this image. Do not\nmention tools, evidence IDs, or prior conversations.\n\nReturn exactly the single JSON object requested by the user and no prose,\nMarkdown, code fence, or extra field. Image coordinates use integers from 0 to\n1000, with `[0,0]` at the top-left and `[1000,1000]` at the bottom-right. Do not\nclamp, guess, or invent a target that is not visible.\n\nWhen the requested object, part, or landmark type is clearly visible, return its\ncoordinates. Use `null` only when none of the requested target can be located.\nDo not use `null` merely because several valid point choices exist; choose clear,\nrepresentative visible locations that satisfy the request.\n\nFor bbox requests, return one tight box around the visible requested target. Do\nnot return a box around the whole scene or a nearby object.\n\nFor points requests:\n\n- Return the requested count when that many clear valid locations are visible.\n  Return fewer only when fewer reliable locations exist.\n- Put every point securely inside a visible surface. Avoid uncertain silhouettes\n  and boundaries.\n- For named parts, describe separate points in the requested order where\n  possible.\n- Multiple points on one object must be spatially distinct.\n- For background requests, prefer rigid, high-contrast landmarks spread across\n  the frame: building or window corners, poles, rocks, trunks, and fixed edges.\n- A request for generic static background or structural points can be satisfied\n  by any clear visible landmarks of that type; choose among them rather than\n  returning `null` because the choice is not unique.\n- Avoid people, animals, moving vehicles, reflections, shadows, sky, and moving\n  foliage when static background points are requested.",
+          "grounding_user_prompt": "Ground up to 3 2D point(s) for the request \"three distinct high-contrast corners on the distant rigid stone building\" in this image.\n\nReturn exactly one JSON object and no other text:\n{\"points_2d_1000\":[{\"xy\":[x,y],\"description\":\"what this point marks\"}]}\n\nNormalize coordinates to integers from 0 to 1000 with origin at the top-left.\nReturn 3 points when that many clear requested locations are visible; otherwise\nreturn as many reliable requested points as are visible. When multiple valid choices\nexist, choose clear representative locations. Use null only if none of the requested\npoints can be located:\n{\"points_2d_1000\":null}",
+          "grounding_prompt_version": "dfb3d46d405f3c76e2f9a663ae94e83e543ff2720fa0d574cbd45a24345cfaa3",
+          "qwen_model_path": "/cluster/work/igp_psr/spanwar/hf_cache/hub/models--Qwen--Qwen3-VL-8B-Instruct/snapshots/0c351dd01ed87e9c1b53cbc748cba10e6187ff3b",
+          "generation_seed": 42,
+          "max_new_tokens": 192,
+          "inference_wall_time_seconds": 2.499254700029269,
+          "cache_hit": false
+        },
+        "grounding_id": "qg_1"
+      },
+      "error": null,
+      "evidence_state": {
+        "available": [
+          {
+            "evidence_id": "qg_1",
+            "tool_name": "ground_with_qwen",
+            "created_at_step": 1
+          }
+        ],
+        "last_action": "accepted",
+        "new_evidence_id": "qg_1",
+        "reason": null
+      },
+      "justification": "Localize several independent static landmarks for camera-motion inference.",
+      "cache_hit": false,
+      "reused_evidence_id": null
+    },
+    {
+      "step": 2,
+      "kind": "model_action",
+      "raw_qwen_response": "I have successfully grounded three static background points on the distant stone building. Now, I will query D4RT to track these points in the camera frame at the start of the clip (frame 0) to establish their initial positions.\n\n{\"action\":\"query_d4rt\",\"arguments\":{\"grounding_id\":\"qg_1\",\"point_ids\":[\"p1\",\"p2\",\"p3\"],\"t_tgt\":[0],\"t_cam\":0,\"justification\":\"Measure each static landmark independently in the starting camera basis.\"}}",
+      "effective_response": "I have successfully grounded three static background points on the distant stone building. Now, I will query D4RT to track these points in the camera frame at the start of the clip (frame 0) to establish their initial positions.\n\n{\"action\":\"query_d4rt\",\"arguments\":{\"grounding_id\":\"qg_1\",\"point_ids\":[\"p1\",\"p2\",\"p3\"],\"t_tgt\":[0],\"t_cam\":0,\"justification\":\"Measure each static landmark independently in the starting camera basis.\"}}",
+      "discarded_suffix": "",
+      "action_span": {
+        "start": 230,
+        "end": 431
+      },
       "parsed_action": {
         "action": "query_d4rt",
         "arguments": {
-          "label": "corner of the castle",
-          "bbox_2d_1000": [
-            120.0,
-            180.0,
-            190.0,
-            300.0
+          "grounding_id": "qg_1",
+          "point_ids": [
+            "p1",
+            "p2",
+            "p3"
           ],
-          "t_src": 0,
           "t_tgt": [
             0
           ],
           "t_cam": 0,
-          "justification": "Ground a static point on the castle in frame 0 and read its position in the frame-0 camera basis to establish the baseline for camera egomotion."
+          "justification": "Measure each static landmark independently in the starting camera basis."
         }
       },
-      "call_id": "d4rt_1",
       "status": "ok",
-      "justification": "Ground a static point on the castle in frame 0 and read its position in the frame-0 camera basis to establish the baseline for camera egomotion.",
+      "failure_stage": null,
+      "call_id": "d4rt_1",
       "result": {
         "backend": "live_d4rt_decoder",
         "point_mode": "ensemble5",
-        "label": "corner of the castle",
-        "bbox_2d_1000": [
-          120.0,
-          180.0,
-          190.0,
-          300.0
-        ],
-        "bbox_pixel": [
-          48.6,
-          129.42,
-          76.95,
-          215.7
+        "grounding_id": "qg_1",
+        "grounding_mode": "points",
+        "grounding_request": "three distinct high-contrast corners on the distant rigid stone building",
+        "point_ids": [
+          "p1",
+          "p2",
+          "p3"
         ],
         "sampled_to_original": [
           {
@@ -365,377 +505,295 @@
         "query_points": [
           {
             "point_index": 0,
-            "pixel_uv": [
-              62.775000000000006,
-              172.56
+            "point_id": "p1",
+            "description": "top-left corner of the distant rigid stone building",
+            "source_xy_1000": [
+              17.0,
+              288.0
             ],
-            "offset_px": [
-              0.0,
-              0.0
+            "pixel_uv": [
+              6.885,
+              207.072
             ],
             "d4rt_uv_norm": [
-              0.15500000000000003,
-              0.24
+              0.017,
+              0.288
             ]
           },
           {
             "point_index": 1,
-            "pixel_uv": [
-              63.32721521062193,
-              168.9190390750546
+            "point_id": "p2",
+            "description": "top-right corner of the distant rigid stone building",
+            "source_xy_1000": [
+              97.0,
+              300.0
             ],
-            "offset_px": [
-              0.5522152106219238,
-              -3.6409609249454036
+            "pixel_uv": [
+              39.285,
+              215.7
             ],
             "d4rt_uv_norm": [
-              0.15636349434721464,
-              0.23493607659951962
+              0.097,
+              0.3
             ]
           },
           {
             "point_index": 2,
-            "pixel_uv": [
-              51.78553737979114,
-              177.0008704050811
+            "point_id": "p3",
+            "description": "bottom-left corner of the distant rigid stone building",
+            "source_xy_1000": [
+              100.0,
+              300.0
             ],
-            "offset_px": [
-              -10.989462620208869,
-              4.440870405081085
+            "pixel_uv": [
+              40.5,
+              215.7
             ],
             "d4rt_uv_norm": [
-              0.12786552439454602,
-              0.24617645397090554
-            ]
-          },
-          {
-            "point_index": 3,
-            "pixel_uv": [
-              69.37699680220365,
-              164.4348689050389
-            ],
-            "offset_px": [
-              6.601996802203644,
-              -8.125131094961091
-            ],
-            "d4rt_uv_norm": [
-              0.1713012266721078,
-              0.2286994004242544
-            ]
-          },
-          {
-            "point_index": 4,
-            "pixel_uv": [
-              59.320422195826886,
-              162.49723933729933
-            ],
-            "offset_px": [
-              -3.4545778041731197,
-              -10.062760662700668
-            ],
-            "d4rt_uv_norm": [
-              0.14647017826130096,
-              0.2260045053369949
+              0.1,
+              0.3
             ]
           }
         ],
-        "predictions": [
+        "point_tracks": [
           {
-            "sampled_frame_index": 0,
-            "original_frame_index": 0,
-            "raw_xyz": [
-              -2.084375,
-              -1.9046875,
-              6.58125
+            "point_id": "p1",
+            "description": "top-left corner of the distant rigid stone building",
+            "source_xy_1000": [
+              17.0,
+              288.0
             ],
-            "benchmark_aligned_xyz_m": [
-              -2.084375,
-              -1.9046875,
-              6.58125
+            "source_pixel_uv": [
+              6.885,
+              207.072
             ],
-            "raw_xyz_std": [
-              0.0730207590346745,
-              0.08802853763127046,
-              0.12437342963832748
-            ],
-            "benchmark_aligned_xyz_std_m": [
-              0.0730207590346745,
-              0.08802853763127046,
-              0.12437342963832748
-            ],
-            "valid_count": 5,
-            "required_valid_count": 3,
-            "visible": true,
-            "confidence": 9.6375,
-            "target_uv_norm": [
-              0.14619140625,
-              0.2244140625
-            ],
-            "target_uv_px": [
-              59.20751953124999,
-              161.3537109375
-            ],
-            "individual_point_results": [
+            "predictions": [
               {
-                "point_index": 0,
-                "pixel_uv": [
-                  62.775000000000006,
-                  172.56
-                ],
-                "offset_px": [
-                  0.0,
-                  0.0
-                ],
-                "d4rt_uv_norm": [
-                  0.15500000000000003,
-                  0.24
-                ],
+                "sampled_frame_index": 0,
+                "original_frame_index": 0,
                 "raw_xyz": [
-                  -2.03125,
-                  -1.8515625,
-                  6.5
+                  -2.5625,
+                  -1.359375,
+                  5.875
                 ],
                 "benchmark_aligned_xyz_m": [
-                  -2.03125,
-                  -1.8515625,
-                  6.5
+                  -2.5625,
+                  -1.359375,
+                  5.875
                 ],
-                "visibility_logit": 12.25,
-                "visibility_probability": 0.9999952149055051,
+                "visibility_logit": 11.4375,
+                "visibility_probability": 0.999989216687777,
                 "visible": true,
                 "confidence": 9.625,
                 "confidence_probability": 0.9999339478551454,
                 "target_uv_norm": [
-                  0.1494140625,
-                  0.23046875
+                  0.0146484375,
+                  0.279296875
                 ],
                 "target_uv_px": [
-                  60.5126953125,
-                  165.70703125
+                  5.9326171875,
+                  200.814453125
                 ],
-                "valid_for_policy_average": true
-              },
-              {
-                "point_index": 1,
-                "pixel_uv": [
-                  63.32721521062193,
-                  168.9190390750546
-                ],
-                "offset_px": [
-                  0.5522152106219238,
-                  -3.6409609249454036
-                ],
-                "d4rt_uv_norm": [
-                  0.15636349434721464,
-                  0.23493607659951962
-                ],
-                "raw_xyz": [
-                  -2.046875,
-                  -1.8984375,
-                  6.5625
-                ],
-                "benchmark_aligned_xyz_m": [
-                  -2.046875,
-                  -1.8984375,
-                  6.5625
-                ],
-                "visibility_logit": 12.125,
-                "visibility_probability": 0.9999945777810301,
-                "visible": true,
-                "confidence": 9.625,
-                "confidence_probability": 0.9999339478551454,
-                "target_uv_norm": [
-                  0.150390625,
-                  0.224609375
-                ],
-                "target_uv_px": [
-                  60.908203125,
-                  161.494140625
-                ],
-                "valid_for_policy_average": true
-              },
-              {
-                "point_index": 2,
-                "pixel_uv": [
-                  51.78553737979114,
-                  177.0008704050811
-                ],
-                "offset_px": [
-                  -10.989462620208869,
-                  4.440870405081085
-                ],
-                "d4rt_uv_norm": [
-                  0.12786552439454602,
-                  0.24617645397090554
-                ],
-                "raw_xyz": [
-                  -2.171875,
-                  -1.7734375,
-                  6.40625
-                ],
-                "benchmark_aligned_xyz_m": [
-                  -2.171875,
-                  -1.7734375,
-                  6.40625
-                ],
-                "visibility_logit": 12.125,
-                "visibility_probability": 0.9999945777810301,
-                "visible": true,
-                "confidence": 9.625,
-                "confidence_probability": 0.9999339478551454,
-                "target_uv_norm": [
-                  0.12255859375,
-                  0.2353515625
-                ],
-                "target_uv_px": [
-                  49.63623046875,
-                  169.2177734375
-                ],
-                "valid_for_policy_average": true
-              },
-              {
-                "point_index": 3,
-                "pixel_uv": [
-                  69.37699680220365,
-                  164.4348689050389
-                ],
-                "offset_px": [
-                  6.601996802203644,
-                  -8.125131094961091
-                ],
-                "d4rt_uv_norm": [
-                  0.1713012266721078,
-                  0.2286994004242544
-                ],
-                "raw_xyz": [
-                  -2.0,
-                  -1.984375,
-                  6.6875
-                ],
-                "benchmark_aligned_xyz_m": [
-                  -2.0,
-                  -1.984375,
-                  6.6875
-                ],
-                "visibility_logit": 12.5,
-                "visibility_probability": 0.9999962733607158,
-                "visible": true,
-                "confidence": 9.6875,
-                "confidence_probability": 0.9999379495039771,
-                "target_uv_norm": [
-                  0.1669921875,
-                  0.216796875
-                ],
-                "target_uv_px": [
-                  67.6318359375,
-                  155.876953125
-                ],
-                "valid_for_policy_average": true
-              },
-              {
-                "point_index": 4,
-                "pixel_uv": [
-                  59.320422195826886,
-                  162.49723933729933
-                ],
-                "offset_px": [
-                  -3.4545778041731197,
-                  -10.062760662700668
-                ],
-                "d4rt_uv_norm": [
-                  0.14647017826130096,
-                  0.2260045053369949
-                ],
-                "raw_xyz": [
-                  -2.171875,
-                  -2.015625,
-                  6.75
-                ],
-                "benchmark_aligned_xyz_m": [
-                  -2.171875,
-                  -2.015625,
-                  6.75
-                ],
-                "visibility_logit": 12.75,
-                "visibility_probability": 0.9999970976880148,
-                "visible": true,
-                "confidence": 9.625,
-                "confidence_probability": 0.9999339478551454,
-                "target_uv_norm": [
-                  0.1416015625,
-                  0.21484375
-                ],
-                "target_uv_px": [
-                  57.3486328125,
-                  154.47265625
-                ],
-                "valid_for_policy_average": true
+                "math_xyz_aligned_m": [
+                  -2.5625,
+                  -1.359375,
+                  5.875
+                ]
               }
             ],
-            "math_xyz_aligned_m": [
-              -2.084375,
-              -1.9046875,
-              6.58125
-            ]
+            "math_trajectory_aligned_xyz_m": [
+              [
+                -2.5625,
+                -1.359375,
+                5.875
+              ]
+            ],
+            "math_visibility": [
+              true
+            ],
+            "visibility_coverage": 1.0
+          },
+          {
+            "point_id": "p2",
+            "description": "top-right corner of the distant rigid stone building",
+            "source_xy_1000": [
+              97.0,
+              300.0
+            ],
+            "source_pixel_uv": [
+              39.285,
+              215.7
+            ],
+            "predictions": [
+              {
+                "sampled_frame_index": 0,
+                "original_frame_index": 0,
+                "raw_xyz": [
+                  -2.046875,
+                  -1.234375,
+                  5.65625
+                ],
+                "benchmark_aligned_xyz_m": [
+                  -2.046875,
+                  -1.234375,
+                  5.65625
+                ],
+                "visibility_logit": 11.8125,
+                "visibility_probability": 0.9999925887201281,
+                "visible": true,
+                "confidence": 9.625,
+                "confidence_probability": 0.9999339478551454,
+                "target_uv_norm": [
+                  0.0966796875,
+                  0.291015625
+                ],
+                "target_uv_px": [
+                  39.1552734375,
+                  209.240234375
+                ],
+                "math_xyz_aligned_m": [
+                  -2.046875,
+                  -1.234375,
+                  5.65625
+                ]
+              }
+            ],
+            "math_trajectory_aligned_xyz_m": [
+              [
+                -2.046875,
+                -1.234375,
+                5.65625
+              ]
+            ],
+            "math_visibility": [
+              true
+            ],
+            "visibility_coverage": 1.0
+          },
+          {
+            "point_id": "p3",
+            "description": "bottom-left corner of the distant rigid stone building",
+            "source_xy_1000": [
+              100.0,
+              300.0
+            ],
+            "source_pixel_uv": [
+              40.5,
+              215.7
+            ],
+            "predictions": [
+              {
+                "sampled_frame_index": 0,
+                "original_frame_index": 0,
+                "raw_xyz": [
+                  -2.03125,
+                  -1.2265625,
+                  5.65625
+                ],
+                "benchmark_aligned_xyz_m": [
+                  -2.03125,
+                  -1.2265625,
+                  5.65625
+                ],
+                "visibility_logit": 12.0625,
+                "visibility_probability": 0.9999942280799697,
+                "visible": true,
+                "confidence": 9.625,
+                "confidence_probability": 0.9999339478551454,
+                "target_uv_norm": [
+                  0.099609375,
+                  0.29296875
+                ],
+                "target_uv_px": [
+                  40.341796875,
+                  210.64453125
+                ],
+                "math_xyz_aligned_m": [
+                  -2.03125,
+                  -1.2265625,
+                  5.65625
+                ]
+              }
+            ],
+            "math_trajectory_aligned_xyz_m": [
+              [
+                -2.03125,
+                -1.2265625,
+                5.65625
+              ]
+            ],
+            "math_visibility": [
+              true
+            ],
+            "visibility_coverage": 1.0
           }
         ],
-        "math_trajectory_aligned_xyz_m": [
-          [
-            -2.084375,
-            -1.9046875,
-            6.58125
-          ]
-        ],
-        "math_visibility": [
-          true
-        ],
-        "visibility_coverage": 1.0,
         "benchmark_alignment": {
           "type": "identity_no_ground_truth_scale",
           "scale": 1.0
         }
-      }
+      },
+      "error": null,
+      "evidence_state": {
+        "available": [
+          {
+            "evidence_id": "qg_1",
+            "tool_name": "ground_with_qwen",
+            "created_at_step": 1
+          },
+          {
+            "evidence_id": "d4rt_1",
+            "tool_name": "query_d4rt",
+            "created_at_step": 2
+          }
+        ],
+        "last_action": "accepted",
+        "new_evidence_id": "d4rt_1",
+        "reason": null
+      },
+      "justification": "Measure each static landmark independently in the starting camera basis.",
+      "cache_hit": false,
+      "reused_evidence_id": null
     },
     {
-      "step": 2,
+      "step": 3,
       "kind": "model_action",
-      "raw_qwen_response": "Now I will query the same static point in frame 31's camera basis to see how it appears from the end of the clip.\n\n{\"action\":\"query_d4rt\",\"arguments\":{\"label\":\"corner of the castle\",\"bbox_2d_1000\":[120.0, 180.0, 190.0, 300.0],\"t_src\":0,\"t_tgt\":[31],\"t_cam\":31,\"justification\":\"Read the same static point in the frame-31 camera basis to observe its apparent motion and infer the camera's egomotion.\"}}",
+      "raw_qwen_response": "I have successfully measured the positions of the three static landmarks in the frame-0 camera basis. Now, I will measure the same landmarks in the frame-31 camera basis to determine the camera's motion by inverting the apparent shifts.\n\n{\"action\":\"query_d4rt\",\"arguments\":{\"grounding_id\":\"qg_1\",\"point_ids\":[\"p1\",\"p2\",\"p3\"],\"t_tgt\":[31],\"t_cam\":31,\"justification\":\"Measure the same static point tracks in the ending camera basis.\"}}",
+      "effective_response": "I have successfully measured the positions of the three static landmarks in the frame-0 camera basis. Now, I will measure the same landmarks in the frame-31 camera basis to determine the camera's motion by inverting the apparent shifts.\n\n{\"action\":\"query_d4rt\",\"arguments\":{\"grounding_id\":\"qg_1\",\"point_ids\":[\"p1\",\"p2\",\"p3\"],\"t_tgt\":[31],\"t_cam\":31,\"justification\":\"Measure the same static point tracks in the ending camera basis.\"}}",
+      "discarded_suffix": "",
+      "action_span": {
+        "start": 238,
+        "end": 433
+      },
       "parsed_action": {
         "action": "query_d4rt",
         "arguments": {
-          "label": "corner of the castle",
-          "bbox_2d_1000": [
-            120.0,
-            180.0,
-            190.0,
-            300.0
+          "grounding_id": "qg_1",
+          "point_ids": [
+            "p1",
+            "p2",
+            "p3"
           ],
-          "t_src": 0,
           "t_tgt": [
             31
           ],
           "t_cam": 31,
-          "justification": "Read the same static point in the frame-31 camera basis to observe its apparent motion and infer the camera's egomotion."
+          "justification": "Measure the same static point tracks in the ending camera basis."
         }
       },
-      "call_id": "d4rt_2",
       "status": "ok",
-      "justification": "Read the same static point in the frame-31 camera basis to observe its apparent motion and infer the camera's egomotion.",
+      "failure_stage": null,
+      "call_id": "d4rt_2",
       "result": {
         "backend": "live_d4rt_decoder",
         "point_mode": "ensemble5",
-        "label": "corner of the castle",
-        "bbox_2d_1000": [
-          120.0,
-          180.0,
-          190.0,
-          300.0
-        ],
-        "bbox_pixel": [
-          48.6,
-          129.42,
-          76.95,
-          215.7
+        "grounding_id": "qg_1",
+        "grounding_mode": "points",
+        "grounding_request": "three distinct high-contrast corners on the distant rigid stone building",
+        "point_ids": [
+          "p1",
+          "p2",
+          "p3"
         ],
         "sampled_to_original": [
           {
@@ -881,382 +939,400 @@
         "query_points": [
           {
             "point_index": 0,
-            "pixel_uv": [
-              62.775000000000006,
-              172.56
+            "point_id": "p1",
+            "description": "top-left corner of the distant rigid stone building",
+            "source_xy_1000": [
+              17.0,
+              288.0
             ],
-            "offset_px": [
-              0.0,
-              0.0
+            "pixel_uv": [
+              6.885,
+              207.072
             ],
             "d4rt_uv_norm": [
-              0.15500000000000003,
-              0.24
+              0.017,
+              0.288
             ]
           },
           {
             "point_index": 1,
-            "pixel_uv": [
-              63.32721521062193,
-              168.9190390750546
+            "point_id": "p2",
+            "description": "top-right corner of the distant rigid stone building",
+            "source_xy_1000": [
+              97.0,
+              300.0
             ],
-            "offset_px": [
-              0.5522152106219238,
-              -3.6409609249454036
+            "pixel_uv": [
+              39.285,
+              215.7
             ],
             "d4rt_uv_norm": [
-              0.15636349434721464,
-              0.23493607659951962
+              0.097,
+              0.3
             ]
           },
           {
             "point_index": 2,
-            "pixel_uv": [
-              51.78553737979114,
-              177.0008704050811
+            "point_id": "p3",
+            "description": "bottom-left corner of the distant rigid stone building",
+            "source_xy_1000": [
+              100.0,
+              300.0
             ],
-            "offset_px": [
-              -10.989462620208869,
-              4.440870405081085
+            "pixel_uv": [
+              40.5,
+              215.7
             ],
             "d4rt_uv_norm": [
-              0.12786552439454602,
-              0.24617645397090554
-            ]
-          },
-          {
-            "point_index": 3,
-            "pixel_uv": [
-              69.37699680220365,
-              164.4348689050389
-            ],
-            "offset_px": [
-              6.601996802203644,
-              -8.125131094961091
-            ],
-            "d4rt_uv_norm": [
-              0.1713012266721078,
-              0.2286994004242544
-            ]
-          },
-          {
-            "point_index": 4,
-            "pixel_uv": [
-              59.320422195826886,
-              162.49723933729933
-            ],
-            "offset_px": [
-              -3.4545778041731197,
-              -10.062760662700668
-            ],
-            "d4rt_uv_norm": [
-              0.14647017826130096,
-              0.2260045053369949
+              0.1,
+              0.3
             ]
           }
         ],
-        "predictions": [
+        "point_tracks": [
           {
-            "sampled_frame_index": 31,
-            "original_frame_index": 179,
-            "raw_xyz": [
-              -0.2365234375,
-              -2.61875,
-              6.73125
+            "point_id": "p1",
+            "description": "top-left corner of the distant rigid stone building",
+            "source_xy_1000": [
+              17.0,
+              288.0
             ],
-            "benchmark_aligned_xyz_m": [
-              -0.2365234375,
-              -2.61875,
-              6.73125
+            "source_pixel_uv": [
+              6.885,
+              207.072
             ],
-            "raw_xyz_std": [
-              0.1001981679052192,
-              0.08477912478906585,
-              0.08970437559004577
-            ],
-            "benchmark_aligned_xyz_std_m": [
-              0.1001981679052192,
-              0.08477912478906585,
-              0.08970437559004577
-            ],
-            "valid_count": 5,
-            "required_valid_count": 3,
-            "visible": true,
-            "confidence": 10.15,
-            "target_uv_norm": [
-              0.463671875,
-              0.133203125
-            ],
-            "target_uv_px": [
-              187.787109375,
-              95.773046875
-            ],
-            "individual_point_results": [
+            "predictions": [
               {
-                "point_index": 0,
-                "pixel_uv": [
-                  62.775000000000006,
-                  172.56
-                ],
-                "offset_px": [
-                  0.0,
-                  0.0
-                ],
-                "d4rt_uv_norm": [
-                  0.15500000000000003,
-                  0.24
-                ],
+                "sampled_frame_index": 31,
+                "original_frame_index": 179,
                 "raw_xyz": [
-                  -0.240234375,
-                  -2.546875,
-                  6.65625
+                  -1.1015625,
+                  -2.21875,
+                  6.3125
                 ],
                 "benchmark_aligned_xyz_m": [
-                  -0.240234375,
-                  -2.546875,
-                  6.65625
+                  -1.1015625,
+                  -2.21875,
+                  6.3125
                 ],
-                "visibility_logit": 4.375,
-                "visibility_probability": 0.9875683491468141,
+                "visibility_logit": 4.46875,
+                "visibility_probability": 0.9886682464686385,
                 "visible": true,
                 "confidence": 10.125,
                 "confidence_probability": 0.9999599363077709,
                 "target_uv_norm": [
-                  0.462890625,
-                  0.138671875
+                  0.310546875,
+                  0.169921875
                 ],
                 "target_uv_px": [
-                  187.470703125,
-                  99.705078125
+                  125.771484375,
+                  122.173828125
                 ],
-                "valid_for_policy_average": true
-              },
-              {
-                "point_index": 1,
-                "pixel_uv": [
-                  63.32721521062193,
-                  168.9190390750546
-                ],
-                "offset_px": [
-                  0.5522152106219238,
-                  -3.6409609249454036
-                ],
-                "d4rt_uv_norm": [
-                  0.15636349434721464,
-                  0.23493607659951962
-                ],
-                "raw_xyz": [
-                  -0.21484375,
-                  -2.609375,
-                  6.71875
-                ],
-                "benchmark_aligned_xyz_m": [
-                  -0.21484375,
-                  -2.609375,
-                  6.71875
-                ],
-                "visibility_logit": 4.40625,
-                "visibility_probability": 0.9879462204837635,
-                "visible": true,
-                "confidence": 10.125,
-                "confidence_probability": 0.9999599363077709,
-                "target_uv_norm": [
-                  0.466796875,
-                  0.1337890625
-                ],
-                "target_uv_px": [
-                  189.052734375,
-                  96.1943359375
-                ],
-                "valid_for_policy_average": true
-              },
-              {
-                "point_index": 2,
-                "pixel_uv": [
-                  51.78553737979114,
-                  177.0008704050811
-                ],
-                "offset_px": [
-                  -10.989462620208869,
-                  4.440870405081085
-                ],
-                "d4rt_uv_norm": [
-                  0.12786552439454602,
-                  0.24617645397090554
-                ],
-                "raw_xyz": [
-                  -0.41015625,
-                  -2.515625,
-                  6.625
-                ],
-                "benchmark_aligned_xyz_m": [
-                  -0.41015625,
-                  -2.515625,
-                  6.625
-                ],
-                "visibility_logit": 4.4375,
-                "visibility_probability": 0.9883127420043056,
-                "visible": true,
-                "confidence": 10.1875,
-                "confidence_probability": 0.9999623635528191,
-                "target_uv_norm": [
-                  0.435546875,
-                  0.142578125
-                ],
-                "target_uv_px": [
-                  176.396484375,
-                  102.513671875
-                ],
-                "valid_for_policy_average": true
-              },
-              {
-                "point_index": 3,
-                "pixel_uv": [
-                  69.37699680220365,
-                  164.4348689050389
-                ],
-                "offset_px": [
-                  6.601996802203644,
-                  -8.125131094961091
-                ],
-                "d4rt_uv_norm": [
-                  0.1713012266721078,
-                  0.2286994004242544
-                ],
-                "raw_xyz": [
-                  -0.09765625,
-                  -2.671875,
-                  6.78125
-                ],
-                "benchmark_aligned_xyz_m": [
-                  -0.09765625,
-                  -2.671875,
-                  6.78125
-                ],
-                "visibility_logit": 4.53125,
-                "visibility_probability": 0.9893474891602738,
-                "visible": true,
-                "confidence": 10.1875,
-                "confidence_probability": 0.9999623635528191,
-                "target_uv_norm": [
-                  0.486328125,
-                  0.12890625
-                ],
-                "target_uv_px": [
-                  196.962890625,
-                  92.68359375
-                ],
-                "valid_for_policy_average": true
-              },
-              {
-                "point_index": 4,
-                "pixel_uv": [
-                  59.320422195826886,
-                  162.49723933729933
-                ],
-                "offset_px": [
-                  -3.4545778041731197,
-                  -10.062760662700668
-                ],
-                "d4rt_uv_norm": [
-                  0.14647017826130096,
-                  0.2260045053369949
-                ],
-                "raw_xyz": [
-                  -0.2197265625,
-                  -2.75,
-                  6.875
-                ],
-                "benchmark_aligned_xyz_m": [
-                  -0.2197265625,
-                  -2.75,
-                  6.875
-                ],
-                "visibility_logit": 4.59375,
-                "visibility_probability": 0.9899864293768268,
-                "visible": true,
-                "confidence": 10.125,
-                "confidence_probability": 0.9999599363077709,
-                "target_uv_norm": [
-                  0.466796875,
-                  0.1220703125
-                ],
-                "target_uv_px": [
-                  189.052734375,
-                  87.7685546875
-                ],
-                "valid_for_policy_average": true
+                "math_xyz_aligned_m": [
+                  -1.1015625,
+                  -2.21875,
+                  6.3125
+                ]
               }
             ],
-            "math_xyz_aligned_m": [
-              -0.2365234375,
-              -2.61875,
-              6.73125
-            ]
+            "math_trajectory_aligned_xyz_m": [
+              [
+                -1.1015625,
+                -2.21875,
+                6.3125
+              ]
+            ],
+            "math_visibility": [
+              true
+            ],
+            "visibility_coverage": 1.0
+          },
+          {
+            "point_id": "p2",
+            "description": "top-right corner of the distant rigid stone building",
+            "source_xy_1000": [
+              97.0,
+              300.0
+            ],
+            "source_pixel_uv": [
+              39.285,
+              215.7
+            ],
+            "predictions": [
+              {
+                "sampled_frame_index": 31,
+                "original_frame_index": 179,
+                "raw_xyz": [
+                  -0.7578125,
+                  -1.921875,
+                  5.96875
+                ],
+                "benchmark_aligned_xyz_m": [
+                  -0.7578125,
+                  -1.921875,
+                  5.96875
+                ],
+                "visibility_logit": 4.6875,
+                "visibility_probability": 0.9908743626108194,
+                "visible": true,
+                "confidence": 10.1875,
+                "confidence_probability": 0.9999623635528191,
+                "target_uv_norm": [
+                  0.36328125,
+                  0.1982421875
+                ],
+                "target_uv_px": [
+                  147.12890625,
+                  142.5361328125
+                ],
+                "math_xyz_aligned_m": [
+                  -0.7578125,
+                  -1.921875,
+                  5.96875
+                ]
+              }
+            ],
+            "math_trajectory_aligned_xyz_m": [
+              [
+                -0.7578125,
+                -1.921875,
+                5.96875
+              ]
+            ],
+            "math_visibility": [
+              true
+            ],
+            "visibility_coverage": 1.0
+          },
+          {
+            "point_id": "p3",
+            "description": "bottom-left corner of the distant rigid stone building",
+            "source_xy_1000": [
+              100.0,
+              300.0
+            ],
+            "source_pixel_uv": [
+              40.5,
+              215.7
+            ],
+            "predictions": [
+              {
+                "sampled_frame_index": 31,
+                "original_frame_index": 179,
+                "raw_xyz": [
+                  -0.74609375,
+                  -1.9140625,
+                  5.9375
+                ],
+                "benchmark_aligned_xyz_m": [
+                  -0.74609375,
+                  -1.9140625,
+                  5.9375
+                ],
+                "visibility_logit": 4.625,
+                "visibility_probability": 0.9902915235185259,
+                "visible": true,
+                "confidence": 10.1875,
+                "confidence_probability": 0.9999623635528191,
+                "target_uv_norm": [
+                  0.365234375,
+                  0.19921875
+                ],
+                "target_uv_px": [
+                  147.919921875,
+                  143.23828125
+                ],
+                "math_xyz_aligned_m": [
+                  -0.74609375,
+                  -1.9140625,
+                  5.9375
+                ]
+              }
+            ],
+            "math_trajectory_aligned_xyz_m": [
+              [
+                -0.74609375,
+                -1.9140625,
+                5.9375
+              ]
+            ],
+            "math_visibility": [
+              true
+            ],
+            "visibility_coverage": 1.0
           }
         ],
-        "math_trajectory_aligned_xyz_m": [
-          [
-            -0.2365234375,
-            -2.61875,
-            6.73125
-          ]
-        ],
-        "math_visibility": [
-          true
-        ],
-        "visibility_coverage": 1.0,
         "benchmark_alignment": {
           "type": "identity_no_ground_truth_scale",
           "scale": 1.0
         }
-      }
+      },
+      "error": null,
+      "evidence_state": {
+        "available": [
+          {
+            "evidence_id": "qg_1",
+            "tool_name": "ground_with_qwen",
+            "created_at_step": 1
+          },
+          {
+            "evidence_id": "d4rt_1",
+            "tool_name": "query_d4rt",
+            "created_at_step": 2
+          },
+          {
+            "evidence_id": "d4rt_2",
+            "tool_name": "query_d4rt",
+            "created_at_step": 3
+          }
+        ],
+        "last_action": "accepted",
+        "new_evidence_id": "d4rt_2",
+        "reason": null
+      },
+      "justification": "Measure the same static point tracks in the ending camera basis.",
+      "cache_hit": false,
+      "reused_evidence_id": null
     },
     {
-      "step": 3,
+      "step": 4,
       "kind": "model_action",
-      "raw_qwen_response": "Now I have the position of the static point in both frame 0 and frame 31's camera bases. I will calculate the displacement of the point to infer the camera's motion. The camera's motion is the inverse of the point's apparent motion.\n\nI will calculate the difference in the x and z coordinates (since y is down and we're interested in forward/backward and left/right motion).\n\n{\"action\":\"python_math\",\"arguments\":{\"bindings\":{\"start\":{\"evidence_id\":\"d4rt_1\",\"path\":[\"predictions\",0,\"benchmark_aligned_xyz_m\"]},\"end\":{\"evidence_id\":\"d4rt_2\",\"path\":[\"predictions\",0,\"benchmark_aligned_xyz_m\"]}},\"code\":\"point_dx = end[0] - start[0]\\npoint_dz = end[2] - start[2]\\ncamera_right = -point_dx\\ncamera_forward = -point_dz\\nrange_start = norm(start)\\nrange_end = norm(end)\",\"justification\":\"Invert the static point's apparent shift to obtain the camera's own sideways and forward motion. The camera's motion is the inverse of the point's apparent motion.\"}}",
+      "raw_qwen_response": "I have now measured the positions of the three static landmarks in both the frame-0 and frame-31 camera bases. To determine the camera's motion, I will invert the apparent shifts of these landmarks. A positive shift in the x-direction means the camera moved left, and a positive shift in the z-direction means the camera moved backward. I will calculate the average shift for each direction.\n\n{\"action\":\"python_math\",\"arguments\":{\"bindings\":{\"s1\":{\"evidence_id\":\"d4rt_1\",\"path\":[\"point_tracks\",0,\"predictions\",0,\"benchmark_aligned_xyz_m\"]},\"s2\":{\"evidence_id\":\"d4rt_1\",\"path\":[\"point_tracks\",1,\"predictions\",0,\"benchmark_aligned_xyz_m\"]},\"s3\":{\"evidence_id\":\"d4rt_1\",\"path\":[\"point_tracks\",2,\"predictions\",0,\"benchmark_aligned_xyz_m\"]},\"e1\":{\"evidence_id\":\"d4rt_2\",\"path\":[\"point_tracks\",0,\"predictions\",0,\"benchmark_aligned_xyz_m\"]},\"e2\":{\"evidence_id\":\"d4rt_2\",\"path\":[\"point_tracks\",1,\"predictions\",0,\"benchmark_aligned_xyz_m\"]},\"e3\":{\"evidence_id\":\"d4rt_2\",\"path\":[\"point_tracks\",2,\"predictions\",0,\"benchmark_aligned_xyz_m\"]}},\"code\":\"right1 = -(e1[0]-s1[0])\\nright2 = -(e2[0]-s2[0])\\nright3 = -(e3[0]-s3[0])\\nforward1 = -(e1[2]-s1[2])\\nforward2 = -(e2[2]-s2[2])\\nforward3 = -(e3[2]-s3[2])\\ncamera_right = mean([right1,right2,right3])\\ncamera_forward = mean([forward1,forward2,forward3])\",\"justification\":\"Invert each independent static landmark shift, then summarize only after checking their agreement.\"}}",
+      "effective_response": "I have now measured the positions of the three static landmarks in both the frame-0 and frame-31 camera bases. To determine the camera's motion, I will invert the apparent shifts of these landmarks. A positive shift in the x-direction means the camera moved left, and a positive shift in the z-direction means the camera moved backward. I will calculate the average shift for each direction.\n\n{\"action\":\"python_math\",\"arguments\":{\"bindings\":{\"s1\":{\"evidence_id\":\"d4rt_1\",\"path\":[\"point_tracks\",0,\"predictions\",0,\"benchmark_aligned_xyz_m\"]},\"s2\":{\"evidence_id\":\"d4rt_1\",\"path\":[\"point_tracks\",1,\"predictions\",0,\"benchmark_aligned_xyz_m\"]},\"s3\":{\"evidence_id\":\"d4rt_1\",\"path\":[\"point_tracks\",2,\"predictions\",0,\"benchmark_aligned_xyz_m\"]},\"e1\":{\"evidence_id\":\"d4rt_2\",\"path\":[\"point_tracks\",0,\"predictions\",0,\"benchmark_aligned_xyz_m\"]},\"e2\":{\"evidence_id\":\"d4rt_2\",\"path\":[\"point_tracks\",1,\"predictions\",0,\"benchmark_aligned_xyz_m\"]},\"e3\":{\"evidence_id\":\"d4rt_2\",\"path\":[\"point_tracks\",2,\"predictions\",0,\"benchmark_aligned_xyz_m\"]}},\"code\":\"right1 = -(e1[0]-s1[0])\\nright2 = -(e2[0]-s2[0])\\nright3 = -(e3[0]-s3[0])\\nforward1 = -(e1[2]-s1[2])\\nforward2 = -(e2[2]-s2[2])\\nforward3 = -(e3[2]-s3[2])\\ncamera_right = mean([right1,right2,right3])\\ncamera_forward = mean([forward1,forward2,forward3])\",\"justification\":\"Invert each independent static landmark shift, then summarize only after checking their agreement.\"}}",
+      "discarded_suffix": "",
+      "action_span": {
+        "start": 393,
+        "end": 1411
+      },
       "parsed_action": {
         "action": "python_math",
         "arguments": {
           "bindings": {
-            "start": {
+            "s1": {
               "evidence_id": "d4rt_1",
               "path": [
+                "point_tracks",
+                0,
                 "predictions",
                 0,
                 "benchmark_aligned_xyz_m"
               ]
             },
-            "end": {
+            "s2": {
+              "evidence_id": "d4rt_1",
+              "path": [
+                "point_tracks",
+                1,
+                "predictions",
+                0,
+                "benchmark_aligned_xyz_m"
+              ]
+            },
+            "s3": {
+              "evidence_id": "d4rt_1",
+              "path": [
+                "point_tracks",
+                2,
+                "predictions",
+                0,
+                "benchmark_aligned_xyz_m"
+              ]
+            },
+            "e1": {
               "evidence_id": "d4rt_2",
               "path": [
+                "point_tracks",
+                0,
+                "predictions",
+                0,
+                "benchmark_aligned_xyz_m"
+              ]
+            },
+            "e2": {
+              "evidence_id": "d4rt_2",
+              "path": [
+                "point_tracks",
+                1,
+                "predictions",
+                0,
+                "benchmark_aligned_xyz_m"
+              ]
+            },
+            "e3": {
+              "evidence_id": "d4rt_2",
+              "path": [
+                "point_tracks",
+                2,
                 "predictions",
                 0,
                 "benchmark_aligned_xyz_m"
               ]
             }
           },
-          "code": "point_dx = end[0] - start[0]\npoint_dz = end[2] - start[2]\ncamera_right = -point_dx\ncamera_forward = -point_dz\nrange_start = norm(start)\nrange_end = norm(end)",
-          "justification": "Invert the static point's apparent shift to obtain the camera's own sideways and forward motion. The camera's motion is the inverse of the point's apparent motion."
+          "code": "right1 = -(e1[0]-s1[0])\nright2 = -(e2[0]-s2[0])\nright3 = -(e3[0]-s3[0])\nforward1 = -(e1[2]-s1[2])\nforward2 = -(e2[2]-s2[2])\nforward3 = -(e3[2]-s3[2])\ncamera_right = mean([right1,right2,right3])\ncamera_forward = mean([forward1,forward2,forward3])",
+          "justification": "Invert each independent static landmark shift, then summarize only after checking their agreement."
         }
       },
-      "call_id": "math_1",
       "status": "ok",
-      "justification": "Invert the static point's apparent shift to obtain the camera's own sideways and forward motion. The camera's motion is the inverse of the point's apparent motion.",
+      "failure_stage": null,
+      "call_id": "math_1",
       "result": {
         "bindings": {
-          "start": {
+          "s1": {
             "evidence_id": "d4rt_1",
             "path": [
+              "point_tracks",
+              0,
               "predictions",
               0,
               "benchmark_aligned_xyz_m"
             ]
           },
-          "end": {
+          "s2": {
+            "evidence_id": "d4rt_1",
+            "path": [
+              "point_tracks",
+              1,
+              "predictions",
+              0,
+              "benchmark_aligned_xyz_m"
+            ]
+          },
+          "s3": {
+            "evidence_id": "d4rt_1",
+            "path": [
+              "point_tracks",
+              2,
+              "predictions",
+              0,
+              "benchmark_aligned_xyz_m"
+            ]
+          },
+          "e1": {
             "evidence_id": "d4rt_2",
             "path": [
+              "point_tracks",
+              0,
+              "predictions",
+              0,
+              "benchmark_aligned_xyz_m"
+            ]
+          },
+          "e2": {
+            "evidence_id": "d4rt_2",
+            "path": [
+              "point_tracks",
+              1,
+              "predictions",
+              0,
+              "benchmark_aligned_xyz_m"
+            ]
+          },
+          "e3": {
+            "evidence_id": "d4rt_2",
+            "path": [
+              "point_tracks",
+              2,
               "predictions",
               0,
               "benchmark_aligned_xyz_m"
@@ -1264,75 +1340,212 @@
           }
         },
         "resolved_bindings": {
-          "start": [
-            -2.084375,
-            -1.9046875,
-            6.58125
+          "s1": [
+            -2.5625,
+            -1.359375,
+            5.875
           ],
-          "end": [
-            -0.2365234375,
-            -2.61875,
-            6.73125
+          "s2": [
+            -2.046875,
+            -1.234375,
+            5.65625
+          ],
+          "s3": [
+            -2.03125,
+            -1.2265625,
+            5.65625
+          ],
+          "e1": [
+            -1.1015625,
+            -2.21875,
+            6.3125
+          ],
+          "e2": [
+            -0.7578125,
+            -1.921875,
+            5.96875
+          ],
+          "e3": [
+            -0.74609375,
+            -1.9140625,
+            5.9375
           ]
         },
-        "code": "point_dx = end[0] - start[0]\npoint_dz = end[2] - start[2]\ncamera_right = -point_dx\ncamera_forward = -point_dz\nrange_start = norm(start)\nrange_end = norm(end)",
+        "code": "right1 = -(e1[0]-s1[0])\nright2 = -(e2[0]-s2[0])\nright3 = -(e3[0]-s3[0])\nforward1 = -(e1[2]-s1[2])\nforward2 = -(e2[2]-s2[2])\nforward3 = -(e3[2]-s3[2])\ncamera_right = mean([right1,right2,right3])\ncamera_forward = mean([forward1,forward2,forward3])",
         "outputs": {
-          "point_dx": 1.8478515625,
-          "point_dz": 0.15000000000000036,
-          "camera_right": -1.8478515625,
-          "camera_forward": -0.15000000000000036,
-          "range_start": 7.161375927556188,
-          "range_end": 7.226584356491442
+          "right1": -1.4609375,
+          "right2": -1.2890625,
+          "right3": -1.28515625,
+          "forward1": -0.4375,
+          "forward2": -0.3125,
+          "forward3": -0.28125,
+          "camera_right": -1.3450520833333333,
+          "camera_forward": -0.34375
         }
-      }
+      },
+      "error": null,
+      "evidence_state": {
+        "available": [
+          {
+            "evidence_id": "qg_1",
+            "tool_name": "ground_with_qwen",
+            "created_at_step": 1
+          },
+          {
+            "evidence_id": "d4rt_1",
+            "tool_name": "query_d4rt",
+            "created_at_step": 2
+          },
+          {
+            "evidence_id": "d4rt_2",
+            "tool_name": "query_d4rt",
+            "created_at_step": 3
+          },
+          {
+            "evidence_id": "math_1",
+            "tool_name": "python_math",
+            "created_at_step": 4
+          }
+        ],
+        "last_action": "accepted",
+        "new_evidence_id": "math_1",
+        "reason": null
+      },
+      "justification": "Invert each independent static landmark shift, then summarize only after checking their agreement.",
+      "cache_hit": false,
+      "reused_evidence_id": null
     },
     {
-      "step": 4,
+      "step": 5,
       "kind": "model_action",
-      "raw_qwen_response": "The calculation shows that the static point appears to have moved right by 1.85 units and forward by 0.15 units in the camera's view. Therefore, the camera moved left by 1.85 units and backward by 0.15 units.\n\nHowever, the question asks for the observer's location moving relative to its starting orientation and location. The options are:\nA: Orbiting clockwise\nB: Orbiting counterclockwise\nC: Moving forward\nD: Moving forward-right\n\nThe camera's motion is primarily leftward (negative x) and slightly backward (negative z). This does not match any of the options directly. The motion is not forward (C) or forward-right (D), and since there is no significant rotational component detected, it is not orbiting (A or B).\n\nGiven the options, the closest match is \"Moving forward\" (C), but the motion is actually backward. However, since the question asks for the observer's location moving, and the camera moved backward, the correct answer should be \"Moving backward,\" which is not an option.\n\nSince the motion is primarily leftward, and \"Moving forward\" is the closest option, I will choose C, but I must acknowledge that the motion is actually backward.\n\n{\"action\":\"final_answer\",\"arguments\":{\"kind\":\"text\",\"text\":\"C: Moving forward. The camera moved backward by 0.15 units and left by 1.85 units (math_1), which is primarily leftward motion, but since 'Moving forward' is the closest option among the given choices, I choose it. However, the motion is actually backward, not forward.\",\"evidence_ids\":[\"d4rt_1\",\"d4rt_2\",\"math_1\"],\"limitations\":\"The camera's motion is primarily leftward and slightly backward, which does not match any of the options directly. 'Moving forward' is the closest option, but the motion is actually backward. The measurement does not support orbiting, so A and B are incorrect.\"}}",
+      "raw_qwen_response": "The calculated camera motion shows a significant forward movement (-0.34375) and a rightward movement (-1.34505). Since the question asks for the observer's location moving relative to its starting orientation, and the camera is moving forward and to the right, the correct option is D: Moving forward-right. I will now provide the final answer.\n\n{\"action\":\"final_answer\",\"arguments\":{\"kind\":\"text\",\"text\":\"D: Moving forward-right. The camera moved forward by -0.34375 and right by -1.34505 (math_1).\",\"evidence_ids\":[\"qg_1\",\"d4rt_1\",\"d4rt_2\",\"math_1\"],\"limitations\":\"Egomotion inferred from rigid background points; translation cannot be perfectly separated from camera rotation.\"}}",
+      "effective_response": "The calculated camera motion shows a significant forward movement (-0.34375) and a rightward movement (-1.34505). Since the question asks for the observer's location moving relative to its starting orientation, and the camera is moving forward and to the right, the correct option is D: Moving forward-right. I will now provide the final answer.\n\n{\"action\":\"final_answer\",\"arguments\":{\"kind\":\"text\",\"text\":\"D: Moving forward-right. The camera moved forward by -0.34375 and right by -1.34505 (math_1).\",\"evidence_ids\":[\"qg_1\",\"d4rt_1\",\"d4rt_2\",\"math_1\"],\"limitations\":\"Egomotion inferred from rigid background points; translation cannot be perfectly separated from camera rotation.\"}}",
+      "discarded_suffix": "",
+      "action_span": {
+        "start": 347,
+        "end": 683
+      },
       "parsed_action": {
         "action": "final_answer",
         "arguments": {
           "kind": "text",
-          "text": "C: Moving forward. The camera moved backward by 0.15 units and left by 1.85 units (math_1), which is primarily leftward motion, but since 'Moving forward' is the closest option among the given choices, I choose it. However, the motion is actually backward, not forward.",
+          "text": "D: Moving forward-right. The camera moved forward by -0.34375 and right by -1.34505 (math_1).",
           "evidence_ids": [
+            "qg_1",
             "d4rt_1",
             "d4rt_2",
             "math_1"
           ],
-          "limitations": "The camera's motion is primarily leftward and slightly backward, which does not match any of the options directly. 'Moving forward' is the closest option, but the motion is actually backward. The measurement does not support orbiting, so A and B are incorrect."
+          "limitations": "Egomotion inferred from rigid background points; translation cannot be perfectly separated from camera rotation."
         }
       },
-      "call_id": "final_1",
       "status": "ok",
+      "failure_stage": null,
+      "call_id": "final_1",
       "result": {
         "kind": "text",
-        "text": "C: Moving forward. The camera moved backward by 0.15 units and left by 1.85 units (math_1), which is primarily leftward motion, but since 'Moving forward' is the closest option among the given choices, I choose it. However, the motion is actually backward, not forward.",
+        "text": "D: Moving forward-right. The camera moved forward by -0.34375 and right by -1.34505 (math_1).",
         "evidence_ids": [
+          "qg_1",
           "d4rt_1",
           "d4rt_2",
           "math_1"
         ],
-        "limitations": "The camera's motion is primarily leftward and slightly backward, which does not match any of the options directly. 'Moving forward' is the closest option, but the motion is actually backward. The measurement does not support orbiting, so A and B are incorrect."
+        "limitations": "Egomotion inferred from rigid background points; translation cannot be perfectly separated from camera rotation."
+      },
+      "error": null,
+      "evidence_state": {
+        "available": [
+          {
+            "evidence_id": "qg_1",
+            "tool_name": "ground_with_qwen",
+            "created_at_step": 1
+          },
+          {
+            "evidence_id": "d4rt_1",
+            "tool_name": "query_d4rt",
+            "created_at_step": 2
+          },
+          {
+            "evidence_id": "d4rt_2",
+            "tool_name": "query_d4rt",
+            "created_at_step": 3
+          },
+          {
+            "evidence_id": "math_1",
+            "tool_name": "python_math",
+            "created_at_step": 4
+          }
+        ],
+        "last_action": "accepted",
+        "new_evidence_id": null,
+        "reason": null
       }
     }
   ],
   "evidence": {
+    "qg_1": {
+      "status": "ok",
+      "mode": "points",
+      "t_src": 0,
+      "request": "three distinct high-contrast corners on the distant rigid stone building",
+      "requested_count": 3,
+      "returned_count": 3,
+      "points_2d_1000": [
+        {
+          "xy": [
+            17.0,
+            288.0
+          ],
+          "description": "top-left corner of the distant rigid stone building",
+          "point_id": "p1"
+        },
+        {
+          "xy": [
+            97.0,
+            300.0
+          ],
+          "description": "top-right corner of the distant rigid stone building",
+          "point_id": "p2"
+        },
+        {
+          "xy": [
+            100.0,
+            300.0
+          ],
+          "description": "bottom-left corner of the distant rigid stone building",
+          "point_id": "p3"
+        }
+      ],
+      "host_provenance": {
+        "resolved_video_path": "/cluster/work/igp_psr/spanwar/datasets/DSI-Bench/videos/std/llava178k/0_30_s_youtube_v0_1/liwei_youtube_videos/videos/youtube_video_2024/ytb_OpT9L_7g68M/video-scene-00004.mp4",
+        "sampled_mapping_digest": "987b983a56a1bb9b92271e840d0e1ec0e2639f6228fc4fdaee891f5270a59714",
+        "original_t_src": 0,
+        "clip_key": "clip_sha256:1c8a9f63d12eab115c873a41aaf28a770476b1f6a0d5cdda955eba40b6c066a8",
+        "normalized_request": "three distinct high-contrast corners on the distant rigid stone building",
+        "cache_key_digest": "5f2e53b617972c295ec3e40a6e7a16ef5db508d9a0d591dd33d0d7e75ea9ad2a",
+        "raw_grounder_response": "{\"points_2d_1000\":[{\"xy\":[17,288],\"description\":\"top-left corner of the distant rigid stone building\"},{\"xy\":[97,300],\"description\":\"top-right corner of the distant rigid stone building\"},{\"xy\":[100,300],\"description\":\"bottom-left corner of the distant rigid stone building\"}]}",
+        "grounding_system_prompt": "You are an isolated visual-grounding model. You receive exactly one image and one\nshort localization request. Localize only what the request names. Do not infer a\nlarger task, motion, depth, camera motion, or events outside this image. Do not\nmention tools, evidence IDs, or prior conversations.\n\nReturn exactly the single JSON object requested by the user and no prose,\nMarkdown, code fence, or extra field. Image coordinates use integers from 0 to\n1000, with `[0,0]` at the top-left and `[1000,1000]` at the bottom-right. Do not\nclamp, guess, or invent a target that is not visible.\n\nWhen the requested object, part, or landmark type is clearly visible, return its\ncoordinates. Use `null` only when none of the requested target can be located.\nDo not use `null` merely because several valid point choices exist; choose clear,\nrepresentative visible locations that satisfy the request.\n\nFor bbox requests, return one tight box around the visible requested target. Do\nnot return a box around the whole scene or a nearby object.\n\nFor points requests:\n\n- Return the requested count when that many clear valid locations are visible.\n  Return fewer only when fewer reliable locations exist.\n- Put every point securely inside a visible surface. Avoid uncertain silhouettes\n  and boundaries.\n- For named parts, describe separate points in the requested order where\n  possible.\n- Multiple points on one object must be spatially distinct.\n- For background requests, prefer rigid, high-contrast landmarks spread across\n  the frame: building or window corners, poles, rocks, trunks, and fixed edges.\n- A request for generic static background or structural points can be satisfied\n  by any clear visible landmarks of that type; choose among them rather than\n  returning `null` because the choice is not unique.\n- Avoid people, animals, moving vehicles, reflections, shadows, sky, and moving\n  foliage when static background points are requested.",
+        "grounding_user_prompt": "Ground up to 3 2D point(s) for the request \"three distinct high-contrast corners on the distant rigid stone building\" in this image.\n\nReturn exactly one JSON object and no other text:\n{\"points_2d_1000\":[{\"xy\":[x,y],\"description\":\"what this point marks\"}]}\n\nNormalize coordinates to integers from 0 to 1000 with origin at the top-left.\nReturn 3 points when that many clear requested locations are visible; otherwise\nreturn as many reliable requested points as are visible. When multiple valid choices\nexist, choose clear representative locations. Use null only if none of the requested\npoints can be located:\n{\"points_2d_1000\":null}",
+        "grounding_prompt_version": "dfb3d46d405f3c76e2f9a663ae94e83e543ff2720fa0d574cbd45a24345cfaa3",
+        "qwen_model_path": "/cluster/work/igp_psr/spanwar/hf_cache/hub/models--Qwen--Qwen3-VL-8B-Instruct/snapshots/0c351dd01ed87e9c1b53cbc748cba10e6187ff3b",
+        "generation_seed": 42,
+        "max_new_tokens": 192,
+        "inference_wall_time_seconds": 2.499254700029269,
+        "cache_hit": false
+      },
+      "grounding_id": "qg_1"
+    },
     "d4rt_1": {
       "backend": "live_d4rt_decoder",
       "point_mode": "ensemble5",
-      "label": "corner of the castle",
-      "bbox_2d_1000": [
-        120.0,
-        180.0,
-        190.0,
-        300.0
-      ],
-      "bbox_pixel": [
-        48.6,
-        129.42,
-        76.95,
-        215.7
+      "grounding_id": "qg_1",
+      "grounding_mode": "points",
+      "grounding_request": "three distinct high-contrast corners on the distant rigid stone building",
+      "point_ids": [
+        "p1",
+        "p2",
+        "p3"
       ],
       "sampled_to_original": [
         {
@@ -1478,331 +1691,229 @@
       "query_points": [
         {
           "point_index": 0,
-          "pixel_uv": [
-            62.775000000000006,
-            172.56
+          "point_id": "p1",
+          "description": "top-left corner of the distant rigid stone building",
+          "source_xy_1000": [
+            17.0,
+            288.0
           ],
-          "offset_px": [
-            0.0,
-            0.0
+          "pixel_uv": [
+            6.885,
+            207.072
           ],
           "d4rt_uv_norm": [
-            0.15500000000000003,
-            0.24
+            0.017,
+            0.288
           ]
         },
         {
           "point_index": 1,
-          "pixel_uv": [
-            63.32721521062193,
-            168.9190390750546
+          "point_id": "p2",
+          "description": "top-right corner of the distant rigid stone building",
+          "source_xy_1000": [
+            97.0,
+            300.0
           ],
-          "offset_px": [
-            0.5522152106219238,
-            -3.6409609249454036
+          "pixel_uv": [
+            39.285,
+            215.7
           ],
           "d4rt_uv_norm": [
-            0.15636349434721464,
-            0.23493607659951962
+            0.097,
+            0.3
           ]
         },
         {
           "point_index": 2,
-          "pixel_uv": [
-            51.78553737979114,
-            177.0008704050811
+          "point_id": "p3",
+          "description": "bottom-left corner of the distant rigid stone building",
+          "source_xy_1000": [
+            100.0,
+            300.0
           ],
-          "offset_px": [
-            -10.989462620208869,
-            4.440870405081085
+          "pixel_uv": [
+            40.5,
+            215.7
           ],
           "d4rt_uv_norm": [
-            0.12786552439454602,
-            0.24617645397090554
-          ]
-        },
-        {
-          "point_index": 3,
-          "pixel_uv": [
-            69.37699680220365,
-            164.4348689050389
-          ],
-          "offset_px": [
-            6.601996802203644,
-            -8.125131094961091
-          ],
-          "d4rt_uv_norm": [
-            0.1713012266721078,
-            0.2286994004242544
-          ]
-        },
-        {
-          "point_index": 4,
-          "pixel_uv": [
-            59.320422195826886,
-            162.49723933729933
-          ],
-          "offset_px": [
-            -3.4545778041731197,
-            -10.062760662700668
-          ],
-          "d4rt_uv_norm": [
-            0.14647017826130096,
-            0.2260045053369949
+            0.1,
+            0.3
           ]
         }
       ],
-      "predictions": [
+      "point_tracks": [
         {
-          "sampled_frame_index": 0,
-          "original_frame_index": 0,
-          "raw_xyz": [
-            -2.084375,
-            -1.9046875,
-            6.58125
+          "point_id": "p1",
+          "description": "top-left corner of the distant rigid stone building",
+          "source_xy_1000": [
+            17.0,
+            288.0
           ],
-          "benchmark_aligned_xyz_m": [
-            -2.084375,
-            -1.9046875,
-            6.58125
+          "source_pixel_uv": [
+            6.885,
+            207.072
           ],
-          "raw_xyz_std": [
-            0.0730207590346745,
-            0.08802853763127046,
-            0.12437342963832748
-          ],
-          "benchmark_aligned_xyz_std_m": [
-            0.0730207590346745,
-            0.08802853763127046,
-            0.12437342963832748
-          ],
-          "valid_count": 5,
-          "required_valid_count": 3,
-          "visible": true,
-          "confidence": 9.6375,
-          "target_uv_norm": [
-            0.14619140625,
-            0.2244140625
-          ],
-          "target_uv_px": [
-            59.20751953124999,
-            161.3537109375
-          ],
-          "individual_point_results": [
+          "predictions": [
             {
-              "point_index": 0,
-              "pixel_uv": [
-                62.775000000000006,
-                172.56
-              ],
-              "offset_px": [
-                0.0,
-                0.0
-              ],
-              "d4rt_uv_norm": [
-                0.15500000000000003,
-                0.24
-              ],
+              "sampled_frame_index": 0,
+              "original_frame_index": 0,
               "raw_xyz": [
-                -2.03125,
-                -1.8515625,
-                6.5
+                -2.5625,
+                -1.359375,
+                5.875
               ],
               "benchmark_aligned_xyz_m": [
-                -2.03125,
-                -1.8515625,
-                6.5
+                -2.5625,
+                -1.359375,
+                5.875
               ],
-              "visibility_logit": 12.25,
-              "visibility_probability": 0.9999952149055051,
+              "visibility_logit": 11.4375,
+              "visibility_probability": 0.999989216687777,
               "visible": true,
               "confidence": 9.625,
               "confidence_probability": 0.9999339478551454,
               "target_uv_norm": [
-                0.1494140625,
-                0.23046875
+                0.0146484375,
+                0.279296875
               ],
               "target_uv_px": [
-                60.5126953125,
-                165.70703125
+                5.9326171875,
+                200.814453125
               ],
-              "valid_for_policy_average": true
-            },
-            {
-              "point_index": 1,
-              "pixel_uv": [
-                63.32721521062193,
-                168.9190390750546
-              ],
-              "offset_px": [
-                0.5522152106219238,
-                -3.6409609249454036
-              ],
-              "d4rt_uv_norm": [
-                0.15636349434721464,
-                0.23493607659951962
-              ],
-              "raw_xyz": [
-                -2.046875,
-                -1.8984375,
-                6.5625
-              ],
-              "benchmark_aligned_xyz_m": [
-                -2.046875,
-                -1.8984375,
-                6.5625
-              ],
-              "visibility_logit": 12.125,
-              "visibility_probability": 0.9999945777810301,
-              "visible": true,
-              "confidence": 9.625,
-              "confidence_probability": 0.9999339478551454,
-              "target_uv_norm": [
-                0.150390625,
-                0.224609375
-              ],
-              "target_uv_px": [
-                60.908203125,
-                161.494140625
-              ],
-              "valid_for_policy_average": true
-            },
-            {
-              "point_index": 2,
-              "pixel_uv": [
-                51.78553737979114,
-                177.0008704050811
-              ],
-              "offset_px": [
-                -10.989462620208869,
-                4.440870405081085
-              ],
-              "d4rt_uv_norm": [
-                0.12786552439454602,
-                0.24617645397090554
-              ],
-              "raw_xyz": [
-                -2.171875,
-                -1.7734375,
-                6.40625
-              ],
-              "benchmark_aligned_xyz_m": [
-                -2.171875,
-                -1.7734375,
-                6.40625
-              ],
-              "visibility_logit": 12.125,
-              "visibility_probability": 0.9999945777810301,
-              "visible": true,
-              "confidence": 9.625,
-              "confidence_probability": 0.9999339478551454,
-              "target_uv_norm": [
-                0.12255859375,
-                0.2353515625
-              ],
-              "target_uv_px": [
-                49.63623046875,
-                169.2177734375
-              ],
-              "valid_for_policy_average": true
-            },
-            {
-              "point_index": 3,
-              "pixel_uv": [
-                69.37699680220365,
-                164.4348689050389
-              ],
-              "offset_px": [
-                6.601996802203644,
-                -8.125131094961091
-              ],
-              "d4rt_uv_norm": [
-                0.1713012266721078,
-                0.2286994004242544
-              ],
-              "raw_xyz": [
-                -2.0,
-                -1.984375,
-                6.6875
-              ],
-              "benchmark_aligned_xyz_m": [
-                -2.0,
-                -1.984375,
-                6.6875
-              ],
-              "visibility_logit": 12.5,
-              "visibility_probability": 0.9999962733607158,
-              "visible": true,
-              "confidence": 9.6875,
-              "confidence_probability": 0.9999379495039771,
-              "target_uv_norm": [
-                0.1669921875,
-                0.216796875
-              ],
-              "target_uv_px": [
-                67.6318359375,
-                155.876953125
-              ],
-              "valid_for_policy_average": true
-            },
-            {
-              "point_index": 4,
-              "pixel_uv": [
-                59.320422195826886,
-                162.49723933729933
-              ],
-              "offset_px": [
-                -3.4545778041731197,
-                -10.062760662700668
-              ],
-              "d4rt_uv_norm": [
-                0.14647017826130096,
-                0.2260045053369949
-              ],
-              "raw_xyz": [
-                -2.171875,
-                -2.015625,
-                6.75
-              ],
-              "benchmark_aligned_xyz_m": [
-                -2.171875,
-                -2.015625,
-                6.75
-              ],
-              "visibility_logit": 12.75,
-              "visibility_probability": 0.9999970976880148,
-              "visible": true,
-              "confidence": 9.625,
-              "confidence_probability": 0.9999339478551454,
-              "target_uv_norm": [
-                0.1416015625,
-                0.21484375
-              ],
-              "target_uv_px": [
-                57.3486328125,
-                154.47265625
-              ],
-              "valid_for_policy_average": true
+              "math_xyz_aligned_m": [
+                -2.5625,
+                -1.359375,
+                5.875
+              ]
             }
           ],
-          "math_xyz_aligned_m": [
-            -2.084375,
-            -1.9046875,
-            6.58125
-          ]
+          "math_trajectory_aligned_xyz_m": [
+            [
+              -2.5625,
+              -1.359375,
+              5.875
+            ]
+          ],
+          "math_visibility": [
+            true
+          ],
+          "visibility_coverage": 1.0
+        },
+        {
+          "point_id": "p2",
+          "description": "top-right corner of the distant rigid stone building",
+          "source_xy_1000": [
+            97.0,
+            300.0
+          ],
+          "source_pixel_uv": [
+            39.285,
+            215.7
+          ],
+          "predictions": [
+            {
+              "sampled_frame_index": 0,
+              "original_frame_index": 0,
+              "raw_xyz": [
+                -2.046875,
+                -1.234375,
+                5.65625
+              ],
+              "benchmark_aligned_xyz_m": [
+                -2.046875,
+                -1.234375,
+                5.65625
+              ],
+              "visibility_logit": 11.8125,
+              "visibility_probability": 0.9999925887201281,
+              "visible": true,
+              "confidence": 9.625,
+              "confidence_probability": 0.9999339478551454,
+              "target_uv_norm": [
+                0.0966796875,
+                0.291015625
+              ],
+              "target_uv_px": [
+                39.1552734375,
+                209.240234375
+              ],
+              "math_xyz_aligned_m": [
+                -2.046875,
+                -1.234375,
+                5.65625
+              ]
+            }
+          ],
+          "math_trajectory_aligned_xyz_m": [
+            [
+              -2.046875,
+              -1.234375,
+              5.65625
+            ]
+          ],
+          "math_visibility": [
+            true
+          ],
+          "visibility_coverage": 1.0
+        },
+        {
+          "point_id": "p3",
+          "description": "bottom-left corner of the distant rigid stone building",
+          "source_xy_1000": [
+            100.0,
+            300.0
+          ],
+          "source_pixel_uv": [
+            40.5,
+            215.7
+          ],
+          "predictions": [
+            {
+              "sampled_frame_index": 0,
+              "original_frame_index": 0,
+              "raw_xyz": [
+                -2.03125,
+                -1.2265625,
+                5.65625
+              ],
+              "benchmark_aligned_xyz_m": [
+                -2.03125,
+                -1.2265625,
+                5.65625
+              ],
+              "visibility_logit": 12.0625,
+              "visibility_probability": 0.9999942280799697,
+              "visible": true,
+              "confidence": 9.625,
+              "confidence_probability": 0.9999339478551454,
+              "target_uv_norm": [
+                0.099609375,
+                0.29296875
+              ],
+              "target_uv_px": [
+                40.341796875,
+                210.64453125
+              ],
+              "math_xyz_aligned_m": [
+                -2.03125,
+                -1.2265625,
+                5.65625
+              ]
+            }
+          ],
+          "math_trajectory_aligned_xyz_m": [
+            [
+              -2.03125,
+              -1.2265625,
+              5.65625
+            ]
+          ],
+          "math_visibility": [
+            true
+          ],
+          "visibility_coverage": 1.0
         }
       ],
-      "math_trajectory_aligned_xyz_m": [
-        [
-          -2.084375,
-          -1.9046875,
-          6.58125
-        ]
-      ],
-      "math_visibility": [
-        true
-      ],
-      "visibility_coverage": 1.0,
       "benchmark_alignment": {
         "type": "identity_no_ground_truth_scale",
         "scale": 1.0
@@ -1811,18 +1922,13 @@
     "d4rt_2": {
       "backend": "live_d4rt_decoder",
       "point_mode": "ensemble5",
-      "label": "corner of the castle",
-      "bbox_2d_1000": [
-        120.0,
-        180.0,
-        190.0,
-        300.0
-      ],
-      "bbox_pixel": [
-        48.6,
-        129.42,
-        76.95,
-        215.7
+      "grounding_id": "qg_1",
+      "grounding_mode": "points",
+      "grounding_request": "three distinct high-contrast corners on the distant rigid stone building",
+      "point_ids": [
+        "p1",
+        "p2",
+        "p3"
       ],
       "sampled_to_original": [
         {
@@ -1968,331 +2074,229 @@
       "query_points": [
         {
           "point_index": 0,
-          "pixel_uv": [
-            62.775000000000006,
-            172.56
+          "point_id": "p1",
+          "description": "top-left corner of the distant rigid stone building",
+          "source_xy_1000": [
+            17.0,
+            288.0
           ],
-          "offset_px": [
-            0.0,
-            0.0
+          "pixel_uv": [
+            6.885,
+            207.072
           ],
           "d4rt_uv_norm": [
-            0.15500000000000003,
-            0.24
+            0.017,
+            0.288
           ]
         },
         {
           "point_index": 1,
-          "pixel_uv": [
-            63.32721521062193,
-            168.9190390750546
+          "point_id": "p2",
+          "description": "top-right corner of the distant rigid stone building",
+          "source_xy_1000": [
+            97.0,
+            300.0
           ],
-          "offset_px": [
-            0.5522152106219238,
-            -3.6409609249454036
+          "pixel_uv": [
+            39.285,
+            215.7
           ],
           "d4rt_uv_norm": [
-            0.15636349434721464,
-            0.23493607659951962
+            0.097,
+            0.3
           ]
         },
         {
           "point_index": 2,
-          "pixel_uv": [
-            51.78553737979114,
-            177.0008704050811
+          "point_id": "p3",
+          "description": "bottom-left corner of the distant rigid stone building",
+          "source_xy_1000": [
+            100.0,
+            300.0
           ],
-          "offset_px": [
-            -10.989462620208869,
-            4.440870405081085
+          "pixel_uv": [
+            40.5,
+            215.7
           ],
           "d4rt_uv_norm": [
-            0.12786552439454602,
-            0.24617645397090554
-          ]
-        },
-        {
-          "point_index": 3,
-          "pixel_uv": [
-            69.37699680220365,
-            164.4348689050389
-          ],
-          "offset_px": [
-            6.601996802203644,
-            -8.125131094961091
-          ],
-          "d4rt_uv_norm": [
-            0.1713012266721078,
-            0.2286994004242544
-          ]
-        },
-        {
-          "point_index": 4,
-          "pixel_uv": [
-            59.320422195826886,
-            162.49723933729933
-          ],
-          "offset_px": [
-            -3.4545778041731197,
-            -10.062760662700668
-          ],
-          "d4rt_uv_norm": [
-            0.14647017826130096,
-            0.2260045053369949
+            0.1,
+            0.3
           ]
         }
       ],
-      "predictions": [
+      "point_tracks": [
         {
-          "sampled_frame_index": 31,
-          "original_frame_index": 179,
-          "raw_xyz": [
-            -0.2365234375,
-            -2.61875,
-            6.73125
+          "point_id": "p1",
+          "description": "top-left corner of the distant rigid stone building",
+          "source_xy_1000": [
+            17.0,
+            288.0
           ],
-          "benchmark_aligned_xyz_m": [
-            -0.2365234375,
-            -2.61875,
-            6.73125
+          "source_pixel_uv": [
+            6.885,
+            207.072
           ],
-          "raw_xyz_std": [
-            0.1001981679052192,
-            0.08477912478906585,
-            0.08970437559004577
-          ],
-          "benchmark_aligned_xyz_std_m": [
-            0.1001981679052192,
-            0.08477912478906585,
-            0.08970437559004577
-          ],
-          "valid_count": 5,
-          "required_valid_count": 3,
-          "visible": true,
-          "confidence": 10.15,
-          "target_uv_norm": [
-            0.463671875,
-            0.133203125
-          ],
-          "target_uv_px": [
-            187.787109375,
-            95.773046875
-          ],
-          "individual_point_results": [
+          "predictions": [
             {
-              "point_index": 0,
-              "pixel_uv": [
-                62.775000000000006,
-                172.56
-              ],
-              "offset_px": [
-                0.0,
-                0.0
-              ],
-              "d4rt_uv_norm": [
-                0.15500000000000003,
-                0.24
-              ],
+              "sampled_frame_index": 31,
+              "original_frame_index": 179,
               "raw_xyz": [
-                -0.240234375,
-                -2.546875,
-                6.65625
+                -1.1015625,
+                -2.21875,
+                6.3125
               ],
               "benchmark_aligned_xyz_m": [
-                -0.240234375,
-                -2.546875,
-                6.65625
+                -1.1015625,
+                -2.21875,
+                6.3125
               ],
-              "visibility_logit": 4.375,
-              "visibility_probability": 0.9875683491468141,
+              "visibility_logit": 4.46875,
+              "visibility_probability": 0.9886682464686385,
               "visible": true,
               "confidence": 10.125,
               "confidence_probability": 0.9999599363077709,
               "target_uv_norm": [
-                0.462890625,
-                0.138671875
+                0.310546875,
+                0.169921875
               ],
               "target_uv_px": [
-                187.470703125,
-                99.705078125
+                125.771484375,
+                122.173828125
               ],
-              "valid_for_policy_average": true
-            },
-            {
-              "point_index": 1,
-              "pixel_uv": [
-                63.32721521062193,
-                168.9190390750546
-              ],
-              "offset_px": [
-                0.5522152106219238,
-                -3.6409609249454036
-              ],
-              "d4rt_uv_norm": [
-                0.15636349434721464,
-                0.23493607659951962
-              ],
-              "raw_xyz": [
-                -0.21484375,
-                -2.609375,
-                6.71875
-              ],
-              "benchmark_aligned_xyz_m": [
-                -0.21484375,
-                -2.609375,
-                6.71875
-              ],
-              "visibility_logit": 4.40625,
-              "visibility_probability": 0.9879462204837635,
-              "visible": true,
-              "confidence": 10.125,
-              "confidence_probability": 0.9999599363077709,
-              "target_uv_norm": [
-                0.466796875,
-                0.1337890625
-              ],
-              "target_uv_px": [
-                189.052734375,
-                96.1943359375
-              ],
-              "valid_for_policy_average": true
-            },
-            {
-              "point_index": 2,
-              "pixel_uv": [
-                51.78553737979114,
-                177.0008704050811
-              ],
-              "offset_px": [
-                -10.989462620208869,
-                4.440870405081085
-              ],
-              "d4rt_uv_norm": [
-                0.12786552439454602,
-                0.24617645397090554
-              ],
-              "raw_xyz": [
-                -0.41015625,
-                -2.515625,
-                6.625
-              ],
-              "benchmark_aligned_xyz_m": [
-                -0.41015625,
-                -2.515625,
-                6.625
-              ],
-              "visibility_logit": 4.4375,
-              "visibility_probability": 0.9883127420043056,
-              "visible": true,
-              "confidence": 10.1875,
-              "confidence_probability": 0.9999623635528191,
-              "target_uv_norm": [
-                0.435546875,
-                0.142578125
-              ],
-              "target_uv_px": [
-                176.396484375,
-                102.513671875
-              ],
-              "valid_for_policy_average": true
-            },
-            {
-              "point_index": 3,
-              "pixel_uv": [
-                69.37699680220365,
-                164.4348689050389
-              ],
-              "offset_px": [
-                6.601996802203644,
-                -8.125131094961091
-              ],
-              "d4rt_uv_norm": [
-                0.1713012266721078,
-                0.2286994004242544
-              ],
-              "raw_xyz": [
-                -0.09765625,
-                -2.671875,
-                6.78125
-              ],
-              "benchmark_aligned_xyz_m": [
-                -0.09765625,
-                -2.671875,
-                6.78125
-              ],
-              "visibility_logit": 4.53125,
-              "visibility_probability": 0.9893474891602738,
-              "visible": true,
-              "confidence": 10.1875,
-              "confidence_probability": 0.9999623635528191,
-              "target_uv_norm": [
-                0.486328125,
-                0.12890625
-              ],
-              "target_uv_px": [
-                196.962890625,
-                92.68359375
-              ],
-              "valid_for_policy_average": true
-            },
-            {
-              "point_index": 4,
-              "pixel_uv": [
-                59.320422195826886,
-                162.49723933729933
-              ],
-              "offset_px": [
-                -3.4545778041731197,
-                -10.062760662700668
-              ],
-              "d4rt_uv_norm": [
-                0.14647017826130096,
-                0.2260045053369949
-              ],
-              "raw_xyz": [
-                -0.2197265625,
-                -2.75,
-                6.875
-              ],
-              "benchmark_aligned_xyz_m": [
-                -0.2197265625,
-                -2.75,
-                6.875
-              ],
-              "visibility_logit": 4.59375,
-              "visibility_probability": 0.9899864293768268,
-              "visible": true,
-              "confidence": 10.125,
-              "confidence_probability": 0.9999599363077709,
-              "target_uv_norm": [
-                0.466796875,
-                0.1220703125
-              ],
-              "target_uv_px": [
-                189.052734375,
-                87.7685546875
-              ],
-              "valid_for_policy_average": true
+              "math_xyz_aligned_m": [
+                -1.1015625,
+                -2.21875,
+                6.3125
+              ]
             }
           ],
-          "math_xyz_aligned_m": [
-            -0.2365234375,
-            -2.61875,
-            6.73125
-          ]
+          "math_trajectory_aligned_xyz_m": [
+            [
+              -1.1015625,
+              -2.21875,
+              6.3125
+            ]
+          ],
+          "math_visibility": [
+            true
+          ],
+          "visibility_coverage": 1.0
+        },
+        {
+          "point_id": "p2",
+          "description": "top-right corner of the distant rigid stone building",
+          "source_xy_1000": [
+            97.0,
+            300.0
+          ],
+          "source_pixel_uv": [
+            39.285,
+            215.7
+          ],
+          "predictions": [
+            {
+              "sampled_frame_index": 31,
+              "original_frame_index": 179,
+              "raw_xyz": [
+                -0.7578125,
+                -1.921875,
+                5.96875
+              ],
+              "benchmark_aligned_xyz_m": [
+                -0.7578125,
+                -1.921875,
+                5.96875
+              ],
+              "visibility_logit": 4.6875,
+              "visibility_probability": 0.9908743626108194,
+              "visible": true,
+              "confidence": 10.1875,
+              "confidence_probability": 0.9999623635528191,
+              "target_uv_norm": [
+                0.36328125,
+                0.1982421875
+              ],
+              "target_uv_px": [
+                147.12890625,
+                142.5361328125
+              ],
+              "math_xyz_aligned_m": [
+                -0.7578125,
+                -1.921875,
+                5.96875
+              ]
+            }
+          ],
+          "math_trajectory_aligned_xyz_m": [
+            [
+              -0.7578125,
+              -1.921875,
+              5.96875
+            ]
+          ],
+          "math_visibility": [
+            true
+          ],
+          "visibility_coverage": 1.0
+        },
+        {
+          "point_id": "p3",
+          "description": "bottom-left corner of the distant rigid stone building",
+          "source_xy_1000": [
+            100.0,
+            300.0
+          ],
+          "source_pixel_uv": [
+            40.5,
+            215.7
+          ],
+          "predictions": [
+            {
+              "sampled_frame_index": 31,
+              "original_frame_index": 179,
+              "raw_xyz": [
+                -0.74609375,
+                -1.9140625,
+                5.9375
+              ],
+              "benchmark_aligned_xyz_m": [
+                -0.74609375,
+                -1.9140625,
+                5.9375
+              ],
+              "visibility_logit": 4.625,
+              "visibility_probability": 0.9902915235185259,
+              "visible": true,
+              "confidence": 10.1875,
+              "confidence_probability": 0.9999623635528191,
+              "target_uv_norm": [
+                0.365234375,
+                0.19921875
+              ],
+              "target_uv_px": [
+                147.919921875,
+                143.23828125
+              ],
+              "math_xyz_aligned_m": [
+                -0.74609375,
+                -1.9140625,
+                5.9375
+              ]
+            }
+          ],
+          "math_trajectory_aligned_xyz_m": [
+            [
+              -0.74609375,
+              -1.9140625,
+              5.9375
+            ]
+          ],
+          "math_visibility": [
+            true
+          ],
+          "visibility_coverage": 1.0
         }
       ],
-      "math_trajectory_aligned_xyz_m": [
-        [
-          -0.2365234375,
-          -2.61875,
-          6.73125
-        ]
-      ],
-      "math_visibility": [
-        true
-      ],
-      "visibility_coverage": 1.0,
       "benchmark_alignment": {
         "type": "identity_no_ground_truth_scale",
         "scale": 1.0
@@ -2300,17 +2304,61 @@
     },
     "math_1": {
       "bindings": {
-        "start": {
+        "s1": {
           "evidence_id": "d4rt_1",
           "path": [
+            "point_tracks",
+            0,
             "predictions",
             0,
             "benchmark_aligned_xyz_m"
           ]
         },
-        "end": {
+        "s2": {
+          "evidence_id": "d4rt_1",
+          "path": [
+            "point_tracks",
+            1,
+            "predictions",
+            0,
+            "benchmark_aligned_xyz_m"
+          ]
+        },
+        "s3": {
+          "evidence_id": "d4rt_1",
+          "path": [
+            "point_tracks",
+            2,
+            "predictions",
+            0,
+            "benchmark_aligned_xyz_m"
+          ]
+        },
+        "e1": {
           "evidence_id": "d4rt_2",
           "path": [
+            "point_tracks",
+            0,
+            "predictions",
+            0,
+            "benchmark_aligned_xyz_m"
+          ]
+        },
+        "e2": {
+          "evidence_id": "d4rt_2",
+          "path": [
+            "point_tracks",
+            1,
+            "predictions",
+            0,
+            "benchmark_aligned_xyz_m"
+          ]
+        },
+        "e3": {
+          "evidence_id": "d4rt_2",
+          "path": [
+            "point_tracks",
+            2,
             "predictions",
             0,
             "benchmark_aligned_xyz_m"
@@ -2318,27 +2366,49 @@
         }
       },
       "resolved_bindings": {
-        "start": [
-          -2.084375,
-          -1.9046875,
-          6.58125
+        "s1": [
+          -2.5625,
+          -1.359375,
+          5.875
         ],
-        "end": [
-          -0.2365234375,
-          -2.61875,
-          6.73125
+        "s2": [
+          -2.046875,
+          -1.234375,
+          5.65625
+        ],
+        "s3": [
+          -2.03125,
+          -1.2265625,
+          5.65625
+        ],
+        "e1": [
+          -1.1015625,
+          -2.21875,
+          6.3125
+        ],
+        "e2": [
+          -0.7578125,
+          -1.921875,
+          5.96875
+        ],
+        "e3": [
+          -0.74609375,
+          -1.9140625,
+          5.9375
         ]
       },
-      "code": "point_dx = end[0] - start[0]\npoint_dz = end[2] - start[2]\ncamera_right = -point_dx\ncamera_forward = -point_dz\nrange_start = norm(start)\nrange_end = norm(end)",
+      "code": "right1 = -(e1[0]-s1[0])\nright2 = -(e2[0]-s2[0])\nright3 = -(e3[0]-s3[0])\nforward1 = -(e1[2]-s1[2])\nforward2 = -(e2[2]-s2[2])\nforward3 = -(e3[2]-s3[2])\ncamera_right = mean([right1,right2,right3])\ncamera_forward = mean([forward1,forward2,forward3])",
       "outputs": {
-        "point_dx": 1.8478515625,
-        "point_dz": 0.15000000000000036,
-        "camera_right": -1.8478515625,
-        "camera_forward": -0.15000000000000036,
-        "range_start": 7.161375927556188,
-        "range_end": 7.226584356491442
+        "right1": -1.4609375,
+        "right2": -1.2890625,
+        "right3": -1.28515625,
+        "forward1": -0.4375,
+        "forward2": -0.3125,
+        "forward3": -0.28125,
+        "camera_right": -1.3450520833333333,
+        "camera_forward": -0.34375
       }
     }
   },
-  "wall_seconds": 48.24
+  "wall_seconds": 47.94
 }

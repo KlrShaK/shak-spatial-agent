@@ -1,381 +1,234 @@
-# DSI-Bench pilot — findings
+# DSI-Bench grounding-tool comparison
 
-**Run:** 25 questions, `std` split, Qwen3-VL-8B-Instruct, `point_mode=ensemble5`,
-`benchmark_scale=1.0` (`identity_no_ground_truth_scale`), seed `20260725`,
-max 14 steps/question. Agent wall time 42.7 min for the 25-question pass.
+## Run identity
 
-Per-question detail, videos and full traces: [`DSI_BENCH_RESULTS.md`](DSI_BENCH_RESULTS.md).
-All letters below are re-derived from saved response text with `parse_choice_letter`;
-0/25 agent and 0/25 baseline answers failed to parse.
+- Implementation commit: `56d455caa1a7868aa99aec237cbd541b40157f7d`
+- Slurm job(s): `['9086647']` on `['eu-a65-07']`
+- GPU: `['NVIDIA A100 80GB PCIe']`
+- Fixed manifest: 25 questions from `DSI-Bench` `std`
 
-## Headline
+## Headline results
 
-| | correct | vs. 25% chance |
-|---|---|---|
-| D4RT agent | **10 / 25** (40%) | p = 0.071 — **not** distinguishable from guessing |
-| Qwen-only baseline | **13 / 25** (52%) | p = 0.003 — distinguishable |
+- Current: 9/25
+- Previous agent: 10/25
+- Failed forced-grounding run: 7/25 with 4 unanswered/failed
+- Unchanged Qwen baseline: 13/25
+- Completion: 22 strict, 0 relaxed, 3 failed, 0 infrastructure errors
+- Completion rates: 88.0% strict, 0.0% relaxed, 12.0% failed
+- Accuracy among completed statuses: 9/22 (40.9%)
 
-> **The D4RT loop is a net negative on this sample.** It is also worth being precise
-> about what "beats chance" means here: at n=25 and 4 options you need **≥11 correct**
-> for a one-sided binomial test to clear p<0.05. The baseline clears that bar; the agent
-> does not. So the honest reading is that the *baseline* beats chance, the *agent* does
-> not, and the agent-vs-baseline gap itself is **not** statistically resolved.
+## Tool and orchestration metrics
 
-**Why the gap isn't resolved.** The two systems answer the same 25 questions, so the
-paired test is the right one. They agree on 12 questions and disagree on 13, but only
-7 of those disagreements are decisive: the agent is right where the baseline is wrong on
-**2**, the baseline right where the agent is wrong on **5**. McNemar's exact test on
-(2, 5) gives **p = 0.45**. Eight questions both get right, ten both get wrong. A
-3-question headline difference resting on a 5-vs-2 split is noise-consistent.
+- Grounding: 60 calls, 60 inferences, 0 cache hits, 19 not found, 0 malformed
+- Grounding modes: {'bbox': 29, 'points': 31}
+- Downstream calls: 66 D4RT, 12 math, 65 rejected
+- Steps: 225 total, 9.00 mean, 28 max
+- Discarded-suffix turns: 0/225 (0.0%)
+- D4RT visibility by grounding mode: {'bbox': {'mean': 0.677734375, 'count': 48}, 'points': {'mean': 0.625, 'count': 18}}
+- Runtime: 53.5 minutes total, 128.3 seconds/question
 
 ## Per task
 
-| Task | n | Agent | Baseline |
-|---|---|---|---|
-| Cam:dynamic scene | 4 | 3 | 3 |
-| Cam:static scene | 4 | **0** | 1 |
-| Obj-Cam distance | 5 | 2 | 3 |
-| Obj-Cam orientation | 4 | **3** | 2 |
-| Obj:moving cam | 4 | 2 | 2 |
-| Obj:static cam | 4 | **0** | 2 |
-
-The agent's two 0/4 cells are `Cam:static scene` and `Obj:static cam`; its only win is
-`Obj-Cam orientation` (3/4 vs 2/4) — the task predicted in the plan to be its **weakest**,
-since orientation needs the object's own body frame and D4RT returns no orientation.
-
-**That inversion is the thing to read traces for, not the headline** — but temper how
-surprising the 0/4s are. Under pure guessing a single 4-question cell comes back 0/4 with
-probability 0.75⁴ = **32%**, and across 6 tasks the chance that *at least one* cell is 0/4
-is **~90%**. Two 0/4 cells out of six is only mildly unlucky. Per-task cells at n=4 cannot
-support a claim about which task is hard; they can only tell you where to look.
-
-## Per dataset
-
-| Dataset | n | Agent | Baseline |
-|---|---|---|---|
-| CameraBench | 5 | 3 | 4 |
-| SynFMC | 5 | 2 | 2 |
-| internet | 5 | 2 | 1 |
-| k700 | 5 | 1 | 2 |
-| llava178k | 5 | 2 | 4 |
-
-## Head-to-head: where they agreed and where they split
-
-Twelve of 25 land on the same letter, thirteen split. `inv` is invisible/requested target
-frames for that question; `st` is agent steps.
-
-### Agent right, baseline wrong — 2
-
-| Task | Dataset | Question | GT | Agent | Baseline | inv | st |
-|---|---|---|---|---|---|---|---|
-| Obj-Cam orientation | internet | observer's position vs. the car's own orientation | **D** from car's front to back | D ✓ | A from car's left to back | 4/5 | 6 |
-| Obj:moving cam | llava178k | the man's location vs. his starting orientation | **A** Moving downward | A ✓ | B Moving upward | 0/2 | 12 |
-
-The llava178k row is the cleanest win in the run: the baseline picked the **exact opposite**
-direction, and the agent had 2/2 targets resolve. A sign flip on the vertical axis is
-precisely what a metric depth measurement should fix and a language prior should not, so
-this is the one row where the tool plausibly did the work the design intended.
-
-### Baseline right, agent wrong — 5
-
-| Task | Dataset | Question | GT | Agent | Baseline | inv | st |
-|---|---|---|---|---|---|---|---|
-| Obj:static cam | CameraBench | the runner's location vs. starting orientation | **B** Moving forward | A Moving backward | B ✓ | 0/4 | 5 |
-| Obj:moving cam | k700 | the horse's location vs. starting orientation | **D** Moving forward | A Moving backward | D ✓ | 0/4 | 5 |
-| Obj:static cam | llava178k | the car's location vs. starting orientation | **B** Moving forward | C Moving backward | B ✓ | 1/4 | 3 |
-| Cam:static scene | llava178k | the observer's location vs. starting orientation | **B** Orbiting ccw | C Moving forward | B ✓ | 0/2 | 4 |
-| Obj-Cam distance | llava178k | distance observer↔car | **D** Get closer | C *Cannot be determined* | D ✓ | 11/12 | 14 |
-
-**Three of these five are the same error: forward/backward inverted.** Runner, horse and
-car — GT forward, agent backward, baseline forward, and in all three *every or nearly every*
-target frame resolved successfully. So this is not tracker dropout. It is the sign convention
-on the facing axis: the agent builds a forward direction from two grounded body points
-(rear→front) and projects displacement onto it, and if that axis comes out reversed the
-answer flips deterministically. That is a **specific, checkable, fixable bug** and it is worth
-more attention than the aggregate score — it accounts for 3 of the agent's 15 errors, and
-fixing it alone would move the agent from 10/25 to 13/25, level with the baseline.
-
-### Both right — 8
-
-| Task | Dataset | GT | inv |
-|---|---|---|---|
-| Obj:moving cam | CameraBench | C Moving forward | 25/38 |
-| Cam:dynamic scene | CameraBench | D Orbiting counterclockwise | 4/8 |
-| Obj-Cam distance | CameraBench | A Get farther | 10/11 |
-| Obj-Cam distance | SynFMC | B Get farther | 1/2 |
-| Obj-Cam orientation | SynFMC | C from man's right to back | 0/4 |
-| Cam:dynamic scene | internet | C Moving upward | 5/11 |
-| Cam:dynamic scene | k700 | B Moving forward | 1/4 |
-| Obj-Cam orientation | llava178k | B from harvester's left to front | 1/4 |
-
-Note the invisibility column: the both-right rows carry a **57%** invisible-target rate
-(47/82), the same as the run overall, and two of them (25/38 and 10/11) are the worst rows
-in the entire study. The agent reached the right answer on questions where its measurements
-largely failed — i.e. from the images, the same way the baseline did. **Agreement here is
-weak evidence that the tool contributed anything**, and these 8 rows should not be counted
-as tool successes without reading the traces.
-
-### Both wrong, same letter — 4
-
-| Task | Dataset | GT | Both chose | inv |
-|---|---|---|---|---|
-| Obj:moving cam | SynFMC | D Moving forward and turning left | C Moving backward and turning right | 0/4 |
-| Cam:static scene | SynFMC | A Orbiting clockwise | B Moving backward | 10/20 |
-| Cam:dynamic scene | SynFMC | A Moving upward | D Moving right | 10/18 |
-| Obj:static cam | k700 | A Moving forward-right | C Moving backward-right | 0/4 |
-
-**Three of the four are SynFMC** (the synthetic set), and the run's SynFMC score is 2/5 for
-both systems. The first and last rows are again **forward↔backward inversions** with full
-target visibility — the same failure as the section above, except here the baseline shares
-it. Counting those, forward/backward sign errors appear in **5 of the 15 agent errors**.
-These four rows are where the tool loop had a clean shot — targets resolved, budget spare —
-and moved the answer nowhere.
-
-### Both wrong, different letters — 6
-
-| Task | Dataset | GT | Agent | Baseline | inv |
-|---|---|---|---|---|---|
-| Cam:static scene | CameraBench | C Moving downward | A Moving forward | B Moving upward | 10/11 |
-| Obj:static cam | internet | B Orbiting ccw | C *Basically unchange* | A Orbiting cw | 7/8 |
-| Cam:static scene | internet | B Moving upward | D Moving forward-right | C Moving downward | 1/2 |
-| Obj-Cam distance | internet | D Get farther | A *Cannot be determined* | C Get closer | 1/2 |
-| Obj-Cam distance | k700 | A Remain unchanged | C *Cannot be determined* | D Get closer | 1/2 |
-| Obj-Cam orientation | k700 | C from skier's left to right | D from skier's front to right | B from skier's back to front | 0/4 |
-
-### The pattern that explains the split: the agent hedges, the baseline never does
-
-Across the 25 questions a hedge option — *"Cannot be determined"*, *"Remain unchanged"*,
-*"Basically unchange"* — is offered in 7. **The agent picked one 4 times. The baseline picked
-one 0 times. All 4 of the agent's were wrong.**
-
-Narrowing to *"Cannot be determined"* specifically: offered in **5** questions, chosen by the
-agent in **3**, by the baseline in **0**, and **it is never the ground truth in any of the 5**.
-
-This is the single clearest mechanism behind the inversion, and it is not a 3D-reasoning
-failure — it is an **answer-policy mismatch**. The tool loop hands the agent an honest signal
-the baseline never receives ("my measurement failed / the displacement is within the noise"),
-DSI-Bench's option lists offer somewhere to put that honesty, and the benchmark never scores
-it as correct. The llava178k distance row is the archetype: 11 of 12 target frames came back
-invisible, the agent burned all 14 steps, concluded *Cannot be determined*, and the baseline
-— which never attempted a measurement and so had nothing to doubt — simply said *Get closer*
-and was right.
-
-Three of the agent's 15 errors are this. Combined with the 5 forward/backward sign errors,
-**8 of 15 agent errors fall into two specific, named, fixable failure modes**, neither of
-which is "the 3D tracker doesn't help with 3D reasoning."
-
-> **Benchmark artifact, worth flagging upstream.** The internet `Obj:static cam` row above
-> offers `C = "Basically unchange"` and `D = "Basically unchange"` — two identical options,
-> with GT `B`. The agent picked C. That question is unanswerable as posed and one of the 25
-> should be treated as void.
-
-## What the traces actually show
-
-Measured over all 135 `query_d4rt` calls and their 190 requested target frames:
-
-- **54% of requested target frames came back invisible** (103/190). 17 of 25 questions hit
-  at least one invisible target. This is the dominant failure mode of the tool loop — far
-  more than tracker imprecision.
-- **Depth precision, when a point *is* visible, is mostly fine.** Across 87 visible
-  predictions the `ensemble5` spread `std_z/|z|` has median **0.02** (p25 0.01, p75 0.04).
-  So the usual complaint — "the noise floor swamps the signal" — is **not** generally true.
-  But the tail is heavy: **15%** of visible predictions have depth spread >20% of depth,
-  and among the 7 queries where a start→end displacement was measurable against its own
-  spread, 4 had **displacement smaller than the spread**. The tracker is usually precise
-  and occasionally badly wrong, which is harder to reason around than uniform noise.
-- **Occlusion is not what separates right from wrong.** Questions with ≥1 invisible target
-  scored 8/17; questions where every target resolved scored 2/8. The clean ones are mostly
-  the shallow 2-query rows, so this is confounded — but it does rule out "the agent fails
-  because the tracker drops out" as the whole story.
-- 24 actions were rejected by the host validator across the run; 194 model actions total.
-  Mean 7.8 steps/question, 4 questions hit 12+ steps.
-
-**Reading the `limitations` fields is the fastest route in.** The agent frequently
-*announces* that its measurement failed and then commits to a letter anyway:
-
-- *"The static background point was not visible in any of the queried frames, so the
-  camera's motion was inferred from the changing perspective on the scene rather than
-  direct measurement."* (Cam:static scene, CameraBench — 11 queries, 10 of 11 targets
-  invisible, wrong)
-- *"The camera's motion is primarily leftward and slightly backward, which does not match
-  any of the options directly. 'Moving forward' is the closest option, but the motion is
-  actually backward."* (Cam:static scene, llava178k — all targets visible, wrong)
-- *"The car is not visible in frame 31, so the displacement could not be measured. The
-  measurement was incomplete and the answer is based on the images showing the car moving
-  forward."* (Obj:static cam, internet — wrong)
-
-In those rows the agent has fallen back to the *same* visual evidence the baseline uses,
-but after spending 3–12 steps on a failed measurement and with the failed measurement
-still in context. That is a plausible mechanism for the loop being a net negative: it
-doesn't add a channel so much as add a distractor. Confirming it means reading whether the
-fallback answers are *worse* than the baseline's on the same rows, not just checking the
-tally.
-
-## Three worked traces
-
-Reproduce any of these with:
-
-```
-python d4rt_agent/dsi_bench_show.py M0jmSsQ5ptw     # video path or question id substring
-python d4rt_agent/dsi_bench_show.py --list          # all 25
-```
-
-### 1. `CameraBench/M0jmSsQ5ptw.3.12.mp4` — the most important trace in the run
-
-Obj:static cam. GT **B: Moving forward**. Agent **A: Moving backward** ✗. Baseline B ✓.
-5 steps, **every target frame visible (4/4)**.
-
-This is the run's *methodologically perfect* trace. It is the only question where the agent
-did everything the prompt asks: one query with `t_tgt=[0,31]` under fixed `t_cam=0` (not a
-scan), a two-point rear→front facing axis, a `python_math` projection, all evidence cited.
-It still gets the answer wrong, and the reason is not procedure.
-
-| | value | 1σ noise | SNR |
-|---|---|---|---|
-| facing axis (chest − back, x/z) | `[+0.242, +0.544]`, ‖·‖ = **0.595** | 0.767 | **0.78** |
-| displacement (frame 0→31, x/z) | `[-0.025, -0.244]`, ‖·‖ = **0.245** | 2.702 | **0.09** |
-
-**Both inputs to the projection are smaller than their own error bars.** The displacement is
-**11× smaller** than its uncertainty — driven by depth, where `dz = -0.244` against
-`σ_z ≈ 2.7`. The facing axis is likewise unresolved: the "chest" and "back" boxes are
-**9.6 px apart** on a 480×270 frame, on a runner whose entire bounding box is 86 px tall.
-
-The agent computed `along = -0.2328`, reported it to four decimal places, and wrote
-*"indicating backward motion."* It is a projection of noise onto noise; the sign is a coin
-flip. Its `limitations` field worries about the *right* thing but the wrong magnitude:
-*"the forward direction … may not perfectly align with the runner's actual facing direction,
-but the projection is sufficient to determine the dominant motion component."*
-
-> **This corrects an earlier claim in this document.** The head-to-head section above
-> hypothesised, from the pattern of 5 forward↔backward errors, that the facing axis had a
-> **reversed sign convention** — "a specific, checkable, fixable bug" worth 3 questions.
-> This trace refutes that. The axis is not reversed, it is **unmeasured**. Fixing a sign
-> convention would change nothing, because there is no signal whose sign to fix. Treat the
-> "fix the facing-axis sign" recommendation as superseded by item 1 below.
-
-**The prompt already told it to catch this.** The unscaled-units section instructs that a
-displacement smaller than its own reported spread is tracker noise. Every result carried
-`benchmark_aligned_xyz_std_m`. Across the entire run there were **10 `python_math` calls in
-25 questions, and only 2 referenced a `_std_` field at all.** The noise floor `ensemble5` was
-chosen to provide was computed, delivered, and then ignored in 8 of 10 calculations.
-
-### 2. `CameraBench/u35WIs62R2M.1.4.mp4` — right method, then two compounding failures
-
-Cam:static scene. GT **C: Moving downward**. Agent **A: Moving forward** ✗. 12 steps,
-**10 of 11 targets invisible**.
-
-Step 1 states the egomotion recipe correctly, inversion rule and all:
-
-> "Ground a static background point … The camera's motion is the inverse of the static
-> point's apparent motion. If the point appears to move upward (positive y), the camera moved
-> downward, and vice versa."
-
-Then calls 2–11 walk `t_tgt`/`t_cam` together through 31, 15, 10, 5, 2, 1, 3, 4, 6, 7 — every
-one `visible: false`, `0/5` valid. Only frame 0 ever resolved, at 5/5.
-
-**It lost track of its own success.** At step 3 it writes *"the point is not visible in frames
-0, 15, and 31"* — but frame 0 **was** visible. That is `d4rt_1`, the evidence id it goes on to
-cite in its final answer. It then repeats an ever-growing not-visible list that wrongly
-includes 0 for nine more steps, holding a valid measurement it believed it did not have.
-
-**The correct answer appears in its own final reasoning and is discarded.** Step 12:
-*"The camera starts from a high vantage point and gradually moves downward… This suggests
-that the camera is moving forward and possibly downward."* It then picks **Moving forward**.
-GT is **Moving downward**.
-
-### 3. `CameraBench/-2uIa-XMJC0.5.3.mp4` — correct answer, invalid reasoning
-
-Obj-Cam distance. GT **A: Get farther**. Agent **A** ✓. 12 steps, **10 of 11 targets
-invisible**.
-
-Step 1 is sound and correctly invokes the scalar rule the prompt teaches: *"Since the
-distance is frame-invariant, I can compute it in the camera's own frame at each point."*
-Then the same collapse — calls 2–11 walk backwards 31→30→29→…→22, all invisible. And before
-each one it **hallucinates the premise**: *"the character is visible in frame 30, and the
-camera is still tracking them"* — ten times, each immediately falsified by the query it
-then issues.
-
-Its stated justification for the right answer:
-
-> "The character is not visible in any frame after frame 0, so the distance is increasing.
-> Therefore A: Get farther."
-
-Tracker dropout implies nothing about distance — a target can vanish by leaving frame
-laterally, by occlusion, or by tracker failure. One distance was measured and never compared
-to anything. **This is a "both right" row, and it demonstrates concretely why that bucket is
-not evidence of tool contribution.**
-
-### The scanning in traces 2 and 3 is partly a harness artifact
-
-`_refuse_hopeless_query` (`MAX_BLIND_QUERIES = 3`) was added after the job that produced most
-of these answers. Checking every trace: the guard was active for only the **last 2 of the 25**
-questions, and it fired correctly in both — query rejected at step 5, answer at step 6, no
-scan. Traces 2 and 3 ran at 00:23 and 00:25 in the first job, before it existed, which is why
-they scanned 10 times unchecked. Three questions show blind runs of 10, 10 and 11.
-
-So the step counts in this study are **not comparable across questions**, and the scanning
-pathology overstates what the current code would do. A re-run under the present guard is
-cheap and would fix both.
-
-### `t_tgt` is a list, and the agent almost never uses it as one
-
-Trace 1 correctly requests `t_tgt=[0,31]` in a single call. Traces 2 and 3 issue 11
-single-target queries each. One query with `t_tgt=[0,1,…,31]` under fixed `t_cam` would have
-returned the whole visibility profile in one step and shown immediately that only frame 0
-tracks. That is a prompt fix worth more than the refusal guard: it converts an 11-step dead
-end into a 1-step one.
-
-## Two confounds to rule out before believing the ordering
-
-1. **Letter prior.** The GT histogram is A:6 **B:8** C:5 D:6. The baseline's answers are
-   A:3 **B:10** C:7 D:5 — it leans B, and B is the modal GT. The agent leans C
-   (A:6 B:4 **C:10** D:5), which is the *rarest* GT. Some of the baseline's 3-question
-   edge may be prior/GT alignment on this particular 25-row draw rather than better
-   reasoning. Checkable by re-scoring against a letter-permuted GT.
-2. **Sampling design.** The Latin rectangle gives each task 4–5 questions, whereas real
-   DSI-Bench is 33% `Obj:moving cam` and 31% `Cam:dynamic scene`. Neither number here
-   estimates DSI-Bench accuracy, and the agent happens to do *fine* (3/4) on
-   `Cam:dynamic scene`, one of the two blocks this design under-weights.
-
-## What this pilot does and does not support
-
-**Supported:** the harness works end-to-end — 25/25 complete, 25/25 citing at least one
-D4RT measurement, no relaxed-gate retries needed, letters extractable from every answer.
-The tool loop's biggest concrete problem is target visibility at 54%.
-
-**Not supported:** any claim that the D4RT loop helps or hurts. n=25 with a 5-vs-2 paired
-split cannot resolve a 3-question difference. A follow-up sized to detect a ~15-point
-paired difference needs on the order of 150–200 questions, and would be better spent on
-the two large real blocks than spread evenly across six tasks.
-
-**But the per-question breakdown is actionable even at n=25**, because it names failure
-modes rather than counting them. In descending order of expected return:
-
-1. **Enforce the noise floor in the host, not the prompt.** Trace 1 is the whole problem in
-   one question: a displacement 11× smaller than its own σ, projected onto a facing axis
-   below *its* σ, reported to four decimals as a confident direction. The prompt already
-   forbids this and was ignored — only 2 of 10 `python_math` calls in the entire run
-   referenced a `_std_` field. Make it mechanical: when a bound displacement is below the
-   summed spread of its endpoints, have the host say so in the tool result, the way
-   `_diagnose_math` already does for nulls. This is the highest-value change in the list and
-   it supersedes the "fix the facing-axis sign" hypothesis stated earlier.
-2. **Decide the hedge policy.** 3 errors are *"Cannot be determined"* on questions where GT
-   is never "Cannot be determined". Either instruct the agent that the hedge options are
-   distractors and it must commit to a directional letter, or accept that measurement
-   honesty costs accuracy on this benchmark and report both numbers. This is a prompt
-   change, not a modelling one.
-3. **Teach `t_tgt` as a list.** Traces 2 and 3 spent 11 steps each learning what one
-   multi-target query would have shown in one. Pair this with the guard, which was active for
-   only 2 of the 25 questions and worked both times.
-4. **Re-run all 25 under the current harness.** The guard, the deadline notice and the math
-   diagnosis landed mid-study, so step counts are not comparable across questions and the
-   worst scans reflect code that no longer exists. It costs ~45 GPU-minutes.
-5. **Reconsider `ensemble5` — but not for the reason expected.** Depth precision is already
-   at a 2% median, so the noise floor was cheap to get; the problem is that the agent doesn't
-   *use* it. `ensemble5` also requires 3/5 valid vs `centroid`'s 1/1, which may be part of the
-   54% invisible rate. Worth one ablation, after item 1 — measuring whether the spread helps
-   is meaningless while the spread is being ignored.
-6. **Re-read the 8 both-right rows before crediting them.** They carry the run's average 57%
-   invisibility, and trace 3 shows one of them reaching the right letter through a
-   non-sequitur. The tool's true contribution on this sample is plausibly 1–2 questions, not
-   10.
+| Task | Correct | Total | Accuracy | Statuses |
+| --- | ---: | ---: | ---: | --- |
+| Cam:dynamic scene | 1 | 4 | 25.0% | {'complete': 3, 'failed': 1} |
+| Cam:static scene | 0 | 4 | 0.0% | {'failed': 1, 'complete': 3} |
+| Obj-Cam distance | 3 | 5 | 60.0% | {'complete': 4, 'failed': 1} |
+| Obj-Cam orientation | 2 | 4 | 50.0% | {'complete': 4} |
+| Obj:moving cam | 1 | 4 | 25.0% | {'complete': 4} |
+| Obj:static cam | 2 | 4 | 50.0% | {'complete': 4} |
+
+## Answer flips
+
+- Versus previous_agent: 4 gains, 5 losses, 4 changed-wrong answers.
+  - `CameraBench_c0_camerabench_m0jmssq5ptw.3.12_ccd85243`: A → B (GT B, gain)
+  - `CameraBench_c1_656086265ccda299e2c2ec394f4bfded4daa3ea64efcb4ee6c95b8c7de.0_95469228`: C → D (GT C, loss)
+  - `CameraBench_c2_camerabench_u35wis62r2m.1.4_8c093924`: A → — (GT C, changed_wrong)
+  - `CameraBench_c3_camerabench_3m-me9axcto.1.1_60268455`: D → C (GT D, loss)
+  - `SynFMC_c3_synfmc_rendered_traj_results_dynamic_45_video_480p_0fd58550`: D → — (GT A, changed_wrong)
+  - `SynFMC_c5_synfmc_rendered_traj_results_dynamic_14_video_480p_72d9da62`: C → A (GT C, loss)
+  - `internet_c3_internet_4cz3oqlfupm_video-scene-00023_6ef46874`: C → A (GT C, loss)
+  - `internet_c4_internet_an2sz4h4qzk_video-scene-00048_265c8450`: A → D (GT D, gain)
+  - `k700_c0_k700_paragliding_95df0yxigbw_000076_000086_video-scene-00000_a1d4095b`: C → A (GT A, gain)
+  - `k700_c1_700_playing_polo_j7j8_hz_hx8_000018_000028_video-scene-00001_68f048f4`: A → D (GT D, gain)
+  - `llava178k_c4_videos_youtube_video_2024_ytb_pcj0xjv7gi0_video-scene-00002_b63a5bf6`: C → — (GT D, changed_wrong)
+  - `llava178k_c1_videos_youtube_video_2024_ytb_pzg1hdiwfyk_video-scene-00002_fb3c4084`: A → D (GT A, loss)
+  - `llava178k_c2_videos_youtube_video_2024_ytb_opt9l_7g68m_video-scene-00004_11dfd093`: C → D (GT B, changed_wrong)
+- Versus failed_forced_grounding: 3 gains, 1 losses, 10 changed-wrong answers.
+  - `CameraBench_c1_656086265ccda299e2c2ec394f4bfded4daa3ea64efcb4ee6c95b8c7de.0_95469228`: — → D (GT C, changed_wrong)
+  - `CameraBench_c2_camerabench_u35wis62r2m.1.4_8c093924`: B → — (GT C, changed_wrong)
+  - `SynFMC_c3_synfmc_rendered_traj_results_dynamic_45_video_480p_0fd58550`: D → — (GT A, changed_wrong)
+  - `SynFMC_c5_synfmc_rendered_traj_results_dynamic_14_video_480p_72d9da62`: B → A (GT C, changed_wrong)
+  - `internet_c3_internet_4cz3oqlfupm_video-scene-00023_6ef46874`: B → A (GT C, changed_wrong)
+  - `internet_c5_internet_0knwuip85a8_video-scene-00009_39b26678`: — → D (GT D, gain)
+  - `k700_c4_k700_jogging_qy8rjbxblna_000116_000126_video-scene-00001_ab85ad6e`: — → C (GT A, changed_wrong)
+  - `k700_c5_700_snowboarding_9o2tvonlrmu_000003_000013_video-scene-00000_227e207a`: B → D (GT C, changed_wrong)
+  - `k700_c1_700_playing_polo_j7j8_hz_hx8_000018_000028_video-scene-00001_68f048f4`: A → D (GT D, gain)
+  - `llava178k_c4_videos_youtube_video_2024_ytb_pcj0xjv7gi0_video-scene-00002_b63a5bf6`: A → — (GT D, changed_wrong)
+  - `llava178k_c5_videos_youtube_video_2024_ytb_16mzjk4aojs_video-scene-00000_b36d2eb1`: — → B (GT B, gain)
+  - `llava178k_c0_videos_youtube_video_2024_ytb_djaut-hx2iu_video-scene-00000_bf9d0572`: B → C (GT B, loss)
+  - `llava178k_c1_videos_youtube_video_2024_ytb_pzg1hdiwfyk_video-scene-00002_fb3c4084`: B → D (GT A, changed_wrong)
+  - `llava178k_c2_videos_youtube_video_2024_ytb_opt9l_7g68m_video-scene-00004_11dfd093`: C → D (GT B, changed_wrong)
+- Versus baseline: 3 gains, 7 losses, 7 changed-wrong answers.
+  - `CameraBench_c1_656086265ccda299e2c2ec394f4bfded4daa3ea64efcb4ee6c95b8c7de.0_95469228`: C → D (GT C, loss)
+  - `CameraBench_c2_camerabench_u35wis62r2m.1.4_8c093924`: B → — (GT C, changed_wrong)
+  - `CameraBench_c3_camerabench_3m-me9axcto.1.1_60268455`: D → C (GT D, loss)
+  - `SynFMC_c3_synfmc_rendered_traj_results_dynamic_45_video_480p_0fd58550`: D → — (GT A, changed_wrong)
+  - `SynFMC_c5_synfmc_rendered_traj_results_dynamic_14_video_480p_72d9da62`: C → A (GT C, loss)
+  - `internet_c2_internet_2d0iwohbsju_video-scene-00020_fdbaa511`: C → D (GT B, changed_wrong)
+  - `internet_c3_internet_4cz3oqlfupm_video-scene-00023_6ef46874`: C → A (GT C, loss)
+  - `internet_c4_internet_an2sz4h4qzk_video-scene-00048_265c8450`: C → D (GT D, gain)
+  - `internet_c5_internet_0knwuip85a8_video-scene-00009_39b26678`: A → D (GT D, gain)
+  - `internet_c0_internet_fopbvllxkz0_video-scene-00033_c8413d28`: A → C (GT B, changed_wrong)
+  - `k700_c4_k700_jogging_qy8rjbxblna_000116_000126_video-scene-00001_ab85ad6e`: D → C (GT A, changed_wrong)
+  - `k700_c5_700_snowboarding_9o2tvonlrmu_000003_000013_video-scene-00000_227e207a`: B → D (GT C, changed_wrong)
+  - `k700_c0_k700_paragliding_95df0yxigbw_000076_000086_video-scene-00000_a1d4095b`: C → A (GT A, gain)
+  - `llava178k_c4_videos_youtube_video_2024_ytb_pcj0xjv7gi0_video-scene-00002_b63a5bf6`: D → — (GT D, loss)
+  - `llava178k_c0_videos_youtube_video_2024_ytb_djaut-hx2iu_video-scene-00000_bf9d0572`: B → C (GT B, loss)
+  - `llava178k_c1_videos_youtube_video_2024_ytb_pzg1hdiwfyk_video-scene-00002_fb3c4084`: B → D (GT A, changed_wrong)
+  - `llava178k_c2_videos_youtube_video_2024_ytb_opt9l_7g68m_video-scene-00004_11dfd093`: B → D (GT B, loss)
+
+## Per question
+
+| Question | Task | Current | Previous | Failed prompt | Baseline | GT | Status | Steps | Seconds |
+| --- | --- | --- | --- | --- | --- | --- | --- | ---: | ---: |
+| CameraBench_c0_camerabench_m0jmssq5ptw.3.12_ccd85243 | Obj:static cam | B | A | B | B | B | complete | 6 | 112.48 |
+| CameraBench_c1_656086265ccda299e2c2ec394f4bfded4daa3ea64efcb4ee6c95b8c7de.0_95469228 | Obj:moving cam | D | C | — | C | C | complete | 6 | 49.29 |
+| CameraBench_c2_camerabench_u35wis62r2m.1.4_8c093924 | Cam:static scene | — | A | B | B | C | failed | 28 | 745.9 |
+| CameraBench_c3_camerabench_3m-me9axcto.1.1_60268455 | Cam:dynamic scene | C | D | C | D | D | complete | 5 | 64.4 |
+| CameraBench_c4_camerabench_-2uia-xmjc0.5.3_877d2d07 | Obj-Cam distance | A | A | A | A | A | complete | 5 | 35.5 |
+| SynFMC_c1_synfmc_rendered_traj_results_dynamic_6_video_480p_728b5ef1 | Obj:moving cam | C | C | C | C | D | complete | 6 | 65.51 |
+| SynFMC_c2_synfmc_rendered_traj_results_dynamic_450_video_480p_868f34a5 | Cam:static scene | B | B | B | B | A | complete | 6 | 50.41 |
+| SynFMC_c3_synfmc_rendered_traj_results_dynamic_45_video_480p_0fd58550 | Cam:dynamic scene | — | D | D | D | A | failed | 28 | 257.84 |
+| SynFMC_c4_synfmc_rendered_traj_results_dynamic_183_video_480p_e9b12cbc | Obj-Cam distance | B | B | B | B | B | complete | 4 | 34.62 |
+| SynFMC_c5_synfmc_rendered_traj_results_dynamic_14_video_480p_72d9da62 | Obj-Cam orientation | A | C | B | C | C | complete | 6 | 61.24 |
+| internet_c2_internet_2d0iwohbsju_video-scene-00020_fdbaa511 | Cam:static scene | D | D | D | C | B | complete | 12 | 303.41 |
+| internet_c3_internet_4cz3oqlfupm_video-scene-00023_6ef46874 | Cam:dynamic scene | A | C | B | C | C | complete | 7 | 81.63 |
+| internet_c4_internet_an2sz4h4qzk_video-scene-00048_265c8450 | Obj-Cam distance | D | A | D | C | D | complete | 5 | 35.2 |
+| internet_c5_internet_0knwuip85a8_video-scene-00009_39b26678 | Obj-Cam orientation | D | D | — | A | D | complete | 12 | 115.32 |
+| internet_c0_internet_fopbvllxkz0_video-scene-00033_c8413d28 | Obj:static cam | C | C | C | A | B | complete | 3 | 31.11 |
+| k700_c3_k700_skiing_mono_rqfndqdk5ny_000080_000090_video-scene-00000_fd807178 | Cam:dynamic scene | B | B | B | B | B | complete | 12 | 196.06 |
+| k700_c4_k700_jogging_qy8rjbxblna_000116_000126_video-scene-00001_ab85ad6e | Obj-Cam distance | C | C | — | D | A | complete | 3 | 37.52 |
+| k700_c5_700_snowboarding_9o2tvonlrmu_000003_000013_video-scene-00000_227e207a | Obj-Cam orientation | D | D | B | B | C | complete | 14 | 343.89 |
+| k700_c0_k700_paragliding_95df0yxigbw_000076_000086_video-scene-00000_a1d4095b | Obj:static cam | A | C | A | C | A | complete | 6 | 100.38 |
+| k700_c1_700_playing_polo_j7j8_hz_hx8_000018_000028_video-scene-00001_68f048f4 | Obj:moving cam | D | A | A | D | D | complete | 6 | 77.36 |
+| llava178k_c4_videos_youtube_video_2024_ytb_pcj0xjv7gi0_video-scene-00002_b63a5bf6 | Obj-Cam distance | — | C | A | D | D | failed | 28 | 225.85 |
+| llava178k_c5_videos_youtube_video_2024_ytb_16mzjk4aojs_video-scene-00000_b36d2eb1 | Obj-Cam orientation | B | B | — | B | B | complete | 6 | 68.44 |
+| llava178k_c0_videos_youtube_video_2024_ytb_djaut-hx2iu_video-scene-00000_bf9d0572 | Obj:static cam | C | C | B | B | B | complete | 3 | 36.12 |
+| llava178k_c1_videos_youtube_video_2024_ytb_pzg1hdiwfyk_video-scene-00002_fb3c4084 | Obj:moving cam | D | A | B | B | A | complete | 3 | 30.22 |
+| llava178k_c2_videos_youtube_video_2024_ytb_opt9l_7g68m_video-scene-00004_11dfd093 | Cam:static scene | D | C | C | B | B | complete | 5 | 47.94 |
+
+## Visual review and interpretation
+
+All 25 per-question grounding sheets and all 41 exact-frame overlays covering
+the requested question/source-frame pairs were inspected. The report also
+records all 19 `not_found` results without drawing invented geometry.
+
+Whole-object grounding was usually plausible. Representative examples include
+the [runner](groundings/camerabench_m0jmssq5ptw.3.12_ccd85243.jpg), the
+[police car across six source frames](groundings/internet_0knwuip85a8_video-scene-00009_39b26678.jpg),
+the [closest white horse](groundings/internet_an2sz4h4qzk_video-scene-00048_265c8450.jpg),
+and the [harvester](groundings/videos_youtube_video_2024_ytb_16mzjk4aojs_video-scene-00000_b36d2eb1.jpg).
+The main severe object-box failure is the
+[closest red car](groundings/videos_youtube_video_2024_ytb_pcj0xjv7gi0_video-scene-00002_b63a5bf6.jpg):
+the returned box covers the ego vehicle's hood/dashboard rather than the red
+car ahead.
+
+Point grounding remained much less reliable than ordinary boxes. In several
+small or one-sided views, nominal chest/back points are adjacent points on the
+same visible surface rather than evidence of two anatomically distinguishable
+parts. This affects the
+[yellow-jacket person](groundings/656086265ccda299e2c2ec394f4bfded4daa3ea64efcb4ee6c95b8c7de.0_95469228.jpg),
+the [pink character](groundings/synfmc_rendered_traj_results_dynamic_6_video_480p_728b5ef1.jpg),
+and the [snowboarder](groundings/700_snowboarding_9o2tvonlrmu_000003_000013_video-scene-00000_227e207a.jpg).
+Background requests also often returned `not_found`; when points were returned,
+they could be tightly clustered instead of spanning the scene, as in the
+[Minecraft building request](groundings/videos_youtube_video_2024_ytb_opt9l_7g68m_video-scene-00004_11dfd093.jpg).
+
+## Failure taxonomy
+
+The dominant failure assigned to each of the 16 wrong or unanswered examples
+is below. These labels identify the first decisive trace failure; later failures
+can compound it.
+
+| Question | Dominant failure | Trace/overlay evidence |
+| --- | --- | --- |
+| `CameraBench_c1_656086...` | part/point localization | The correctly boxed tiny person received chest/back points only 8 normalized y-units apart; the resulting facing axis selected backward instead of forward. |
+| `CameraBench_c2_camerabench_u35...` | orchestration/termination | End-frame visibility was zero, after which strict and relaxed attempts repeatedly emitted invalid, unfinished action text and never finalized. |
+| `CameraBench_c3_camerabench_3m...` | D4RT visibility/tracking | The only returned star points came from frame 9 and all three were invisible at queried frames 0 and 31; the model then made an unsupported visual guess. |
+| `SynFMC_c1_...dynamic_6...` | part/point localization | The whole-character box is sound, but adjacent one-view chest/back points define the wrong facing direction and flip forward-left to backward-right. |
+| `SynFMC_c2_...dynamic_450...` | wrong semantic request | Three rigid-background requests returned `not_found`; the agent substituted moving Sonic as a camera-motion proxy and selected backward. |
+| `SynFMC_c3_...dynamic_45...` | orchestration/termination | Static landmarks were not found, the foreground character was invisible at the end, and the agent repeated the same start-frame query until no final action remained. |
+| `SynFMC_c5_...dynamic_14...` | part/point localization | A one-view chest/back pair produced an unreliable facing axis and the wrong left/right-to-back mapping. |
+| `internet_c2_...2d0iwohbsju...` | D4RT visibility/tracking | Three ceiling points were valid only at frame 0 and all invisible at frame 31; eight malformed/repeated calculations followed before a visual guess. |
+| `internet_c3_...4cz3oqlfupm...` | coordinate-frame reasoning | Only the deer at source frame 2 was visible; the agent treated its negative absolute y-coordinate as evidence that the camera moved downward. |
+| `internet_c0_...fopbvllxkz0...` | D4RT visibility/tracking | The car box is plausible, but its end-frame track is invisible; the agent converted missing evidence into “basically unchanged.” |
+| `k700_c4_...jogging...` | D4RT visibility/tracking | The runner is boxed correctly but invisible at frame 31, so the agent returns “cannot be determined” instead of the benchmark's unchanged option. |
+| `k700_c5_...snowboarding...` | trajectory calculation | One part track is invisible at the end; ten calculator calls repeat a forbidden conditional before the agent submits an unsupported orientation answer. |
+| `llava178k_c4_...pcj0xjv7gi0...` | bbox localization | The box selects the ego hood/dashboard, not the red car; subsequent queries are invisible/rejected and neither attempt finalizes. |
+| `llava178k_c0_...djaut-hx2iu...` | option selection | The pickup is boxed correctly but invisible at the end; leaving the field of view is incorrectly equated with moving backward. |
+| `llava178k_c1_...pzg1hdiwfyk...` | D4RT visibility/tracking | The man is boxed correctly, but the tracked vertical change is nearly zero and the agent selects unchanged rather than downward. |
+| `llava178k_c2_...opt9l_7g68m...` | ambiguous/static-background choice | Three supposed building corners are clustered near one image region, including two nearly identical points, making the inferred egomotion and option unreliable. |
+
+Across these examples, the dominant remaining bottlenecks are therefore not
+ordinary whole-object detection alone. They are partial visibility, D4RT track
+coverage, unobservable one-frame part requests, camera/facing-axis reasoning,
+and failure to adapt after a rejected or uninformative result.
+
+## Orchestration audit
+
+The CPU audit passed all 25 records and 225 model turns with zero structural
+violations:
+
+- every effective turn contains exactly one action;
+- no discarded suffix was placed in effective history (`0/225`);
+- every accepted action has valid immutable ledger provenance;
+- rejected actions create no evidence;
+- every D4RT query refers to an existing same-clip `qg_N`;
+- bbox queries use the host `ensemble5` policy and point queries preserve
+  explicit point IDs.
+
+This confirms that the host now stops and executes after one action. It does not
+mean the model always adapts: 65 actions were rejected, and repeated malformed
+or semantically identical retries caused all three unanswered cases.
+
+## Hypothesis assessment
+
+The hypothesis is **partially supported at the grounding boundary but weakened
+as an end-to-end performance hypothesis**.
+
+The isolated context produced strictly parseable grounding outputs (60/60, no
+malformed grounder responses), and visual review shows that most ordinary
+whole-object boxes are reasonable. The single-action/ledger architecture is
+also structurally clean. However, end-to-end accuracy fell from 10/25 to 9/25,
+completion fell from 25/25 to 22/25, and the result remains below the unchanged
+Qwen baseline at 13/25. Four gains over the previous agent were offset by five
+losses and four changed-wrong answers.
+
+Isolation therefore addresses context-contaminated coordinate generation, but
+does not by itself solve the benchmark. The strongest next generic improvements
+would be better rejection recovery and termination behavior, visibility-aware
+source/target selection, and a representation for orientation that does not ask
+a single 2D view to identify simultaneously hidden chest/back surfaces.
+
+## Reproducibility and limitations
+
+- The implementation evaluated by every answer record is commit
+  `56d455caa1a7868aa99aec237cbd541b40157f7d`, seed 42, max 14 actions per
+  strict/relaxed attempt, and D4RT `ensemble5`.
+- The user later overrode the plan's Blackwell-only rule with an A100-80GB versus
+  RTX PRO 6000 race. Job `9086647` won the race and ran all 25 examples on an
+  NVIDIA A100 80GB PCIe; Blackwell candidate `9086639` was cancelled before
+  producing evaluation outputs.
+- The manifest SHA-256 is
+  `4edae52a6a932579c5dc7dbf625e70ba26f9589334cd878ea517c8cfb4e7359c`,
+  identical to the previous and baseline runs.
+- There are no DSI-Bench ground-truth boxes or point annotations. Overlay
+  judgments are qualitative and must not be interpreted as IoU accuracy.
+- This is one deterministic-seed run on 25 fixed questions, so question-level
+  flips are more informative than small aggregate differences.
+- Zero cache hits means no exact canonical grounding request repeated in this
+  run; cache behavior is covered by CPU tests, not exercised by these 25 traces.
+- The evaluation intentionally retains generic tools and does not add
+  task-specific recovery, answer rules, forced finalization, or DSI-specific
+  heuristics.
