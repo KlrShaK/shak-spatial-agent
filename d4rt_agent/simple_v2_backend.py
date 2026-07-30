@@ -251,60 +251,18 @@ class LiveD4RTBackend:
     ) -> dict[str, Any]:
         """Decode one centroid or five-point policy for all requested targets."""
 
-        if not (0 <= int(t_cam) < NUM_SAMPLED_FRAMES):
-            raise ValueError("t_cam is outside [0,31]")
-        if not (0 <= int(t_src) < NUM_SAMPLED_FRAMES):
-            raise ValueError("t_src is outside [0,31]")
-        targets = np.asarray(t_tgt, dtype=np.int64)
-        if targets.ndim != 1 or targets.size == 0:
-            raise ValueError("t_tgt must be a non-empty one-dimensional list")
-        if np.any((targets < 0) | (targets >= NUM_SAMPLED_FRAMES)):
-            raise ValueError("t_tgt contains a frame outside [0,31]")
-
         points = grounding_points(
             self.point_mode,
             bbox_2d_1000,
             self.sampled_video.width,
             self.sampled_video.height,
         )
-        uv = np.asarray([point["d4rt_uv_norm"] for point in points], dtype=np.float32)
-        num_points = uv.shape[0]
-        num_targets = targets.shape[0]
-        repeated_uv = np.repeat(uv, num_targets, axis=0)
-        query = {
-            "u": self.torch.from_numpy(repeated_uv[:, 0]).to(
-                device=self.device, dtype=self.dtype
-            ),
-            "v": self.torch.from_numpy(repeated_uv[:, 1]).to(
-                device=self.device, dtype=self.dtype
-            ),
-            "t_src": self.torch.full(
-                (num_points * num_targets,), int(t_src), device=self.device, dtype=self.torch.long
-            ),
-            "t_tgt": self.torch.from_numpy(np.tile(targets, num_points)).to(
-                device=self.device, dtype=self.torch.long
-            ),
-            "t_cam": self.torch.full(
-                (num_points * num_targets,),
-                int(t_cam),
-                device=self.device,
-                dtype=self.torch.long,
-            ),
-        }
-        with self.torch.inference_mode(), self._autocast_context():
-            outputs = self._run_model_for_queries(
-                model=self.model,
-                video_b=self.video_tensor,
-                aspect_b=self.aspect_tensor,
-                query=query,
-                chunk_size=self.query_chunk_size,
-                memory_b=self.memory,
-            )
-
-        reshaped: dict[str, np.ndarray] = {}
-        for name, tensor in outputs.items():
-            array = tensor.numpy()
-            reshaped[name] = array.reshape(num_points, num_targets, *array.shape[1:])
+        targets, reshaped = self._query_explicit_points(
+            points=points,
+            t_src=t_src,
+            t_tgt=t_tgt,
+            t_cam=t_cam,
+        )
         predictions = [
             self._aggregate_target(points, reshaped, target_offset, int(target))
             for target_offset, target in enumerate(targets.tolist())
@@ -345,10 +303,268 @@ class LiveD4RTBackend:
             },
         }
 
+    def query_grounding(
+        self,
+        *,
+        grounding: dict[str, Any],
+        point_ids: list[str] | None,
+        t_tgt: list[int],
+        t_cam: int,
+    ) -> dict[str, Any]:
+        """Resolve one immutable grounding into bbox aggregation or point tracks."""
+
+        grounding_id = str(grounding["grounding_id"])
+        mode = grounding.get("mode")
+        if mode == "bbox":
+            if self.point_mode != "ensemble5":
+                raise ValueError(
+                    "bbox grounding requires the host-fixed ensemble5 point policy"
+                )
+            if point_ids is not None:
+                raise ValueError("point_ids are invalid for a bbox grounding")
+            result = self.query(
+                label=str(grounding["request"]),
+                bbox_2d_1000=list(grounding["bbox_2d_1000"]),
+                t_src=int(grounding["t_src"]),
+                t_tgt=t_tgt,
+                t_cam=t_cam,
+            )
+            result.update(
+                grounding_id=grounding_id,
+                grounding_mode="bbox",
+                grounding_request=str(grounding["request"]),
+            )
+            return result
+        if mode != "points":
+            raise ValueError(f"unsupported grounding mode: {mode!r}")
+
+        stored_points = grounding.get("points_2d_1000")
+        if not isinstance(stored_points, list) or not stored_points:
+            raise ValueError("points grounding contains no usable points")
+        by_id = {str(point["point_id"]): point for point in stored_points}
+        selected_ids = list(by_id) if point_ids is None else list(point_ids)
+        unknown = [point_id for point_id in selected_ids if point_id not in by_id]
+        if unknown:
+            raise ValueError(
+                f"unknown point IDs {unknown!r}; available point IDs: {sorted(by_id)!r}"
+            )
+        selected = [by_id[point_id] for point_id in selected_ids]
+        return self._query_point_grounding(
+            grounding_id=grounding_id,
+            request=str(grounding["request"]),
+            points=selected,
+            t_src=int(grounding["t_src"]),
+            t_tgt=t_tgt,
+            t_cam=t_cam,
+        )
+
+    def _query_explicit_points(
+        self,
+        *,
+        points: list[dict[str, Any]],
+        t_src: int,
+        t_tgt: list[int],
+        t_cam: int,
+    ) -> tuple[np.ndarray, dict[str, np.ndarray]]:
+        """Run D4RT once for point-major, target-minor explicit UV queries."""
+
+        if not (0 <= int(t_cam) < NUM_SAMPLED_FRAMES):
+            raise ValueError("t_cam is outside [0,31]")
+        if not (0 <= int(t_src) < NUM_SAMPLED_FRAMES):
+            raise ValueError("t_src is outside [0,31]")
+        targets = np.asarray(t_tgt, dtype=np.int64)
+        if targets.ndim != 1 or targets.size == 0:
+            raise ValueError("t_tgt must be a non-empty one-dimensional list")
+        if np.any((targets < 0) | (targets >= NUM_SAMPLED_FRAMES)):
+            raise ValueError("t_tgt contains a frame outside [0,31]")
+        if not points:
+            raise ValueError("at least one explicit source point is required")
+        uv = np.asarray([point["d4rt_uv_norm"] for point in points], dtype=np.float32)
+        if uv.shape != (len(points), 2) or not np.isfinite(uv).all():
+            raise ValueError("explicit source points must contain finite 2D normalized UV")
+        if np.any((uv < 0.0) | (uv > 1.0)):
+            raise ValueError("explicit normalized UV must be inside [0,1]")
+
+        num_points = uv.shape[0]
+        num_targets = targets.shape[0]
+        repeated_uv = np.repeat(uv, num_targets, axis=0)
+        query = {
+            "u": self.torch.from_numpy(repeated_uv[:, 0]).to(
+                device=self.device, dtype=self.dtype
+            ),
+            "v": self.torch.from_numpy(repeated_uv[:, 1]).to(
+                device=self.device, dtype=self.dtype
+            ),
+            "t_src": self.torch.full(
+                (num_points * num_targets,),
+                int(t_src),
+                device=self.device,
+                dtype=self.torch.long,
+            ),
+            "t_tgt": self.torch.from_numpy(np.tile(targets, num_points)).to(
+                device=self.device, dtype=self.torch.long
+            ),
+            "t_cam": self.torch.full(
+                (num_points * num_targets,),
+                int(t_cam),
+                device=self.device,
+                dtype=self.torch.long,
+            ),
+        }
+        with self.torch.inference_mode(), self._autocast_context():
+            outputs = self._run_model_for_queries(
+                model=self.model,
+                video_b=self.video_tensor,
+                aspect_b=self.aspect_tensor,
+                query=query,
+                chunk_size=self.query_chunk_size,
+                memory_b=self.memory,
+            )
+
+        reshaped: dict[str, np.ndarray] = {}
+        for name, tensor in outputs.items():
+            array = tensor.numpy()
+            reshaped[name] = array.reshape(num_points, num_targets, *array.shape[1:])
+        return targets, reshaped
+
+    def _query_point_grounding(
+        self,
+        *,
+        grounding_id: str,
+        request: str,
+        points: list[dict[str, Any]],
+        t_src: int,
+        t_tgt: list[int],
+        t_cam: int,
+    ) -> dict[str, Any]:
+        width_scale = float(max(self.sampled_video.width - 1, 1))
+        height_scale = float(max(self.sampled_video.height - 1, 1))
+        explicit: list[dict[str, Any]] = []
+        for index, point in enumerate(points):
+            xy = [float(value) for value in point["xy"]]
+            pixel = [xy[0] * width_scale / 1000.0, xy[1] * height_scale / 1000.0]
+            explicit.append({
+                "point_index": index,
+                "point_id": str(point["point_id"]),
+                "description": str(point["description"]),
+                "source_xy_1000": xy,
+                "pixel_uv": pixel,
+                "d4rt_uv_norm": [xy[0] / 1000.0, xy[1] / 1000.0],
+            })
+        targets, output = self._query_explicit_points(
+            points=explicit,
+            t_src=t_src,
+            t_tgt=t_tgt,
+            t_cam=t_cam,
+        )
+        tracks: list[dict[str, Any]] = []
+        for point_index, point in enumerate(explicit):
+            predictions = [
+                self._point_target(point, output, point_index, target_offset, int(target))
+                for target_offset, target in enumerate(targets.tolist())
+            ]
+            visibility = [bool(item["visible"]) for item in predictions]
+            tracks.append({
+                "point_id": point["point_id"],
+                "description": point["description"],
+                "source_xy_1000": point["source_xy_1000"],
+                "source_pixel_uv": point["pixel_uv"],
+                "predictions": predictions,
+                "math_trajectory_aligned_xyz_m": [
+                    item["math_xyz_aligned_m"] for item in predictions
+                ],
+                "math_visibility": visibility,
+                "visibility_coverage": float(sum(visibility) / len(visibility)),
+            })
+        return {
+            "backend": "live_d4rt_decoder",
+            "point_mode": self.point_mode,
+            "grounding_id": grounding_id,
+            "grounding_mode": "points",
+            "grounding_request": request,
+            "point_ids": [point["point_id"] for point in explicit],
+            "sampled_to_original": self.sampled_video.mapping(),
+            "t_src": int(t_src),
+            "original_t_src": int(self.sampled_video.original_indices[int(t_src)]),
+            "t_tgt": [int(value) for value in targets.tolist()],
+            "original_t_tgt": [
+                int(self.sampled_video.original_indices[int(value)])
+                for value in targets.tolist()
+            ],
+            "t_cam": int(t_cam),
+            "original_t_cam": int(self.sampled_video.original_indices[int(t_cam)]),
+            "coordinate_frame": (
+                f"Positions are expressed in the camera frame of sampled frame {int(t_cam)} "
+                "(OpenCV axes: +x right, +y down, +z forward; origin at that camera). "
+                f"{self.cross_frame_note}"
+            ),
+            "query_points": explicit,
+            "point_tracks": tracks,
+            "benchmark_alignment": {
+                "type": self.alignment_type,
+                "scale": self.benchmark_scale,
+            },
+        }
+
     def _bbox_pixels(self, bbox: list[float]) -> tuple[float, float, float, float]:
         from .simple_v2_contracts import bbox_1000_to_pixels
 
         return bbox_1000_to_pixels(bbox, self.sampled_video.width, self.sampled_video.height)
+
+    def _point_target(
+        self,
+        point: dict[str, Any],
+        output: dict[str, np.ndarray],
+        point_index: int,
+        target_offset: int,
+        target: int,
+    ) -> dict[str, Any]:
+        """Format one exact point prediction without ensemble averaging."""
+
+        xyz = np.asarray(output["xyz_3d"][point_index, target_offset], dtype=np.float64)
+        uv = np.asarray(output["uv_2d"][point_index, target_offset], dtype=np.float64)
+        visibility_logit = float(output["visibility"][point_index, target_offset])
+        confidence = float(output["confidence"][point_index, target_offset])
+        visible_probability = (
+            _sigmoid(visibility_logit) if math.isfinite(visibility_logit) else 0.0
+        )
+        finite_xyz = bool(np.isfinite(xyz).all())
+        visible = bool(finite_xyz and visible_probability > 0.5)
+        raw_xyz = _json_vector(xyz) if finite_xyz else None
+        aligned_xyz = (
+            _json_vector(xyz * self.benchmark_scale) if finite_xyz else None
+        )
+        finite_uv = bool(np.isfinite(uv).all())
+        return {
+            "sampled_frame_index": int(target),
+            "original_frame_index": int(
+                self.sampled_video.original_indices[int(target)]
+            ),
+            "raw_xyz": raw_xyz,
+            "benchmark_aligned_xyz_m": aligned_xyz,
+            "visibility_logit": (
+                visibility_logit if math.isfinite(visibility_logit) else None
+            ),
+            "visibility_probability": visible_probability,
+            "visible": visible,
+            "confidence": confidence if math.isfinite(confidence) else None,
+            "confidence_probability": (
+                _sigmoid(confidence) if math.isfinite(confidence) else None
+            ),
+            "target_uv_norm": _json_vector(uv) if finite_uv else None,
+            "target_uv_px": (
+                [
+                    float(uv[0] * max(self.sampled_video.width - 1, 1)),
+                    float(uv[1] * max(self.sampled_video.height - 1, 1)),
+                ]
+                if finite_uv
+                else None
+            ),
+            # Invalid rows are numeric zeros and must be paired with the false mask.
+            "math_xyz_aligned_m": (
+                aligned_xyz if visible and aligned_xyz is not None else [0.0, 0.0, 0.0]
+            ),
+        }
 
     def _aggregate_target(
         self,

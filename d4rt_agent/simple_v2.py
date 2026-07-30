@@ -110,6 +110,17 @@ class EvidenceEntry:
     created_at_step: int
 
 
+@dataclass(frozen=True)
+class ActionExecution:
+    """One host execution outcome before evidence registration."""
+
+    result: dict[str, Any]
+    response_content: list[dict[str, Any]] | None
+    evidence_prefix: str | None
+    reused_evidence_id: str | None = None
+    grounding_cache_key: tuple[Any, ...] | None = None
+
+
 def extract_first_action(text: str) -> ExtractedAction:
     """Extract the first complete action object and its exclusive end offset."""
 
@@ -232,6 +243,7 @@ def _redact_host_policy(result: dict[str, Any]) -> dict[str, Any]:
             "point_mode",
             "query_points",
             "sampled_to_original",
+            "host_provenance",
         }
     }
     predictions = redacted.get("predictions")
@@ -269,6 +281,14 @@ def resolve_bindings(
 ) -> tuple[dict[str, Any], dict[str, Any]]:
     """Resolve Qwen binding specifications only from recorded evidence."""
 
+    host_only_fields = {
+        "host_provenance",
+        "grounding_provenance",
+        "provenance",
+        "raw_grounder_response",
+        "grounding_system_prompt",
+        "grounding_user_prompt",
+    }
     values: dict[str, Any] = {}
     provenance: dict[str, Any] = {}
     for variable, specification in specifications.items():
@@ -285,6 +305,13 @@ def resolve_bindings(
             )
         if not isinstance(path, list) or not all(isinstance(item, (str, int)) for item in path):
             raise ValueError(f"binding {variable!r} path must contain string fields or integer indices")
+        if any(
+            isinstance(component, str) and component in host_only_fields
+            for component in path
+        ):
+            raise ValueError(
+                f"binding {variable!r} cannot access host-only provenance"
+            )
         values[variable] = _resolve_path(evidence[evidence_id], path)
         provenance[variable] = {"evidence_id": evidence_id, "path": path}
     if not values:
@@ -398,7 +425,12 @@ class OfflineQwen:
         ).eval()
         self.max_new_tokens = int(max_new_tokens)
 
-    def generate(self, messages: list[dict[str, Any]]) -> str:
+    def generate(
+        self,
+        messages: list[dict[str, Any]],
+        *,
+        max_new_tokens: int | None = None,
+    ) -> str:
         self.torch.manual_seed(self.seed)
         if self.torch.cuda.is_available():
             self.torch.cuda.manual_seed_all(self.seed)
@@ -412,7 +444,11 @@ class OfflineQwen:
         with self.torch.inference_mode():
             output = self.model.generate(
                 **inputs,
-                max_new_tokens=self.max_new_tokens,
+                max_new_tokens=(
+                    self.max_new_tokens
+                    if max_new_tokens is None
+                    else int(max_new_tokens)
+                ),
                 do_sample=False,
                 num_beams=1,
             )
@@ -463,10 +499,18 @@ class SimpleV2Orchestrator:
         sampled_video: SampledVideo,
         max_steps: int = 12,
         system_prompt: str | None = None,
+        grounding_tool: Any | None = None,
     ) -> None:
+        from .qwen_grounding_tool import QwenGroundingTool
+
         self.qwen = qwen
         self.backend = backend
         self.sampled_video = sampled_video
+        self.grounding_tool = (
+            QwenGroundingTool(qwen=qwen)
+            if grounding_tool is None
+            else grounding_tool
+        )
         self.max_steps = max(1, int(max_steps))
         task_prompt = SYSTEM_PROMPT if system_prompt is None else system_prompt
         self.system_prompt = (
@@ -560,8 +604,9 @@ class SimpleV2Orchestrator:
         initial_content.append({
             "type": "text",
             "text": (
-                "Each image above is full resolution. Ground bbox_2d_1000 in the "
-                "sampled frame declared by t_src.\n"
+                "Each image above is full resolution. Choose a sampled source frame "
+                "for ground_with_qwen, then pass only its immutable grounding_id to "
+                "query_d4rt; never write or copy raw coordinates into a D4RT action.\n"
                 f"Timing: consecutive sampled frames are {step_seconds:.4f} seconds "
                 "apart, so the elapsed time between sampled frames A and B is "
                 f"{step_seconds:.4f} * (B - A) seconds, and the whole clip spans "
@@ -577,7 +622,10 @@ class SimpleV2Orchestrator:
         trace: list[dict[str, Any]] = []
         evidence: dict[str, dict[str, Any]] = {}
         evidence_entries: list[EvidenceEntry] = []
-        counters = {"d4rt": 0, "math": 0, "final": 0}
+        counters = {"qg": 0, "d4rt": 0, "math": 0, "final": 0}
+        # A solve call is one question/clip boundary. Never carry qg geometry or
+        # cache aliases into a later solve even if a caller reuses the object.
+        self._grounding_cache: dict[tuple[Any, ...], str] = {}
 
         for step in range(1, self.max_steps + 1):
             raw = self.qwen.generate(messages)
@@ -682,10 +730,13 @@ class SimpleV2Orchestrator:
                 }
 
             try:
-                result, response_content, prefix = self._execute_action(
+                execution = self._execute_action(
                     name, arguments, evidence, step=step
                 )
             except ActionRejected as error:
+                diagnostics = getattr(error, "grounder_failure", None)
+                if diagnostics is not None:
+                    attempt["grounder_failure"] = diagnostics
                 self._reject_turn(
                     attempt=attempt,
                     error=error,
@@ -715,20 +766,55 @@ class SimpleV2Orchestrator:
                 trace.append(attempt)
                 raise ToolExecutionError(error, list(trace), dict(evidence)) from error
 
-            counters[prefix] += 1
-            call_id = f"{prefix}_{counters[prefix]}"
-            evidence[call_id] = result
-            evidence_entries.append(
-                EvidenceEntry(
-                    evidence_id=call_id,
-                    tool_name=name,
-                    created_at_step=step,
+            result = execution.result
+            response_content = execution.response_content
+            reused_id = execution.reused_evidence_id
+            if reused_id is not None:
+                if reused_id not in evidence:
+                    raise RuntimeError(
+                        f"execution attempted to reuse missing evidence {reused_id!r}"
+                    )
+                call_id = reused_id
+                attempt.update(
+                    cache_hit=True,
+                    reused_evidence_id=reused_id,
                 )
-            )
+            else:
+                prefix = execution.evidence_prefix
+                if prefix is None:
+                    raise RuntimeError("new execution did not declare an evidence prefix")
+                counters[prefix] += 1
+                call_id = f"{prefix}_{counters[prefix]}"
+                if name == "ground_with_qwen":
+                    result = dict(result)
+                    result["grounding_id"] = call_id
+                    if result.get("mode") == "points":
+                        result["points_2d_1000"] = [
+                            {
+                                **dict(point),
+                                "point_id": f"p{index}",
+                            }
+                            for index, point in enumerate(
+                                result.get("points_2d_1000", []),
+                                start=1,
+                            )
+                        ]
+                    cache_key = execution.grounding_cache_key
+                    if cache_key is None:
+                        raise RuntimeError("new grounding did not provide a cache key")
+                    self._grounding_cache[cache_key] = call_id
+                evidence[call_id] = result
+                evidence_entries.append(
+                    EvidenceEntry(
+                        evidence_id=call_id,
+                        tool_name=name,
+                        created_at_step=step,
+                    )
+                )
             state = _evidence_state(
                 evidence_entries,
                 last_action="accepted",
-                new_evidence_id=call_id,
+                new_evidence_id=None if reused_id is not None else call_id,
             )
             attempt.update(
                 call_id=call_id,
@@ -736,6 +822,8 @@ class SimpleV2Orchestrator:
                 justification=arguments["justification"],
                 result=result,
                 evidence_state=state,
+                cache_hit=bool(reused_id),
+                reused_evidence_id=reused_id,
             )
             trace.append(attempt)
             if response_content is None:
@@ -769,18 +857,110 @@ class SimpleV2Orchestrator:
         arguments: dict[str, Any],
         evidence: dict[str, dict[str, Any]],
         step: int | None = None,
-    ) -> tuple[dict[str, Any], list[dict[str, Any]] | None, str]:
+    ) -> ActionExecution:
         """Run one tool call. ``step`` lets subclasses enforce a step budget."""
 
-        if name == "query_d4rt":
-            result = self.backend.query(
-                label=arguments["label"],
-                bbox_2d_1000=arguments["bbox_2d_1000"],
+        if name == "ground_with_qwen":
+            from .qwen_grounding_tool import (
+                GroundingResponseError,
+                grounding_cache_key,
+            )
+
+            mode = arguments["mode"]
+            count = arguments.get("count")
+            cache_key = grounding_cache_key(
+                self.sampled_video,
+                mode=mode,
                 t_src=arguments["t_src"],
+                request=arguments["request"],
+                count=count,
+            )
+            reused = self._grounding_cache.get(cache_key)
+            if reused is not None:
+                return ActionExecution(
+                    result=evidence[reused],
+                    response_content=None,
+                    evidence_prefix=None,
+                    reused_evidence_id=reused,
+                    grounding_cache_key=cache_key,
+                )
+            try:
+                result = self.grounding_tool.ground(
+                    sampled_video=self.sampled_video,
+                    mode=mode,
+                    t_src=arguments["t_src"],
+                    request=arguments["request"],
+                    count=count,
+                )
+            except GroundingResponseError as error:
+                rejected = ActionRejected(
+                    "isolated Qwen grounding returned malformed structured output and "
+                    "no grounding ID was created. Rephrase the request or select "
+                    "another visible source frame."
+                )
+                raw_response = getattr(error, "raw_response", None)
+                host_provenance = getattr(error, "host_provenance", None)
+                if raw_response is not None or host_provenance is not None:
+                    rejected.grounder_failure = {
+                        "raw_grounder_response": raw_response,
+                        "host_provenance": host_provenance,
+                    }
+                raise rejected from error
+            return ActionExecution(
+                result=result,
+                response_content=None,
+                evidence_prefix="qg",
+                grounding_cache_key=cache_key,
+            )
+        if name == "query_d4rt":
+            from .qwen_grounding_tool import sampled_video_clip_key
+
+            grounding_id = arguments["grounding_id"]
+            grounding = evidence.get(grounding_id)
+            if grounding is None or not grounding_id.startswith("qg_"):
+                raise ActionRejected(
+                    "query_d4rt: "
+                    + unknown_evidence_error([grounding_id], evidence)
+                )
+            if grounding.get("status") != "ok":
+                raise ActionRejected(
+                    f"query_d4rt cannot use {grounding_id}: grounding status is "
+                    f"{grounding.get('status')!r}. Rephrase the target or ground it in "
+                    "another source frame first."
+                )
+            provenance = grounding.get("host_provenance")
+            if (
+                not isinstance(provenance, Mapping)
+                or provenance.get("clip_key") != sampled_video_clip_key(self.sampled_video)
+            ):
+                raise ActionRejected(
+                    f"query_d4rt cannot use {grounding_id}: it belongs to a different "
+                    "clip or sampled-frame mapping"
+                )
+            point_ids = arguments.get("point_ids")
+            if grounding.get("mode") == "bbox" and point_ids is not None:
+                raise ActionRejected(
+                    f"query_d4rt.point_ids is invalid for bbox grounding {grounding_id}"
+                )
+            if grounding.get("mode") == "points":
+                available_points = {
+                    str(point.get("point_id"))
+                    for point in grounding.get("points_2d_1000", [])
+                }
+                selected = available_points if point_ids is None else set(point_ids)
+                unknown_points = sorted(selected - available_points)
+                if unknown_points:
+                    raise ActionRejected(
+                        f"query_d4rt has unknown point IDs {unknown_points!r}; "
+                        f"available for {grounding_id}: {sorted(available_points)!r}"
+                    )
+            result = self.backend.query_grounding(
+                grounding=grounding,
+                point_ids=point_ids,
                 t_tgt=arguments["t_tgt"],
                 t_cam=arguments["t_cam"],
             )
-            return result, None, "d4rt"
+            return ActionExecution(result, None, "d4rt")
         if name == "python_math":
             try:
                 values, provenance = resolve_bindings(arguments["bindings"], evidence)
@@ -793,7 +973,7 @@ class SimpleV2Orchestrator:
                 "code": arguments["code"],
                 "outputs": outputs,
             }
-            return result, None, "math"
+            return ActionExecution(result, None, "math")
         raise ValueError(f"host cannot execute action: {name}")
 
 
@@ -819,7 +999,7 @@ def replay_tool_trace(trace: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
             replayed_math += 1
         if call_id.startswith("final_"):
             final_answers += 1
-        if call_id.startswith(("d4rt_", "math_")):
+        if call_id.startswith(("qg_", "d4rt_", "math_")):
             evidence[call_id] = dict(result)
     return {
         "status": "complete" if final_answers == 1 else "incomplete",

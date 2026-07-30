@@ -330,7 +330,7 @@ class GroundingToolTests(unittest.TestCase):
         self.assertIsNot(first_image, second_image)
 
     def test_parse_failure_preserves_raw_reply_and_provenance(self) -> None:
-        raw = "I cannot provide JSON."
+        raw = "SECRET_RAW_GROUNDER_REPLY"
         qwen = _FakeQwen([raw])
         with self.assertRaises(GroundingResponseError) as raised:
             QwenGroundingTool(qwen).ground(
@@ -345,6 +345,7 @@ class GroundingToolTests(unittest.TestCase):
             raw,
         )
         self.assertNotIn("grounding_id", raised.exception.host_provenance)
+        self.assertNotIn(raw, str(raised.exception))
 
     def test_input_validation_happens_before_qwen_generation(self) -> None:
         cases = (

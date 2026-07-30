@@ -200,11 +200,17 @@ class ActionContractTest(unittest.TestCase):
     def test_qwen_schemas_do_not_contain_point_mode(self) -> None:
         self.assertNotIn("point_mode", json.dumps(ACTION_SCHEMAS))
 
-    def test_qwen_has_only_three_actions_without_frame_inspection(self) -> None:
+    def test_qwen_has_exactly_four_actions_with_isolated_grounding(self) -> None:
         self.assertEqual(
             [schema["name"] for schema in ACTION_SCHEMAS],
-            ["query_d4rt", "python_math", "final_answer"],
+            ["ground_with_qwen", "query_d4rt", "python_math", "final_answer"],
         )
+        query_schema = next(
+            schema for schema in ACTION_SCHEMAS if schema["name"] == "query_d4rt"
+        )
+        encoded = json.dumps(query_schema)
+        for forbidden in ("bbox_2d_1000", "points_2d_1000", '"label"', '"t_src"'):
+            self.assertNotIn(forbidden, encoded)
 
     def test_system_prompt_is_generic_and_teaches_complete_path_queries(self) -> None:
         prompt = SYSTEM_PROMPT.lower()
@@ -232,34 +238,68 @@ class ActionContractTest(unittest.TestCase):
             for line in SYSTEM_PROMPT.splitlines()
             if line.startswith('{"action":"') and "ACTION_NAME" not in line
         ]
-        self.assertEqual(len(examples), 14)
-        self.assertEqual(
-            [validate_action(example)[0] for example in examples],
-            [
-                "query_d4rt",
-                "python_math",
-                "query_d4rt",
-                "python_math",
-                "final_answer",
-                # Example C composes speed from displacement and elapsed time,
-                # from its own initial measurement through a final answer.
-                "query_d4rt",
-                "python_math",
-                "final_answer",
-                # Example D selects a non-zero viewpoint for a directional question
-                # and answers it in words.  It must show the python_math call it
-                # cites: an example that skips straight to a described answer is one
-                # the model reproduces (job 7985547).
-                "query_d4rt",
-                "python_math",
-                "final_answer",
-                # Example E builds a motion description from measured components,
-                # grounding after frame 0 so the endpoints are never zero-filled.
-                "query_d4rt",
-                "python_math",
-                "final_answer",
-            ],
-        )
+        names = [validate_action(example)[0] for example in examples]
+        self.assertGreaterEqual(len(examples), 8)
+        self.assertEqual(set(names), {
+            "ground_with_qwen", "query_d4rt", "python_math", "final_answer"
+        })
+        self.assertLess(names.index("ground_with_qwen"), names.index("query_d4rt"))
+
+    def test_grounding_action_modes_and_counts_are_strict(self) -> None:
+        bbox = {
+            "action": "ground_with_qwen",
+            "arguments": {
+                "mode": "bbox",
+                "t_src": 0,
+                "request": "runner",
+                "justification": "Track the runner.",
+            },
+        }
+        points = {
+            "action": "ground_with_qwen",
+            "arguments": {
+                "mode": "points",
+                "t_src": 8,
+                "request": "three building corners",
+                "count": 3,
+                "justification": "Track rigid background.",
+            },
+        }
+        self.assertEqual(validate_action(bbox)[0], "ground_with_qwen")
+        self.assertEqual(validate_action(points)[1]["count"], 3)
+        invalid_bbox = json.loads(json.dumps(bbox))
+        invalid_bbox["arguments"]["count"] = 2
+        with self.assertRaisesRegex(ValueError, "absent in bbox mode"):
+            validate_action(invalid_bbox)
+        missing_count = json.loads(json.dumps(points))
+        del missing_count["arguments"]["count"]
+        with self.assertRaisesRegex(ValueError, "required for points"):
+            validate_action(missing_count)
+        for count in (0, 9):
+            invalid_points = json.loads(json.dumps(points))
+            invalid_points["arguments"]["count"] = count
+            with self.assertRaisesRegex(ValueError, r"inside \[1, 8\]"):
+                validate_action(invalid_points)
+
+    def test_query_rejects_raw_geometry_and_duplicate_point_ids(self) -> None:
+        query = {
+            "action": "query_d4rt",
+            "arguments": {
+                "grounding_id": "qg_1",
+                "t_tgt": [0, 31],
+                "t_cam": 0,
+                "justification": "Track immutable geometry.",
+            },
+        }
+        self.assertEqual(validate_action(query)[0], "query_d4rt")
+        raw = json.loads(json.dumps(query))
+        raw["arguments"]["bbox_2d_1000"] = [0, 0, 10, 10]
+        with self.assertRaisesRegex(ValueError, "unsupported argument fields"):
+            validate_action(raw)
+        duplicate = json.loads(json.dumps(query))
+        duplicate["arguments"]["point_ids"] = ["p1", "p1"]
+        with self.assertRaisesRegex(ValueError, "must not contain duplicates"):
+            validate_action(duplicate)
 
     def test_final_answer_kind_defaults_to_numeric(self) -> None:
         name, args = validate_action({
@@ -311,9 +351,7 @@ class ActionContractTest(unittest.TestCase):
             return {
                 "action": "query_d4rt",
                 "arguments": {
-                    "label": "cupboard",
-                    "bbox_2d_1000": [300, 240, 470, 640],
-                    "t_src": 20,
+                    "grounding_id": "qg_1",
                     "t_tgt": [25],
                     "t_cam": t_cam,
                     "justification": "Express the position from the requested viewpoint.",
@@ -373,20 +411,16 @@ class ActionContractTest(unittest.TestCase):
             validate_action({
                 "action": "query_d4rt",
                 "arguments": {
-                    "label": "object",
-                    "bbox_2d_1000": [0, 0, 10, 10],
-                    "t_src": 0,
+                    "grounding_id": "qg_1",
                     "t_tgt": [32],
                     "t_cam": 0,
                     "justification": "Need geometry.",
                 },
             })
-        with self.assertRaisesRegex(ValueError, "declare the sampled source frame"):
+        with self.assertRaisesRegex(ValueError, "grounding_id"):
             validate_action({
                 "action": "query_d4rt",
                 "arguments": {
-                    "label": "object",
-                    "bbox_2d_1000": [0, 0, 10, 10],
                     "t_tgt": [31],
                     "t_cam": 0,
                     "justification": "Need geometry.",
@@ -627,6 +661,120 @@ class GroundingPolicyTest(unittest.TestCase):
         self.assertIsNone(result["raw_xyz"])
 
 
+class ExplicitGroundingBackendTest(unittest.TestCase):
+    @staticmethod
+    def _backend():
+        from d4rt_agent.simple_v2_contracts import SampledVideo
+
+        backend = LiveD4RTBackend.__new__(LiveD4RTBackend)
+        backend.sampled_video = SampledVideo(
+            video_path=Path("fake.mp4"),
+            frames_rgb=np.zeros((32, 101, 201, 3), dtype=np.uint8),
+            original_indices=tuple(range(32)),
+            total_original_frames=32,
+            fps=15.0,
+            width=201,
+            height=101,
+        )
+        backend.benchmark_scale = 2.0
+        backend.alignment_type = "test"
+        backend.cross_frame_note = "test frame note"
+        backend.point_mode = "ensemble5"
+        return backend
+
+    def test_explicit_points_keep_point_major_target_order_and_exact_uv(self) -> None:
+        backend = self._backend()
+        captured = {}
+
+        def fake_query(*, points, t_src, t_tgt, t_cam):
+            captured.update(points=points, t_src=t_src, t_tgt=t_tgt, t_cam=t_cam)
+            output = {
+                "xyz_3d": np.asarray([
+                    [[1.0, 10.0, 100.0], [2.0, 20.0, 200.0]],
+                    [[3.0, 30.0, 300.0], [4.0, 40.0, 400.0]],
+                ]),
+                "uv_2d": np.asarray([
+                    [[0.25, 0.50], [0.26, 0.51]],
+                    [[0.75, 0.20], [0.76, 0.21]],
+                ]),
+                "visibility": np.full((2, 2), 10.0),
+                "confidence": np.full((2, 2), 5.0),
+            }
+            return np.asarray(t_tgt, dtype=np.int64), output
+
+        backend._query_explicit_points = fake_query
+        result = backend._query_point_grounding(
+            grounding_id="qg_3",
+            request="runner's chest and back",
+            points=[
+                {"point_id": "p1", "xy": [250.0, 500.0], "description": "chest"},
+                {"point_id": "p2", "xy": [750.0, 200.0], "description": "back"},
+            ],
+            t_src=7,
+            t_tgt=[0, 31],
+            t_cam=3,
+        )
+
+        self.assertEqual(captured["points"][0]["pixel_uv"], [50.0, 50.0])
+        self.assertEqual(captured["points"][0]["d4rt_uv_norm"], [0.25, 0.5])
+        self.assertEqual(captured["points"][1]["pixel_uv"], [150.0, 20.0])
+        self.assertEqual(result["point_ids"], ["p1", "p2"])
+        self.assertEqual(
+            result["point_tracks"][0]["math_trajectory_aligned_xyz_m"],
+            [[2.0, 20.0, 200.0], [4.0, 40.0, 400.0]],
+        )
+        self.assertEqual(
+            result["point_tracks"][1]["math_trajectory_aligned_xyz_m"],
+            [[6.0, 60.0, 600.0], [8.0, 80.0, 800.0]],
+        )
+
+    def test_invisible_exact_point_is_zeroed_and_masked(self) -> None:
+        backend = self._backend()
+
+        def fake_query(**kwargs):
+            output = {
+                "xyz_3d": np.asarray([[[1.0, 2.0, 3.0]]]),
+                "uv_2d": np.asarray([[[0.5, 0.5]]]),
+                "visibility": np.asarray([[-10.0]]),
+                "confidence": np.asarray([[5.0]]),
+            }
+            return np.asarray([31]), output
+
+        backend._query_explicit_points = fake_query
+        result = backend._query_point_grounding(
+            grounding_id="qg_1",
+            request="landmark",
+            points=[{"point_id": "p1", "xy": [500, 500], "description": "corner"}],
+            t_src=0,
+            t_tgt=[31],
+            t_cam=0,
+        )
+        track = result["point_tracks"][0]
+        self.assertEqual(track["math_visibility"], [False])
+        self.assertEqual(
+            track["math_trajectory_aligned_xyz_m"], [[0.0, 0.0, 0.0]]
+        )
+
+    def test_bbox_grounding_fails_closed_without_ensemble5(self) -> None:
+        backend = self._backend()
+        backend.point_mode = "centroid"
+        grounding = {
+            "grounding_id": "qg_1",
+            "status": "ok",
+            "mode": "bbox",
+            "t_src": 0,
+            "request": "runner",
+            "bbox_2d_1000": [100, 100, 300, 600],
+        }
+        with self.assertRaisesRegex(ValueError, "requires.*ensemble5"):
+            backend.query_grounding(
+                grounding=grounding,
+                point_ids=None,
+                t_tgt=[0, 31],
+                t_cam=0,
+            )
+
+
 class RestrictedMathTest(unittest.TestCase):
     def test_endpoint_and_visible_path(self) -> None:
         result = restricted_python_math(
@@ -730,12 +878,30 @@ class GroundTruthTest(unittest.TestCase):
 
 
 class _ScriptedQwen:
-    def __init__(self, responses: list[str]) -> None:
+    def __init__(
+        self,
+        responses: list[str],
+        *,
+        grounding_responses: list[str] | None = None,
+    ) -> None:
+        self.model_path = "fake-qwen"
+        self.seed = 42
         self.responses = iter(responses)
+        self.grounding_responses = iter(
+            grounding_responses
+            if grounding_responses is not None
+            else ['{"bbox_2d_1000":[400,400,500,500]}']
+        )
+        self.grounding_calls = 0
+        self.grounding_messages = []
         self.message_snapshots: list[str] = []
         self.initial_content_layout: list[dict] | None = None
 
-    def generate(self, messages):
+    def generate(self, messages, *, max_new_tokens=None):
+        if max_new_tokens is not None:
+            self.grounding_calls += 1
+            self.grounding_messages.append(messages)
+            return next(self.grounding_responses)
         if self.initial_content_layout is None:
             self.initial_content_layout = []
             for part in messages[1]["content"]:
@@ -792,6 +958,40 @@ class _FakeBackend:
             "math_visibility": [True] * len(predictions),
             "visibility_coverage": 1.0,
         }
+
+    def query_grounding(self, *, grounding, point_ids, t_tgt, t_cam):
+        if grounding["mode"] == "points":
+            selected_ids = point_ids or [
+                point["point_id"] for point in grounding["points_2d_1000"]
+            ]
+            self.calls.append({
+                "grounding_id": grounding["grounding_id"],
+                "point_ids": list(selected_ids),
+                "t_tgt": list(t_tgt),
+                "t_cam": t_cam,
+            })
+            return {
+                "grounding_id": grounding["grounding_id"],
+                "grounding_mode": "points",
+                "point_ids": list(selected_ids),
+                "t_src": grounding["t_src"],
+                "t_tgt": list(t_tgt),
+                "t_cam": t_cam,
+                "point_tracks": [],
+            }
+        result = self.query(
+            label=grounding["request"],
+            bbox_2d_1000=grounding["bbox_2d_1000"],
+            t_src=grounding["t_src"],
+            t_tgt=t_tgt,
+            t_cam=t_cam,
+        )
+        result.update(
+            grounding_id=grounding["grounding_id"],
+            grounding_mode="bbox",
+            grounding_request=grounding["request"],
+        )
+        return result
 
 
 class _FailOnceBackend(_FakeBackend):
@@ -850,13 +1050,23 @@ class OrchestratorTest(unittest.TestCase):
         )
 
     @staticmethod
+    def _ground_action() -> dict:
+        return {
+            "action": "ground_with_qwen",
+            "arguments": {
+                "mode": "bbox",
+                "t_src": 0,
+                "request": "ball",
+                "justification": "Ground the tracked object once.",
+            },
+        }
+
+    @staticmethod
     def _query_action() -> dict:
         return {
             "action": "query_d4rt",
             "arguments": {
-                "label": "ball",
-                "bbox_2d_1000": [400, 400, 500, 500],
-                "t_src": 0,
+                "grounding_id": "qg_1",
                 "t_tgt": [0, 31],
                 "t_cam": 0,
                 "justification": "Measure both endpoints.",
@@ -913,7 +1123,263 @@ class OrchestratorTest(unittest.TestCase):
             for entry in row["evidence_state"]["available"]
         ]
 
+    def test_identical_grounding_reuses_qg_without_inference_or_counter_gap(self) -> None:
+        first = self._ground_action()
+        second = self._ground_action()
+        second["arguments"]["request"] = "  BALL  "
+        qwen = _ScriptedQwen([json.dumps(first), json.dumps(second)])
+        with self.assertRaises(OrchestrationError) as caught:
+            SimpleV2Orchestrator(
+                qwen=qwen,
+                backend=_FakeBackend(),
+                sampled_video=self._sampled(),
+                max_steps=2,
+            ).solve({"id": "cache", "question": "Ground twice."})
+
+        self.assertEqual(qwen.grounding_calls, 1)
+        self.assertEqual(set(caught.exception.evidence), {"qg_1"})
+        first_row, reused = caught.exception.trace
+        self.assertEqual(first_row["call_id"], "qg_1")
+        self.assertFalse(first_row["cache_hit"])
+        self.assertEqual(reused["call_id"], "qg_1")
+        self.assertTrue(reused["cache_hit"])
+        self.assertEqual(reused["reused_evidence_id"], "qg_1")
+        self.assertIsNone(reused["evidence_state"]["new_evidence_id"])
+        self.assertEqual(self._ledger_ids(reused), ["qg_1"])
+
+    def test_not_found_is_cached_evidence_and_rephrasing_creates_next_qg(self) -> None:
+        absent = self._ground_action()
+        absent["arguments"]["request"] = "absent car"
+        visible = self._ground_action()
+        qwen = _ScriptedQwen(
+            [json.dumps(absent), json.dumps(visible)],
+            grounding_responses=[
+                '{"bbox_2d_1000":null}',
+                '{"bbox_2d_1000":[400,400,500,500]}',
+            ],
+        )
+        with self.assertRaises(OrchestrationError) as caught:
+            SimpleV2Orchestrator(
+                qwen=qwen,
+                backend=_FakeBackend(),
+                sampled_video=self._sampled(),
+                max_steps=2,
+            ).solve({"id": "not_found", "question": "Recover."})
+
+        self.assertEqual(list(caught.exception.evidence), ["qg_1", "qg_2"])
+        self.assertEqual(caught.exception.evidence["qg_1"]["status"], "not_found")
+        self.assertEqual(caught.exception.evidence["qg_2"]["status"], "ok")
+
+    def test_malformed_grounder_reply_creates_no_qg_and_saves_raw_reply(self) -> None:
+        qwen = _ScriptedQwen(
+            [json.dumps(self._ground_action()), json.dumps(self._ground_action())],
+            grounding_responses=[
+                "I could not format the box.",
+                '{"bbox_2d_1000":[400,400,500,500]}',
+            ],
+        )
+        with self.assertRaises(OrchestrationError) as caught:
+            SimpleV2Orchestrator(
+                qwen=qwen,
+                backend=_FakeBackend(),
+                sampled_video=self._sampled(),
+                max_steps=2,
+            ).solve({"id": "malformed", "question": "Recover."})
+
+        rejected, recovered = caught.exception.trace
+        self.assertEqual(rejected["status"], "rejected")
+        self.assertIsNone(rejected["call_id"])
+        self.assertNotIn("I could not format the box.", rejected["error"])
+        self.assertEqual(
+            rejected["grounder_failure"]["raw_grounder_response"],
+            "I could not format the box.",
+        )
+        self.assertEqual(recovered["call_id"], "qg_1")
+        self.assertEqual(set(caught.exception.evidence), {"qg_1"})
+
+    def test_unexpected_grounder_value_error_is_an_infrastructure_error(self) -> None:
+        class BrokenGrounder:
+            def ground(self, **kwargs):
+                raise ValueError("processor shape mismatch")
+
+        qwen = _ScriptedQwen([json.dumps(self._ground_action())])
+        with self.assertRaises(ToolExecutionError) as caught:
+            SimpleV2Orchestrator(
+                qwen=qwen,
+                backend=_FakeBackend(),
+                sampled_video=self._sampled(),
+                grounding_tool=BrokenGrounder(),
+                max_steps=1,
+            ).solve({"id": "broken_grounder", "question": "Ground it."})
+
+        self.assertEqual(caught.exception.trace[0]["status"], "error")
+        self.assertIn("processor shape mismatch", caught.exception.trace[0]["error"])
+        self.assertEqual(caught.exception.evidence, {})
+
+    def test_python_math_cannot_read_hidden_grounding_provenance(self) -> None:
+        evidence = {
+            "qg_1": {
+                "status": "ok",
+                "mode": "bbox",
+                "bbox_2d_1000": [100, 100, 300, 300],
+                "host_provenance": {
+                    "grounding_system_prompt": "SECRET_GROUNDER_PROMPT",
+                    "raw_grounder_response": "SECRET_GROUNDER_REPLY",
+                },
+            }
+        }
+        with self.assertRaisesRegex(ValueError, "host-only provenance") as caught:
+            resolve_bindings(
+                {
+                    "secret": {
+                        "evidence_id": "qg_1",
+                        "path": ["host_provenance", "grounding_system_prompt"],
+                    }
+                },
+                evidence,
+            )
+        self.assertNotIn("SECRET_GROUNDER_PROMPT", str(caught.exception))
+        self.assertNotIn("SECRET_GROUNDER_REPLY", str(caught.exception))
+
+    def test_points_receive_host_ids_and_query_can_select_a_subset(self) -> None:
+        ground = {
+            "action": "ground_with_qwen",
+            "arguments": {
+                "mode": "points",
+                "t_src": 0,
+                "request": "runner's chest and back",
+                "count": 2,
+                "justification": "Measure a facing axis.",
+            },
+        }
+        query = {
+            "action": "query_d4rt",
+            "arguments": {
+                "grounding_id": "qg_1",
+                "point_ids": ["p2"],
+                "t_tgt": [0, 31],
+                "t_cam": 0,
+                "justification": "Track the selected rear point.",
+            },
+        }
+        qwen = _ScriptedQwen(
+            [json.dumps(ground), json.dumps(query)],
+            grounding_responses=[
+                '{"points_2d_1000":['
+                '{"xy":[400,400],"description":"chest"},'
+                '{"xy":[500,420],"description":"back"}]}'
+            ],
+        )
+        backend = _FakeBackend()
+        with self.assertRaises(OrchestrationError) as caught:
+            SimpleV2Orchestrator(
+                qwen=qwen,
+                backend=backend,
+                sampled_video=self._sampled(),
+                max_steps=2,
+            ).solve({"id": "points", "question": "Track parts."})
+
+        points = caught.exception.evidence["qg_1"]["points_2d_1000"]
+        self.assertEqual([point["point_id"] for point in points], ["p1", "p2"])
+        self.assertEqual(caught.exception.evidence["d4rt_1"]["point_ids"], ["p2"])
+        self.assertEqual(backend.calls[0]["point_ids"], ["p2"])
+
+    def test_unknown_point_id_is_rejected_without_d4rt_evidence(self) -> None:
+        ground = {
+            "action": "ground_with_qwen",
+            "arguments": {
+                "mode": "points",
+                "t_src": 0,
+                "request": "two landmarks",
+                "count": 2,
+                "justification": "Ground rigid points.",
+            },
+        }
+        query = {
+            "action": "query_d4rt",
+            "arguments": {
+                "grounding_id": "qg_1",
+                "point_ids": ["p9"],
+                "t_tgt": [0],
+                "t_cam": 0,
+                "justification": "Track a point.",
+            },
+        }
+        qwen = _ScriptedQwen(
+            [json.dumps(ground), json.dumps(query)],
+            grounding_responses=[
+                '{"points_2d_1000":['
+                '{"xy":[100,100],"description":"corner one"},'
+                '{"xy":[800,200],"description":"corner two"}]}'
+            ],
+        )
+        with self.assertRaises(OrchestrationError) as caught:
+            SimpleV2Orchestrator(
+                qwen=qwen,
+                backend=_FakeBackend(),
+                sampled_video=self._sampled(),
+                max_steps=2,
+            ).solve({"id": "bad_point", "question": "Track parts."})
+        self.assertEqual(set(caught.exception.evidence), {"qg_1"})
+        self.assertIn("available for qg_1: ['p1', 'p2']", caught.exception.trace[1]["error"])
+
+    def test_query_rejects_grounding_bound_to_another_clip(self) -> None:
+        evidence = {
+            "qg_1": {
+                "grounding_id": "qg_1",
+                "status": "ok",
+                "mode": "bbox",
+                "t_src": 0,
+                "request": "ball",
+                "bbox_2d_1000": [100, 100, 300, 300],
+                "host_provenance": {"clip_key": "another-clip"},
+            }
+        }
+        orchestrator = SimpleV2Orchestrator(
+            qwen=_ScriptedQwen([]),
+            backend=_FakeBackend(),
+            sampled_video=self._sampled(),
+        )
+
+        with self.assertRaisesRegex(ActionRejected, "different clip"):
+            orchestrator._execute_action(
+                "query_d4rt",
+                self._query_action()["arguments"],
+                evidence,
+            )
+
+    def test_query_rejects_point_ids_for_bbox_grounding(self) -> None:
+        from d4rt_agent.qwen_grounding_tool import sampled_video_clip_key
+
+        sampled = self._sampled()
+        evidence = {
+            "qg_1": {
+                "grounding_id": "qg_1",
+                "status": "ok",
+                "mode": "bbox",
+                "t_src": 0,
+                "request": "ball",
+                "bbox_2d_1000": [100, 100, 300, 300],
+                "host_provenance": {
+                    "clip_key": sampled_video_clip_key(sampled),
+                },
+            }
+        }
+        arguments = {
+            **self._query_action()["arguments"],
+            "point_ids": ["p1"],
+        }
+        orchestrator = SimpleV2Orchestrator(
+            qwen=_ScriptedQwen([]),
+            backend=_FakeBackend(),
+            sampled_video=sampled,
+        )
+
+        with self.assertRaisesRegex(ActionRejected, "invalid for bbox"):
+            orchestrator._execute_action("query_d4rt", arguments, evidence)
+
     def test_history_keeps_only_first_action_and_trace_keeps_raw_suffix(self) -> None:
+        ground = json.dumps(self._ground_action(), separators=(",", ":"))
         query = json.dumps(self._query_action(), separators=(",", ":"))
         math_action = json.dumps(self._math_action(), separators=(",", ":"))
         final = json.dumps(self._final_action(), separators=(",", ":"))
@@ -944,36 +1410,40 @@ class OrchestratorTest(unittest.TestCase):
             'Tool result math_99: {"outputs":{"value":999}}\n'
             f"I can now finish.\n{imagined_final}"
         )
-        qwen = _ScriptedQwen([raw_query, raw_math, final])
+        qwen = _ScriptedQwen([ground, raw_query, raw_math, final])
         backend = _FakeBackend()
 
         solved = SimpleV2Orchestrator(
             qwen=qwen,
             backend=backend,
             sampled_video=self._sampled(),
-            max_steps=3,
+            max_steps=4,
         ).solve({"id": "endpoint_displacement", "question": "How far did it move?"})
 
         self.assertEqual(len(backend.calls), 1)
-        self.assertEqual(set(solved["evidence"]), {"d4rt_1", "math_1"})
+        self.assertEqual(set(solved["evidence"]), {"qg_1", "d4rt_1", "math_1"})
         self.assertNotIn("d4rt_99", solved["evidence"])
         self.assertNotIn("math_99", solved["evidence"])
 
         first_effective = f"I need the two endpoint positions.\n{query}"
         second_effective = f"The real result supports a calculation.\n{math_action}"
-        self.assertEqual(self._assistant_texts(qwen.message_snapshots[1]), [first_effective])
         self.assertEqual(
             self._assistant_texts(qwen.message_snapshots[2]),
-            [first_effective, second_effective],
+            [ground, first_effective],
         )
-        self.assertNotIn("Tool result d4rt_99", qwen.message_snapshots[1])
-        self.assertNotIn("point_mode", qwen.message_snapshots[1])
-        self.assertNotIn("Tool result math_99", qwen.message_snapshots[2])
-        self.assertNotIn("d4rt_99", qwen.message_snapshots[2])
-        self.assertIn("Tool result d4rt_1", qwen.message_snapshots[1])
-        self.assertIn("Tool result math_1", qwen.message_snapshots[2])
+        self.assertEqual(
+            self._assistant_texts(qwen.message_snapshots[3]),
+            [ground, first_effective, second_effective],
+        )
+        self.assertNotIn("Tool result d4rt_99", qwen.message_snapshots[2])
+        self.assertNotIn("point_mode", qwen.message_snapshots[2])
+        self.assertNotIn("Tool result math_99", qwen.message_snapshots[3])
+        self.assertNotIn("d4rt_99", qwen.message_snapshots[3])
+        self.assertIn("Tool result d4rt_1", qwen.message_snapshots[2])
+        self.assertIn("Tool result math_1", qwen.message_snapshots[3])
 
-        first, second, third = solved["trace"]
+        grounded, first, second, third = solved["trace"]
+        self.assertEqual(grounded["call_id"], "qg_1")
         self.assertEqual(first["raw_qwen_response"], raw_query)
         self.assertEqual(first["effective_response"], first_effective)
         self.assertEqual(
@@ -995,6 +1465,7 @@ class OrchestratorTest(unittest.TestCase):
         prose = "I should inspect the endpoints, but I forgot to submit an action."
         qwen = _ScriptedQwen([
             prose,
+            json.dumps(self._ground_action()),
             json.dumps(self._query_action()),
             json.dumps(self._math_action()),
             json.dumps(self._final_action()),
@@ -1003,7 +1474,7 @@ class OrchestratorTest(unittest.TestCase):
             qwen=qwen,
             backend=_FakeBackend(),
             sampled_video=self._sampled(),
-            max_steps=4,
+            max_steps=5,
         ).solve({"id": "endpoint_displacement", "question": "How far did it move?"})
 
         rejected = solved["trace"][0]
@@ -1021,7 +1492,7 @@ class OrchestratorTest(unittest.TestCase):
         self.assertEqual(rejected["evidence_state"]["last_action"], "rejected")
         self.assertIn("HOST EVIDENCE STATE", qwen.message_snapshots[1])
         self.assertIn("Available evidence:\\n- none", qwen.message_snapshots[1])
-        self.assertEqual(set(solved["evidence"]), {"d4rt_1", "math_1"})
+        self.assertEqual(set(solved["evidence"]), {"qg_1", "d4rt_1", "math_1"})
         self.assertIn(prose, qwen.message_snapshots[1])
         self.assertIn("must end with one corrected JSON action", qwen.message_snapshots[1])
 
@@ -1066,6 +1537,7 @@ class OrchestratorTest(unittest.TestCase):
         }
         qwen = _ScriptedQwen([
             json.dumps(invalid),
+            json.dumps(self._ground_action()),
             json.dumps(self._query_action()),
             json.dumps(self._math_action()),
             json.dumps(self._final_action()),
@@ -1074,24 +1546,25 @@ class OrchestratorTest(unittest.TestCase):
             qwen=qwen,
             backend=_FakeBackend(),
             sampled_video=self._sampled(),
-            max_steps=4,
+            max_steps=5,
         ).solve({"id": "endpoint_displacement", "question": "How far?"})
 
         self.assertEqual(
             [row["call_id"] for row in solved["trace"]],
-            [None, "d4rt_1", "math_1", "final_1"],
+            [None, "qg_1", "d4rt_1", "math_1", "final_1"],
         )
         rejected = solved["trace"][0]
         self.assertEqual(rejected["failure_stage"], "validation")
         self.assertEqual(self._ledger_ids(rejected), [])
         self.assertEqual(rejected["evidence_state"]["last_action"], "rejected")
         self.assertIsNone(rejected["evidence_state"]["new_evidence_id"])
-        self.assertIn("query_d4rt.label", rejected["evidence_state"]["reason"])
+        self.assertIn("unsupported argument fields", rejected["evidence_state"]["reason"])
 
     def test_unknown_math_evidence_lists_reality_then_corrects_to_math_1(self) -> None:
         bad_math = self._math_action()
         bad_math["arguments"]["bindings"]["start"]["evidence_id"] = "d4rt_2"
         qwen = _ScriptedQwen([
+            json.dumps(self._ground_action()),
             json.dumps(self._query_action()),
             json.dumps(bad_math),
             json.dumps(self._math_action()),
@@ -1101,20 +1574,20 @@ class OrchestratorTest(unittest.TestCase):
             qwen=qwen,
             backend=_FakeBackend(),
             sampled_video=self._sampled(),
-            max_steps=4,
+            max_steps=5,
         ).solve({"id": "endpoint_displacement", "question": "How far?"})
 
         self.assertEqual(
             [row["call_id"] for row in solved["trace"]],
-            ["d4rt_1", None, "math_1", "final_1"],
+            ["qg_1", "d4rt_1", None, "math_1", "final_1"],
         )
-        rejected = solved["trace"][1]
+        rejected = solved["trace"][2]
         self.assertEqual(rejected["failure_stage"], "execution")
-        self.assertEqual(self._ledger_ids(rejected), ["d4rt_1"])
+        self.assertEqual(self._ledger_ids(rejected), ["qg_1", "d4rt_1"])
         self.assertIn("d4rt_2", rejected["error"])
-        self.assertIn("Available evidence IDs: ['d4rt_1']", rejected["error"])
+        self.assertIn("Available evidence IDs: ['d4rt_1', 'qg_1']", rejected["error"])
         self.assertIn("Rejected actions create no evidence", rejected["error"])
-        host_snapshot = qwen.message_snapshots[2]
+        host_snapshot = qwen.message_snapshots[3]
         self.assertIn("HOST EVIDENCE STATE", host_snapshot)
         self.assertIn("d4rt_1: query_d4rt", host_snapshot)
         self.assertIn("New evidence created: none", host_snapshot)
@@ -1125,6 +1598,7 @@ class OrchestratorTest(unittest.TestCase):
         bad_final = self._final_action()
         bad_final["arguments"]["value"] = 2.0
         qwen = _ScriptedQwen([
+            json.dumps(self._ground_action()),
             json.dumps(self._query_action()),
             json.dumps(self._math_action()),
             json.dumps(bad_final),
@@ -1134,23 +1608,26 @@ class OrchestratorTest(unittest.TestCase):
             qwen=qwen,
             backend=_FakeBackend(),
             sampled_video=self._sampled(),
-            max_steps=4,
+            max_steps=5,
         ).solve({"id": "endpoint_displacement", "question": "How far?"})
 
         self.assertEqual(
             [row["call_id"] for row in solved["trace"]],
-            ["d4rt_1", "math_1", None, "final_1"],
+            ["qg_1", "d4rt_1", "math_1", None, "final_1"],
         )
-        rejected = solved["trace"][2]
+        rejected = solved["trace"][3]
         self.assertEqual(rejected["failure_stage"], "final_validation")
-        self.assertEqual(self._ledger_ids(rejected), ["d4rt_1", "math_1"])
-        final = solved["trace"][3]
+        self.assertEqual(
+            self._ledger_ids(rejected), ["qg_1", "d4rt_1", "math_1"]
+        )
+        final = solved["trace"][4]
         self.assertEqual(final["evidence_state"]["last_action"], "accepted")
         self.assertIsNone(final["evidence_state"]["new_evidence_id"])
-        self.assertEqual(self._ledger_ids(final), ["d4rt_1", "math_1"])
+        self.assertEqual(self._ledger_ids(final), ["qg_1", "d4rt_1", "math_1"])
 
     def test_tool_value_error_creates_no_evidence_and_retry_is_d4rt_1(self) -> None:
         qwen = _ScriptedQwen([
+            json.dumps(self._ground_action()),
             json.dumps(self._query_action()),
             json.dumps(self._query_action()),
             json.dumps(self._math_action()),
@@ -1161,41 +1638,45 @@ class OrchestratorTest(unittest.TestCase):
             qwen=qwen,
             backend=backend,
             sampled_video=self._sampled(),
-            max_steps=4,
+            max_steps=5,
         ).solve({"id": "endpoint_displacement", "question": "How far?"})
 
         self.assertEqual(backend.attempts, 2)
         self.assertEqual(
             [row["call_id"] for row in solved["trace"]],
-            [None, "d4rt_1", "math_1", "final_1"],
+            ["qg_1", None, "d4rt_1", "math_1", "final_1"],
         )
-        failed = solved["trace"][0]
+        failed = solved["trace"][1]
         self.assertEqual(failed["failure_stage"], "execution")
-        self.assertEqual(self._ledger_ids(failed), [])
-        self.assertEqual(set(solved["evidence"]), {"d4rt_1", "math_1"})
+        self.assertEqual(self._ledger_ids(failed), ["qg_1"])
+        self.assertEqual(set(solved["evidence"]), {"qg_1", "d4rt_1", "math_1"})
 
     def test_all_invisible_valid_result_still_creates_evidence(self) -> None:
-        qwen = _ScriptedQwen([json.dumps(self._query_action())])
+        qwen = _ScriptedQwen([
+            json.dumps(self._ground_action()),
+            json.dumps(self._query_action()),
+        ])
         with self.assertRaises(OrchestrationError) as caught:
             SimpleV2Orchestrator(
                 qwen=qwen,
                 backend=_InvisibleBackend(),
                 sampled_video=self._sampled(),
-                max_steps=1,
+                max_steps=2,
             ).solve({"id": "endpoint_displacement", "question": "How far?"})
 
-        self.assertEqual(set(caught.exception.evidence), {"d4rt_1"})
-        row = caught.exception.trace[0]
+        self.assertEqual(set(caught.exception.evidence), {"qg_1", "d4rt_1"})
+        row = caught.exception.trace[1]
         self.assertEqual(row["status"], "ok")
         self.assertEqual(row["call_id"], "d4rt_1")
         self.assertEqual(row["result"]["math_visibility"], [False, False])
         self.assertEqual(row["evidence_state"]["new_evidence_id"], "d4rt_1")
-        self.assertEqual(self._ledger_ids(row), ["d4rt_1"])
+        self.assertEqual(self._ledger_ids(row), ["qg_1", "d4rt_1"])
 
     def test_rejection_preserves_existing_evidence_and_ledger_metadata(self) -> None:
         bad_math = self._math_action()
         bad_math["arguments"]["bindings"]["end"]["evidence_id"] = "d4rt_8"
         qwen = _ScriptedQwen([
+            json.dumps(self._ground_action()),
             json.dumps(self._query_action()),
             json.dumps(bad_math),
         ])
@@ -1204,16 +1685,17 @@ class OrchestratorTest(unittest.TestCase):
                 qwen=qwen,
                 backend=_FakeBackend(),
                 sampled_video=self._sampled(),
-                max_steps=2,
+                max_steps=3,
             ).solve({"id": "endpoint_displacement", "question": "How far?"})
 
-        self.assertEqual(set(caught.exception.evidence), {"d4rt_1"})
-        first, rejected = caught.exception.trace
-        self.assertEqual(self._ledger_ids(first), ["d4rt_1"])
-        self.assertEqual(self._ledger_ids(rejected), ["d4rt_1"])
-        entry = rejected["evidence_state"]["available"][0]
+        self.assertEqual(set(caught.exception.evidence), {"qg_1", "d4rt_1"})
+        grounded, first, rejected = caught.exception.trace
+        self.assertEqual(self._ledger_ids(grounded), ["qg_1"])
+        self.assertEqual(self._ledger_ids(first), ["qg_1", "d4rt_1"])
+        self.assertEqual(self._ledger_ids(rejected), ["qg_1", "d4rt_1"])
+        entry = rejected["evidence_state"]["available"][1]
         self.assertEqual(entry["tool_name"], "query_d4rt")
-        self.assertEqual(entry["created_at_step"], 1)
+        self.assertEqual(entry["created_at_step"], 2)
         self.assertEqual(rejected["evidence_state"]["last_action"], "rejected")
         self.assertIsNone(rejected["evidence_state"]["new_evidence_id"])
 
@@ -1221,6 +1703,7 @@ class OrchestratorTest(unittest.TestCase):
         invalid = {"action": "python_math", "arguments": {"bindings": {}, "code": ""}}
         qwen = _ScriptedQwen([
             json.dumps(invalid),
+            json.dumps(self._ground_action()),
             json.dumps(self._query_action()),
             json.dumps(self._math_action()),
             json.dumps(self._final_action()),
@@ -1229,7 +1712,7 @@ class OrchestratorTest(unittest.TestCase):
             qwen=qwen,
             backend=_FakeBackend(),
             sampled_video=self._sampled(),
-            max_steps=4,
+            max_steps=5,
         ).solve({"id": "endpoint_displacement", "question": "How far?"})
 
         expected: dict[str, str] = {}
@@ -1238,6 +1721,8 @@ class OrchestratorTest(unittest.TestCase):
             if row["status"] == "ok" and isinstance(call_id, str):
                 if call_id.startswith("d4rt_"):
                     expected[call_id] = "query_d4rt"
+                elif call_id.startswith("qg_"):
+                    expected[call_id] = "ground_with_qwen"
                 elif call_id.startswith("math_"):
                     expected[call_id] = "python_math"
             ledger = {
@@ -1248,17 +1733,21 @@ class OrchestratorTest(unittest.TestCase):
         self.assertEqual(set(expected), set(solved["evidence"]))
 
     def test_unexpected_tool_exception_propagates(self) -> None:
-        qwen = _ScriptedQwen([json.dumps(self._query_action())])
+        qwen = _ScriptedQwen([
+            json.dumps(self._ground_action()),
+            json.dumps(self._query_action()),
+        ])
         with self.assertRaisesRegex(RuntimeError, "unexpected backend crash"):
             SimpleV2Orchestrator(
                 qwen=qwen,
                 backend=_UnexpectedFailureBackend(),
                 sampled_video=self._sampled(),
-                max_steps=1,
+                max_steps=2,
             ).solve({"id": "endpoint_displacement", "question": "How far?"})
 
     def test_backend_value_error_propagates_with_partial_state(self) -> None:
         qwen = _ScriptedQwen([
+            json.dumps(self._ground_action()),
             json.dumps(self._query_action()),
             json.dumps(self._query_action()),
         ])
@@ -1269,32 +1758,32 @@ class OrchestratorTest(unittest.TestCase):
                 qwen=qwen,
                 backend=_FailSecondWithValueErrorBackend(),
                 sampled_video=self._sampled(),
-                max_steps=2,
+                max_steps=3,
             ).solve({"id": "endpoint_displacement", "question": "How far?"})
 
         error = caught.exception
         self.assertIsInstance(error.original_error, ValueError)
-        self.assertEqual(len(error.trace), 2)
-        self.assertEqual(error.trace[0]["call_id"], "d4rt_1")
-        self.assertEqual(error.trace[1]["status"], "error")
-        self.assertEqual(error.trace[1]["failure_stage"], "execution")
-        self.assertIn("backend output shape mismatch", error.trace[1]["error"])
+        self.assertEqual(len(error.trace), 3)
+        self.assertEqual(error.trace[0]["call_id"], "qg_1")
+        self.assertEqual(error.trace[1]["call_id"], "d4rt_1")
+        self.assertEqual(error.trace[2]["status"], "error")
+        self.assertEqual(error.trace[2]["failure_stage"], "execution")
+        self.assertIn("backend output shape mismatch", error.trace[2]["error"])
         self.assertEqual(
-            error.trace[1]["evidence_state"]["last_action"], "error"
+            error.trace[2]["evidence_state"]["last_action"], "error"
         )
         self.assertEqual(
-            self._ledger_ids(error.trace[1]), ["d4rt_1"]
+            self._ledger_ids(error.trace[2]), ["qg_1", "d4rt_1"]
         )
-        self.assertEqual(set(error.evidence), {"d4rt_1"})
+        self.assertEqual(set(error.evidence), {"qg_1", "d4rt_1"})
 
     def test_evidence_loop_and_replay_without_exposing_policy(self) -> None:
         qwen = _ScriptedQwen([
+            json.dumps(self._ground_action()),
             json.dumps({
                 "action": "query_d4rt",
                 "arguments": {
-                    "label": "ball",
-                    "bbox_2d_1000": [400, 400, 500, 500],
-                    "t_src": 0,
+                    "grounding_id": "qg_1",
                     "t_tgt": [0],
                     "t_cam": 0,
                     "justification": "Need the two endpoint positions.",
@@ -1303,9 +1792,7 @@ class OrchestratorTest(unittest.TestCase):
             json.dumps({
                 "action": "query_d4rt",
                 "arguments": {
-                    "label": "ball",
-                    "bbox_2d_1000": [400, 400, 500, 500],
-                    "t_src": 0,
+                    "grounding_id": "qg_1",
                     "t_tgt": [31],
                     "t_cam": 0,
                     "justification": "Need the ending position.",
@@ -1362,7 +1849,7 @@ class OrchestratorTest(unittest.TestCase):
             self.assertEqual(layout[2 * index + 1], {
                 "type": "image", "size": [4, 4]
             })
-        self.assertIn("Ground bbox_2d_1000", layout[-1]["text"])
+        self.assertIn("ground_with_qwen", layout[-1]["text"])
 
         merged = merge_d4rt_results([
             solved["evidence"]["d4rt_1"], solved["evidence"]["d4rt_2"]
@@ -1376,12 +1863,11 @@ class OrchestratorTest(unittest.TestCase):
     def test_path_math_recovers_after_separate_binding_hint(self) -> None:
         frames = list(range(32))
         qwen = _ScriptedQwen([
+            json.dumps(self._ground_action()),
             json.dumps({
                 "action": "query_d4rt",
                 "arguments": {
-                    "label": "object",
-                    "bbox_2d_1000": [400, 400, 500, 500],
-                    "t_src": 0,
+                    "grounding_id": "qg_1",
                     "t_tgt": frames,
                     "t_cam": 0,
                     "justification": "Need the full visible trajectory.",
@@ -1439,11 +1925,11 @@ class OrchestratorTest(unittest.TestCase):
             height=4,
         )
         solved = SimpleV2Orchestrator(
-            qwen=qwen, backend=_FakeBackend(), sampled_video=sampled, max_steps=4
+            qwen=qwen, backend=_FakeBackend(), sampled_video=sampled, max_steps=5
         ).solve({"id": "distance_travelled", "question": "How far did it travel?"})
         self.assertEqual(solved["final_answer"]["value"], 1.0)
-        self.assertEqual(solved["trace"][1]["status"], "rejected")
-        self.assertIn("bind each evidence field", solved["trace"][1]["error"])
+        self.assertEqual(solved["trace"][2]["status"], "rejected")
+        self.assertIn("bind each evidence field", solved["trace"][2]["error"])
         self.assertTrue(any("bind each evidence field" in item for item in qwen.message_snapshots))
 
 

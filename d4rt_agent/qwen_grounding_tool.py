@@ -226,8 +226,7 @@ def _strict_json_field(raw: str, field: str) -> Any:
         if isinstance(value, dict) and set(value) == {field}:
             return value[field]
     raise ValueError(
-        f"no strict JSON object containing exactly {field!r} was found in "
-        f"grounder response: {raw[:300]!r}"
+        f"no strict JSON object containing exactly {field!r} was found"
     )
 
 

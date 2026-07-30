@@ -21,10 +21,12 @@ from __future__ import annotations
 import argparse
 from datetime import datetime, timezone
 import gc
+import hashlib
 import json
 import os
 from pathlib import Path
 import re
+import subprocess
 import time
 import traceback
 from typing import Any, Mapping, Sequence
@@ -40,6 +42,7 @@ from .dsi_bench_data import (
     write_manifest,
 )
 from .simple_v2 import (
+    ActionExecution,
     ActionRejected,
     DEFAULT_QWEN_MODEL,
     OfflineQwen,
@@ -102,6 +105,23 @@ def _utc_now() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
+def _sha256_file(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def _code_sha() -> str:
+    return subprocess.run(
+        ["git", "rev-parse", "HEAD"],
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout.strip()
+
+
 class DSIOrchestrator(SimpleV2Orchestrator):
     """The simple_v2 loop with DSI-Bench's final-answer rule.
 
@@ -161,7 +181,7 @@ class DSIOrchestrator(SimpleV2Orchestrator):
         arguments: dict[str, Any],
         evidence: dict[str, dict[str, Any]],
         step: int | None = None,
-    ) -> tuple[dict[str, Any], list[dict[str, Any]] | None, str]:
+    ) -> ActionExecution:
         if step is not None and self.max_steps - step <= self.HARD_DEADLINE_STEPS:
             # Warnings alone did not stop agents from measuring until the loop
             # died (job 8071987), so the last step is reserved for the answer.
@@ -467,8 +487,42 @@ def run_agent(args: argparse.Namespace, manifest: Mapping[str, Any], entries: Se
     del first
     gc.collect()
     qwen = OfflineQwen(args.qwen_model, args.max_new_tokens, args.seed)
+    from .qwen_grounding_tool import (
+        BBOX_MAX_NEW_TOKENS,
+        PROMPT_PATH,
+        POINTS_MAX_NEW_TOKENS,
+    )
+
+    manifest_path = Path(args.manifest)
+    code_sha = _code_sha()
+    run_metadata = {
+        "run_id": f"{_utc_now()}_{code_sha[:12]}",
+        "code_sha": code_sha,
+        "manifest_path": str(manifest_path.resolve()),
+        "manifest_sha256": _sha256_file(manifest_path),
+        "qwen_model_path": qwen.model_path,
+        "d4rt": backend.metadata(),
+        "hardware": backend.gpu_memory(),
+        "slurm_job_id": os.environ.get("SLURM_JOB_ID"),
+        "slurm_node": os.environ.get("SLURMD_NODENAME"),
+        "seed": args.seed,
+        "main_max_new_tokens": args.max_new_tokens,
+        "grounder_bbox_max_new_tokens": BBOX_MAX_NEW_TOKENS,
+        "grounder_points_max_new_tokens": POINTS_MAX_NEW_TOKENS,
+        "max_steps": args.max_steps,
+        "point_mode": args.point_mode,
+        "prompt_sha256": {
+            "orchestration": _sha256_file(
+                Path(__file__).resolve().parent / "prompts" / "tool_turn_protocol.md"
+            ),
+            "agent": _sha256_file(SYSTEM_PROMPT_PATH),
+            "grounder": _sha256_file(PROMPT_PATH),
+        },
+    }
+    _write_atomic(Path(args.results_dir) / "run_metadata.json", run_metadata)
     print(
-        f"backend ready ({backend.metadata()['checkpoint']}), qwen ready ({qwen.model_path})",
+        f"backend ready ({backend.metadata()['checkpoint']}), qwen ready ({qwen.model_path}), "
+        f"code={run_metadata['code_sha']}",
         flush=True,
     )
 
@@ -482,6 +536,7 @@ def run_agent(args: argparse.Namespace, manifest: Mapping[str, Any], entries: Se
             **_entry_facts(entry),
             "point_mode": args.point_mode,
             "benchmark_alignment": {"type": DSI_ALIGNMENT_TYPE, "scale": DSI_BENCHMARK_SCALE},
+            "run_metadata": run_metadata,
         }
         try:
             sampled = sample_video_cpu(Path(entry["video_path"]))
@@ -689,6 +744,7 @@ def main(argv: Sequence[str] | None = None) -> None:
         print(f"wrote manifest: {manifest_path}")
     else:
         manifest = read_manifest(manifest_path)
+    args.manifest = manifest_path
 
     entries = _select(manifest, args)
     if args.dry_run:

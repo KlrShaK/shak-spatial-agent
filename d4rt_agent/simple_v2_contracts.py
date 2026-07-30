@@ -105,27 +105,42 @@ def sample_video_cpu(video_path: str | Path) -> SampledVideo:
     )
 
 
-# These are the only actions described to Qwen.  In particular, query_d4rt has no
-# point_mode field; the policy is fixed in the host process before Qwen is loaded.
+# These are the only actions described to the reasoning Qwen.  Raw visual
+# coordinates and point_mode are intentionally absent from query_d4rt: geometry
+# is created by the isolated grounder and frozen behind a host-owned qg ID.
 ACTION_SCHEMAS: tuple[dict[str, Any], ...] = (
     {
-        "name": "query_d4rt",
+        "name": "ground_with_qwen",
         "description": (
-            "Query live 3D positions for an object box grounded in the explicitly "
-            "declared sampled source frame t_src, expressed in the camera frame of "
-            "the chosen viewpoint t_cam."
+            "Ground one object box or requested 2D points in one sampled source "
+            "frame using an isolated one-frame Qwen context."
         ),
         "parameters": {
             "type": "object",
-            "required": [
-                "label", "bbox_2d_1000", "t_src", "t_tgt", "t_cam", "justification"
-            ],
+            "additionalProperties": False,
+            "required": ["mode", "t_src", "request", "justification"],
             "properties": {
-                "label": {"type": "string"},
-                "bbox_2d_1000": {
-                    "type": "array", "items": {"type": "number"}, "minItems": 4, "maxItems": 4
-                },
+                "mode": {"type": "string", "enum": ["bbox", "points"]},
                 "t_src": {"type": "integer", "minimum": 0, "maximum": 31},
+                "request": {"type": "string"},
+                "count": {"type": "integer", "minimum": 1, "maximum": 8},
+                "justification": {"type": "string"},
+            },
+        },
+    },
+    {
+        "name": "query_d4rt",
+        "description": (
+            "Query live 3D positions using an immutable grounding returned by "
+            "ground_with_qwen, expressed in the camera frame of t_cam."
+        ),
+        "parameters": {
+            "type": "object",
+            "additionalProperties": False,
+            "required": ["grounding_id", "t_tgt", "t_cam", "justification"],
+            "properties": {
+                "grounding_id": {"type": "string"},
+                "point_ids": {"type": "array", "items": {"type": "string"}},
                 "t_tgt": {
                     "type": "array",
                     "items": {"type": "integer", "minimum": 0, "maximum": 31},
@@ -140,6 +155,7 @@ ACTION_SCHEMAS: tuple[dict[str, Any], ...] = (
         "description": "Run restricted numerical calculations over prior tool outputs.",
         "parameters": {
             "type": "object",
+            "additionalProperties": False,
             "required": ["bindings", "code", "justification"],
             "properties": {
                 "bindings": {"type": "object"},
@@ -159,6 +175,7 @@ ACTION_SCHEMAS: tuple[dict[str, Any], ...] = (
         ),
         "parameters": {
             "type": "object",
+            "additionalProperties": False,
             "required": ["evidence_ids", "limitations"],
             "properties": {
                 "kind": {"type": "string", "enum": ["numeric", "text"]},
@@ -186,6 +203,24 @@ def _require_justification(arguments: Mapping[str, Any]) -> str:
     return value.strip()
 
 
+def _reject_unknown_fields(
+    action_name: str,
+    arguments: Mapping[str, Any],
+    allowed: set[str],
+) -> None:
+    unknown = sorted(set(arguments) - allowed)
+    if unknown:
+        raise ValueError(f"{action_name} has unsupported argument fields: {unknown}")
+
+
+def _strict_frame(value: Any, field: str) -> int:
+    if isinstance(value, bool) or not isinstance(value, int):
+        raise ValueError(f"{field} must be an integer")
+    if not (0 <= value < NUM_SAMPLED_FRAMES):
+        raise ValueError(f"{field} is outside [0, 31]")
+    return value
+
+
 def validate_action(action: Mapping[str, Any]) -> tuple[str, dict[str, Any]]:
     """Validate one Qwen action and normalize its argument types."""
 
@@ -208,45 +243,79 @@ def validate_action(action: Mapping[str, Any]) -> tuple[str, dict[str, Any]]:
         raise ValueError("action.arguments must be an object")
     args = dict(arguments)
 
-    if name == "query_d4rt":
-        _require_justification(args)
-        label = args.get("label")
-        if not isinstance(label, str) or not label.strip():
-            raise ValueError("query_d4rt.label must be non-empty")
-        bbox = args.get("bbox_2d_1000")
-        if not isinstance(bbox, list) or len(bbox) != 4:
-            raise ValueError("bbox_2d_1000 must be [x_min, y_min, x_max, y_max]")
-        bbox = [float(value) for value in bbox]
-        if not all(math.isfinite(value) and 0.0 <= value <= 1000.0 for value in bbox):
-            raise ValueError("bbox_2d_1000 coordinates must be finite and inside [0, 1000]")
-        if bbox[0] > bbox[2] or bbox[1] > bbox[3]:
-            raise ValueError("bbox_2d_1000 min coordinates must not exceed max coordinates")
-        args["bbox_2d_1000"] = bbox
-        if "t_src" not in args:
-            raise ValueError(
-                "query_d4rt.t_src must declare the sampled source frame used to ground the box"
-            )
-        args["t_src"] = int(args["t_src"])
+    if name == "ground_with_qwen":
+        _reject_unknown_fields(
+            name,
+            args,
+            {"mode", "t_src", "request", "count", "justification"},
+        )
+        args["justification"] = _require_justification(args)
+        mode = args.get("mode")
+        if mode not in {"bbox", "points"}:
+            raise ValueError("ground_with_qwen.mode must be 'bbox' or 'points'")
+        request = args.get("request")
+        if not isinstance(request, str) or not request.strip():
+            raise ValueError("ground_with_qwen.request must be non-empty")
+        if len(request) > 500:
+            raise ValueError("ground_with_qwen.request is too long (maximum 500 characters)")
+        args["request"] = request.strip()
+        args["t_src"] = _strict_frame(args.get("t_src"), "ground_with_qwen.t_src")
+        if mode == "bbox":
+            if "count" in args:
+                raise ValueError("ground_with_qwen.count must be absent in bbox mode")
+            args.pop("count", None)
+        else:
+            count = args.get("count")
+            if isinstance(count, bool) or not isinstance(count, int):
+                raise ValueError("ground_with_qwen.count is required for points mode")
+            if not (1 <= count <= 8):
+                raise ValueError("ground_with_qwen.count must be inside [1, 8]")
+            args["count"] = count
+    elif name == "query_d4rt":
+        _reject_unknown_fields(
+            name,
+            args,
+            {"grounding_id", "point_ids", "t_tgt", "t_cam", "justification"},
+        )
+        args["justification"] = _require_justification(args)
+        grounding_id = args.get("grounding_id")
+        if not isinstance(grounding_id, str) or not grounding_id.strip():
+            raise ValueError("query_d4rt.grounding_id must be non-empty")
+        args["grounding_id"] = grounding_id.strip()
+        point_ids = args.get("point_ids")
+        if point_ids is not None:
+            if (
+                not isinstance(point_ids, list)
+                or not point_ids
+                or not all(isinstance(value, str) and value.strip() for value in point_ids)
+            ):
+                raise ValueError("query_d4rt.point_ids must be a non-empty list of strings")
+            normalized_points = [value.strip() for value in point_ids]
+            if len(set(normalized_points)) != len(normalized_points):
+                raise ValueError("query_d4rt.point_ids must not contain duplicates")
+            args["point_ids"] = normalized_points
         targets = args.get("t_tgt")
         if not isinstance(targets, list) or not targets:
             raise ValueError("t_tgt must be a non-empty list")
-        args["t_tgt"] = [int(value) for value in targets]
-        if not (0 <= args["t_src"] < NUM_SAMPLED_FRAMES):
-            raise ValueError("t_src is outside [0, 31]")
-        if any(value < 0 or value >= NUM_SAMPLED_FRAMES for value in args["t_tgt"]):
-            raise ValueError("t_tgt contains a frame outside [0, 31]")
+        args["t_tgt"] = [
+            _strict_frame(value, "query_d4rt.t_tgt item") for value in targets
+        ]
         if len(set(args["t_tgt"])) != len(args["t_tgt"]):
             raise ValueError("t_tgt must not contain duplicates")
-        args["t_cam"] = int(args.get("t_cam"))
-        if not (0 <= args["t_cam"] < NUM_SAMPLED_FRAMES):
-            raise ValueError("t_cam is outside [0, 31]")
+        args["t_cam"] = _strict_frame(args.get("t_cam"), "query_d4rt.t_cam")
     elif name == "python_math":
-        _require_justification(args)
+        _reject_unknown_fields(name, args, {"bindings", "code", "justification"})
+        args["justification"] = _require_justification(args)
         if not isinstance(args.get("bindings"), Mapping):
             raise ValueError("python_math.bindings must be an object")
         if not isinstance(args.get("code"), str) or not args["code"].strip():
             raise ValueError("python_math.code must be non-empty")
     else:
+        _reject_unknown_fields(
+            name,
+            args,
+            {"kind", "value", "unit", "text", "evidence_ids", "limitations"},
+        )
         # kind is optional so every pre-existing numeric answer stays valid unchanged.
         kind = args.get("kind", "numeric")
         if kind not in FINAL_ANSWER_KINDS:

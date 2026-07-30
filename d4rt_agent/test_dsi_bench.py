@@ -522,12 +522,22 @@ class SystemPromptTest(unittest.TestCase):
     def test_dsi_examples_compose_tools_and_measure_before_answering(self) -> None:
         example_sections = self.PROMPT.split("\n### Example ")[1:]
         expected_names = [
-            ["query_d4rt", "query_d4rt", "python_math", "final_answer"],
-            ["query_d4rt", "query_d4rt", "python_math", "final_answer"],
-            ["query_d4rt", "query_d4rt", "query_d4rt", "python_math", "final_answer"],
+            [
+                "ground_with_qwen", "query_d4rt", "query_d4rt",
+                "python_math", "final_answer",
+            ],
+            [
+                "ground_with_qwen", "query_d4rt", "query_d4rt",
+                "python_math", "final_answer",
+            ],
+            [
+                "ground_with_qwen", "query_d4rt", "ground_with_qwen",
+                "query_d4rt", "python_math", "final_answer",
+            ],
         ]
         self.assertEqual(len(example_sections), len(expected_names))
         for section, expected in zip(example_sections, expected_names):
+            section = section.split("\n#### Recovery pattern", 1)[0]
             actions = [
                 json.loads(line)
                 for line in section.splitlines()
@@ -543,13 +553,14 @@ class SystemPromptTest(unittest.TestCase):
             self.assertTrue(any(item.startswith("d4rt_") for item in cited), cited)
 
     def test_example_evidence_is_introduced_by_an_earlier_host_turn(self) -> None:
-        evidence_pattern = re.compile(r"^(?:d4rt|math)_\d+$")
+        evidence_pattern = re.compile(r"^(?:qg|d4rt|math)_\d+$")
         for prompt in (self.SIMPLE_PROMPT, self.PROMPT):
             for section in prompt.split("\n### Example ")[1:]:
+                section = section.split("\n#### Recovery pattern", 1)[0]
                 available: set[str] = set()
                 for line in section.splitlines():
                     host_result = re.fullmatch(
-                        r"Tool result ((?:d4rt|math)_\d+):", line
+                        r"Tool result ((?:qg|d4rt|math)_\d+):", line
                     )
                     if host_result:
                         evidence_id = host_result.group(1)
@@ -562,7 +573,7 @@ class SystemPromptTest(unittest.TestCase):
                     references = {
                         value
                         for value in re.findall(
-                            r'"((?:d4rt|math)_\d+)"',
+                            r'"((?:qg|d4rt|math)_\d+)"',
                             json.dumps(action, separators=(",", ":")),
                         )
                         if evidence_pattern.fullmatch(value)
@@ -581,6 +592,12 @@ class SystemPromptTest(unittest.TestCase):
             "spread": [0.03, 0.02, 0.04],
             "front": [0.6, 0.3, 4.0],
             "rear": [0.2, 0.3, 4.4],
+            "s1": [1.0, 0.0, 8.0],
+            "s2": [0.0, 0.0, 8.2],
+            "s3": [-1.0, 0.0, 8.1],
+            "e1": [0.8, 0.0, 3.0],
+            "e2": [-0.2, 0.0, 3.2],
+            "e3": [-1.2, 0.0, 3.1],
         }
         for line in self.PROMPT.splitlines():
             if not line.startswith('{"action":"python_math"'):
