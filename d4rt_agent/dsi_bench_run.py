@@ -35,6 +35,7 @@ from .dsi_bench_data import (
     DEFAULT_DSI_ROOT,
     DEFAULT_SEED,
     DEFAULT_SPLIT,
+    DESIGN_CENSUS,
     build_manifest,
     format_question_prompt,
     parse_choice_letter,
@@ -519,7 +520,11 @@ def run_agent(args: argparse.Namespace, manifest: Mapping[str, Any], entries: Se
             "grounder": _sha256_file(PROMPT_PATH),
         },
     }
-    _write_atomic(Path(args.results_dir) / "run_metadata.json", run_metadata)
+    # Named per job, not per directory: a census is resumed across many jobs, and
+    # a single run_metadata.json would keep only the last one's identity. Each
+    # answer embeds its own copy anyway, so these files are for the human.
+    stamp = os.environ.get("SLURM_JOB_ID") or run_metadata["run_id"].replace(":", "")
+    _write_atomic(Path(args.results_dir) / f"run_metadata_{stamp}.json", run_metadata)
     print(
         f"backend ready ({backend.metadata()['checkpoint']}), qwen ready ({qwen.model_path}), "
         f"code={run_metadata['code_sha']}",
@@ -543,6 +548,11 @@ def run_agent(args: argparse.Namespace, manifest: Mapping[str, Any], entries: Se
             backend.rebind_video(sampled)
             record["sampling"] = _sampling_record(sampled)
             try:
+                # One attempt per question. The strict-then-relaxed pair this
+                # replaced could spend two full step budgets on a question that
+                # answers neither way, and at census scale that second budget is
+                # hours. Whether the tracker was actually used is measured from
+                # the answer instead of being assumed from which attempt won.
                 solved = _solve_one(
                     entry,
                     qwen=qwen,
@@ -550,43 +560,27 @@ def run_agent(args: argparse.Namespace, manifest: Mapping[str, Any], entries: Se
                     sampled=sampled,
                     system_prompt=system_prompt,
                     max_steps=args.max_steps,
-                    require_d4rt=True,
+                    require_d4rt=args.require_d4rt,
                 )
-                record.update(status="complete", d4rt_used=True, **_solution_fields(solved))
+                record.update(
+                    status="complete",
+                    **_d4rt_usage(solved),
+                    **_solution_fields(solved),
+                )
             except OrchestrationError as error:
-                # The D4RT requirement is what failed, not necessarily the question.
-                # Retry once without it so the row stays comparable to the control,
-                # and record plainly that this answer is not tracker-backed.
-                record["gated_attempt"] = {
-                    "error": str(error),
-                    "trace": error.trace,
-                    "evidence": error.evidence,
-                }
-                try:
-                    solved = _solve_one(
-                        entry,
-                        qwen=qwen,
-                        backend=backend,
-                        sampled=sampled,
-                        system_prompt=system_prompt,
-                        max_steps=args.max_steps,
-                        require_d4rt=False,
-                    )
-                    record.update(
-                        status="complete_relaxed", d4rt_used=False, **_solution_fields(solved)
-                    )
-                except OrchestrationError as relaxed_error:
-                    record.update(
-                        status="failed",
-                        d4rt_used=False,
-                        error=str(relaxed_error),
-                        trace=relaxed_error.trace,
-                        evidence=relaxed_error.evidence,
-                    )
+                record.update(
+                    status="failed",
+                    d4rt_used=False,
+                    d4rt_queried=_any_d4rt_evidence(error.evidence),
+                    error=str(error),
+                    trace=error.trace,
+                    evidence=error.evidence,
+                )
         except ToolExecutionError as error:
             record.update(
                 status="error",
                 d4rt_used=False,
+                d4rt_queried=_any_d4rt_evidence(error.evidence),
                 error=str(error),
                 trace=error.trace,
                 evidence=error.evidence,
@@ -596,6 +590,7 @@ def run_agent(args: argparse.Namespace, manifest: Mapping[str, Any], entries: Se
             record.update(
                 status="error",
                 d4rt_used=False,
+                d4rt_queried=False,
                 error=f"{type(error).__name__}: {error}",
                 traceback=traceback.format_exc(),
             )
@@ -605,9 +600,10 @@ def run_agent(args: argparse.Namespace, manifest: Mapping[str, Any], entries: Se
         elapsed = time.monotonic() - started
         remaining = (elapsed / index) * (len(pending) - index)
         print(
-            f"[{index:2d}/{len(pending)}] {record['status']:17s} "
-            f"d4rt={str(record.get('d4rt_used')):5s} "
-            f"{record['wall_seconds']:7.1f}s eta={remaining / 60:5.1f}m "
+            f"[{index:4d}/{len(pending)}] {record['status']:8s} "
+            f"cited={str(record.get('d4rt_used')):5s} "
+            f"queried={str(record.get('d4rt_queried')):5s} "
+            f"{record['wall_seconds']:7.1f}s eta={remaining / 60:6.1f}m "
             f"{entry['question_id'][:44]}",
             flush=True,
         )
@@ -618,6 +614,30 @@ def run_agent(args: argparse.Namespace, manifest: Mapping[str, Any], entries: Se
 
     print(f"agent pass done in {(time.monotonic() - started) / 60:.1f} min")
     return 0
+
+
+def _any_d4rt_evidence(evidence: Mapping[str, Any] | None) -> bool:
+    """Whether the run produced any D4RT measurement at all."""
+
+    return any(str(key).startswith("d4rt_") for key in (evidence or {}))
+
+
+def _d4rt_usage(solved: Mapping[str, Any]) -> dict[str, bool]:
+    """Separate 'measured with the tracker' from 'answered from the tracker'.
+
+    With the D4RT citation no longer enforced, ``d4rt_used`` can no longer be
+    inferred from which attempt succeeded -- it has to be read off the answer.
+    The weaker ``d4rt_queried`` is kept beside it because the two come apart in
+    the interesting way: an agent that queries the tracker and then answers
+    without citing it has not been told apart from the tool-free control.
+    """
+
+    final = solved.get("final_answer")
+    cited = final.get("evidence_ids", []) if isinstance(final, Mapping) else []
+    return {
+        "d4rt_used": any(str(item).startswith("d4rt_") for item in cited),
+        "d4rt_queried": _any_d4rt_evidence(solved.get("evidence")),
+    }
 
 
 def _solution_fields(solved: Mapping[str, Any]) -> dict[str, Any]:
@@ -703,6 +723,20 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
         help="skip the search for a seed with an even answer-key histogram",
     )
     parser.add_argument("--rebuild-manifest", action="store_true")
+    parser.add_argument(
+        "--all-questions",
+        action="store_true",
+        help="build a census manifest over the whole split instead of the 25-question sample",
+    )
+    parser.add_argument(
+        "--require-d4rt",
+        action="store_true",
+        help=(
+            "reject a final answer that cites no query_d4rt call. Off by default: the "
+            "run records whether the tracker was cited rather than insisting on it, and "
+            "there is no second attempt either way"
+        ),
+    )
     parser.add_argument("--dry-run", action="store_true", help="check clips decode; no model")
     parser.add_argument("--baseline", action="store_true", help="tool-free Qwen control pass")
     parser.add_argument("--limit", type=int, default=None)
@@ -739,11 +773,21 @@ def main(argv: Sequence[str] | None = None) -> None:
             split=args.split,
             seed=args.seed_sample,
             balance_gt=not args.no_balance_gt,
+            census=args.all_questions,
         )
         write_manifest(manifest, manifest_path)
         print(f"wrote manifest: {manifest_path}")
     else:
         manifest = read_manifest(manifest_path)
+        # A resumed census job that silently picked up the 25-question manifest
+        # would look like it had finished after 25 answers.
+        design = manifest.get("sampling", {}).get("design")
+        if args.all_questions and design != DESIGN_CENSUS:
+            raise SystemExit(
+                f"--all-questions, but {manifest_path} is a {design!r} manifest of "
+                f"{len(manifest['questions'])} questions. Point --results-dir/--manifest "
+                "at a fresh path, or pass --rebuild-manifest to overwrite it."
+            )
     args.manifest = manifest_path
 
     entries = _select(manifest, args)

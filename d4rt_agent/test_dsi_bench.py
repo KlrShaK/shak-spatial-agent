@@ -6,14 +6,17 @@ sampling design and the answer rules can be checked before any job is submitted.
 
 from __future__ import annotations
 
+import itertools
 import json
 from pathlib import Path
 import re
 import unittest
+import unittest.mock
 
 from d4rt_agent.dsi_bench_data import (
     CATEGORY_NAMES,
     DATASETS,
+    DESIGN_CENSUS,
     NUM_CATEGORIES,
     QUESTIONS_PER_DATASET,
     TOTAL_QUESTIONS,
@@ -29,7 +32,12 @@ from d4rt_agent.dsi_bench_data import (
     sample_rows,
     video_slug,
 )
-from d4rt_agent.dsi_bench_run import DSIOrchestrator, SYSTEM_PROMPT_PATH, _task_for
+from d4rt_agent.dsi_bench_run import (
+    DSIOrchestrator,
+    SYSTEM_PROMPT_PATH,
+    _d4rt_usage,
+    _task_for,
+)
 from d4rt_agent.simple_v2_contracts import restricted_python_math, validate_action
 
 
@@ -178,6 +186,102 @@ class RealBenchmarkTest(unittest.TestCase):
         self.assertIn(entry["question"], task["question"])
         for letter in entry["option_letters"]:
             self.assertIn(entry["options"][letter], task["question"])
+
+
+@unittest.skipUnless(BENCHMARK_AVAILABLE, f"DSI-Bench not present at {CSV_PATH}")
+class CensusManifestTest(unittest.TestCase):
+    """The full-split selection, which the 25-question run's guarantees do not cover."""
+
+    @classmethod
+    def setUpClass(cls) -> None:
+        cls.rows = load_rows(CSV_PATH)
+        cls.manifest = build_manifest(census=True)
+
+    def test_census_takes_every_question_and_drops_none(self) -> None:
+        self.assertEqual(len(self.manifest["questions"]), len(self.rows))
+        self.assertEqual(
+            {entry["question_id"] for entry in self.manifest["questions"]},
+            {row.question_id for row in self.rows},
+        )
+
+    def test_question_ids_are_unique_so_answers_cannot_overwrite_each_other(self) -> None:
+        """Answers are one file per question_id; the census reuses videos across rows."""
+
+        ids = [entry["question_id"] for entry in self.manifest["questions"]]
+        self.assertEqual(len(ids), len(set(ids)))
+        # The guarantee is real work: 1769 questions share only 943 videos, so
+        # uniqueness rests entirely on `cate` differing within a video.
+        paths = {entry["relative_path"] for entry in self.manifest["questions"]}
+        self.assertLess(len(paths), len(ids))
+
+    def test_ordering_is_total_and_groups_each_video_together(self) -> None:
+        entries = self.manifest["questions"]
+        self.assertEqual([e["question_id"] for e in entries],
+                         [e["question_id"] for e in build_manifest(census=True)["questions"]])
+        seen: set[str] = set()
+        for path, group in itertools.groupby(e["relative_path"] for e in entries):
+            self.assertNotIn(path, seen, f"{path} appears in two separate runs")
+            seen.add(path)
+
+    def test_census_records_that_it_selected_nothing(self) -> None:
+        sampling = self.manifest["sampling"]
+        self.assertEqual(sampling["design"], DESIGN_CENSUS)
+        self.assertIsNone(sampling["seed"])
+        self.assertIsNone(sampling["requested_seed"])
+        self.assertFalse(sampling["gt_balanced"])
+        self.assertEqual(sampling["total_selected"], sampling["total_source_questions"])
+
+    def test_caveat_does_not_claim_the_balance_it_no_longer_has(self) -> None:
+        """The sample's caveat advertises 4-5 questions per task; a census has 85-582."""
+
+        self.assertNotIn("Balanced by design", self.manifest["caveat"])
+        self.assertIn("grouped by dataset and by task", self.manifest["caveat"])
+        per_category = self.manifest["counts"]["per_category"]
+        self.assertEqual(sum(per_category.values()), len(self.rows))
+        self.assertGreater(max(per_category.values()) / min(per_category.values()), 5)
+
+    def test_duplicate_question_ids_are_refused(self) -> None:
+        """A future CSV that collides two ids must fail loudly, not lose an answer."""
+
+        collide = [self.rows[0], self.rows[0]]
+        with unittest.mock.patch(
+            "d4rt_agent.dsi_bench_data.census_rows", return_value=collide
+        ):
+            with self.assertRaisesRegex(ValueError, "would overwrite each other"):
+                build_manifest(census=True)
+
+
+class D4RTUsageTest(unittest.TestCase):
+    """`d4rt_used` is now measured from the answer, not assumed from the attempt."""
+
+    def test_citing_a_d4rt_call_counts_as_used(self) -> None:
+        usage = _d4rt_usage({
+            "final_answer": {"kind": "text", "evidence_ids": ["d4rt_1", "ground_2"]},
+            "evidence": {"d4rt_1": {}, "ground_2": {}},
+        })
+        self.assertEqual(usage, {"d4rt_used": True, "d4rt_queried": True})
+
+    def test_querying_without_citing_is_recorded_as_the_weaker_fact(self) -> None:
+        """This is the case the removed gate used to reject outright."""
+
+        usage = _d4rt_usage({
+            "final_answer": {"kind": "text", "evidence_ids": ["ground_2"]},
+            "evidence": {"d4rt_1": {}, "ground_2": {}},
+        })
+        self.assertEqual(usage, {"d4rt_used": False, "d4rt_queried": True})
+
+    def test_an_answer_from_the_images_alone_is_neither(self) -> None:
+        usage = _d4rt_usage({
+            "final_answer": {"kind": "text", "evidence_ids": []},
+            "evidence": {"ground_2": {}},
+        })
+        self.assertEqual(usage, {"d4rt_used": False, "d4rt_queried": False})
+
+    def test_a_missing_final_answer_does_not_raise(self) -> None:
+        self.assertEqual(
+            _d4rt_usage({"evidence": {"d4rt_1": {}}}),
+            {"d4rt_used": False, "d4rt_queried": True},
+        )
 
 
 class QuestionPromptTest(unittest.TestCase):

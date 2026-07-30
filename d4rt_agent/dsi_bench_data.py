@@ -1,15 +1,21 @@
-"""DSI-Bench question loading and the stratified 25-question sample.
+"""DSI-Bench question loading, and the two selections we evaluate.
 
 DSI-Bench ships one CSV per video augmentation.  We evaluate the ``std`` split
-only, so this module reads ``metadatas/std.csv`` and selects a small, balanced,
-reproducible subset of it.
+only, so this module reads ``metadatas/std.csv`` and builds one of two
+selections from it.
 
-The benchmark's (dataset x task) grid is badly unbalanced -- cell sizes range
-from 3 to 305 -- so a proportional sample would be almost entirely ``internet``
-and would miss whole tasks.  :func:`latin_rectangle_cells` instead spreads the
-questions evenly: each of the 5 datasets contributes 5 questions, and each of
-the 6 tasks receives 4 or 5.  That makes the result a diagnostic across the
-whole benchmark rather than an estimate of its headline accuracy.
+``latin_rectangle`` is the small, balanced, reproducible subset.  The benchmark's
+(dataset x task) grid is badly unbalanced -- cell sizes range from 3 to 305 -- so
+a proportional sample would be almost entirely ``internet`` and would miss whole
+tasks.  :func:`latin_rectangle_cells` instead spreads the questions evenly: each
+of the 5 datasets contributes 5 questions, and each of the 6 tasks receives 4 or
+5.  That makes the result a diagnostic across the whole benchmark rather than an
+estimate of its headline accuracy.
+
+``census`` is every question in the split -- all 1769 of them.  It needs no seed
+and no balance scan, because it selects nothing.  What it buys is coverage; what
+it inherits is the benchmark's own skew, which is why results from it are only
+readable grouped by dataset and by task.
 """
 
 from __future__ import annotations
@@ -45,6 +51,12 @@ DATASETS: tuple[str, ...] = ("CameraBench", "SynFMC", "internet", "k700", "llava
 
 QUESTIONS_PER_DATASET = 5
 TOTAL_QUESTIONS = len(DATASETS) * QUESTIONS_PER_DATASET
+
+# How a manifest chose its questions.  Written into the manifest so a results
+# directory always states which of the two runs produced it, and so a report can
+# refuse to describe a census as a balanced sample.
+DESIGN_LATIN_RECTANGLE = "latin_rectangle"
+DESIGN_CENSUS = "census"
 
 DEFAULT_SEED = 20260721
 # Scanned seeds must keep every ground-truth letter inside this band.  With only
@@ -252,6 +264,19 @@ def sample_rows(rows: Sequence[DSIRow], seed: int) -> list[DSIRow]:
     return selected
 
 
+def census_rows(rows: Sequence[DSIRow]) -> list[DSIRow]:
+    """Every question in the split, in a stable, video-grouped order.
+
+    Sorted by ``relative_path`` rather than left in CSV order for two reasons:
+    the order stops depending on how the benchmark happened to write its CSV, and
+    the questions sharing one video (1769 questions span only 943 videos) end up
+    adjacent, so a shard covers whole clips and a reviewer reads a clip's
+    questions together.  ``csv_row_index`` breaks ties, so the order is total.
+    """
+
+    return sorted(rows, key=lambda row: (row.relative_path, row.csv_row_index))
+
+
 def gt_histogram(rows: Iterable[DSIRow]) -> dict[str, int]:
     histogram: dict[str, int] = {}
     for row in rows:
@@ -300,13 +325,20 @@ def build_manifest(
     split: str = DEFAULT_SPLIT,
     seed: int = DEFAULT_SEED,
     balance_gt: bool = True,
+    census: bool = False,
 ) -> dict[str, Any]:
-    """Select the questions and describe the selection well enough to repeat it."""
+    """Select the questions and describe the selection well enough to repeat it.
+
+    With ``census=True`` the split is taken whole and ``seed``/``balance_gt`` are
+    ignored -- there is nothing to seed when nothing is being drawn.
+    """
 
     csv_path = metadata_csv(dsi_root, split)
     videos = video_root(dsi_root, split)
     rows = load_rows(csv_path)
-    if balance_gt:
+    if census:
+        chosen_seed, selected = None, census_rows(rows)
+    elif balance_gt:
         chosen_seed, selected = find_balanced_seed(rows, seed)
     else:
         chosen_seed, selected = seed, sample_rows(rows, seed)
@@ -324,22 +356,50 @@ def build_manifest(
             }
         )
 
+    # Answers are stored one file per question_id, so a collision would make two
+    # questions silently overwrite each other.  The 25-question sample cannot
+    # collide (it forces distinct videos); a census has no such protection, and
+    # relies on cate differing whenever two questions share a video.
+    id_counts: dict[str, int] = {}
+    for entry in entries:
+        id_counts[entry["question_id"]] = id_counts.get(entry["question_id"], 0) + 1
+    duplicates = sorted(key for key, count in id_counts.items() if count > 1)
+    if duplicates:
+        raise ValueError(
+            f"{len(duplicates)} question_id(s) are not unique, so their answers would "
+            f"overwrite each other: {duplicates[:5]}"
+        )
+
     per_dataset: dict[str, int] = {}
     per_category: dict[str, int] = {}
     for row in selected:
         per_dataset[row.dataset] = per_dataset.get(row.dataset, 0) + 1
         per_category[row.category_name] = per_category.get(row.category_name, 0) + 1
 
-    return {
-        "benchmark": "DSI-Bench",
-        "split": split,
-        "created_at": datetime.now(timezone.utc).isoformat(),
-        "dsi_root": str(dsi_root),
-        "csv_path": str(csv_path),
-        "csv_sha256": file_sha256(csv_path),
-        "video_root": str(videos),
-        "sampling": {
-            "design": "latin_rectangle",
+    if census:
+        sampling = {
+            "design": DESIGN_CENSUS,
+            "description": (
+                "every question in the split, ordered by relative_path then csv_row_index; "
+                "nothing is drawn, so there is no seed"
+            ),
+            "requested_seed": None,
+            "seed": None,
+            "gt_balanced": False,
+            "total_source_questions": len(rows),
+            "total_selected": len(selected),
+            "distinct_videos": len({row.relative_path for row in selected}),
+        }
+        caveat = (
+            "The complete 'std' split, so the per-dataset and per-task counts are the "
+            "benchmark's own and are strongly uneven: 'internet' supplies 891 of 1769 "
+            "questions, and the six tasks range from 85 to 582. Any single overall number "
+            "is dominated by the largest cells -- read results grouped by dataset and by "
+            "task."
+        )
+    else:
+        sampling = {
+            "design": DESIGN_LATIN_RECTANGLE,
             "description": (
                 "dataset i takes categories {i, i+1, i+2, i+3, i+4} mod 6; one question "
                 "per cell, all videos distinct"
@@ -350,17 +410,28 @@ def build_manifest(
             "gt_balance_band": [GT_BALANCE_MIN, GT_BALANCE_MAX],
             "total_source_questions": len(rows),
             "total_selected": len(selected),
-        },
+        }
+        caveat = (
+            "Balanced by design: each task carries 4-5 questions while the full benchmark "
+            "is 33% 'Obj:moving cam' and 31% 'Cam:dynamic scene'. Read these results as a "
+            "diagnostic across tasks, not as an estimate of DSI-Bench accuracy."
+        )
+
+    return {
+        "benchmark": "DSI-Bench",
+        "split": split,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "dsi_root": str(dsi_root),
+        "csv_path": str(csv_path),
+        "csv_sha256": file_sha256(csv_path),
+        "video_root": str(videos),
+        "sampling": sampling,
         "counts": {
             "per_dataset": per_dataset,
             "per_category": per_category,
             "gt_histogram": gt_histogram(selected),
         },
-        "caveat": (
-            "Balanced by design: each task carries 4-5 questions while the full benchmark "
-            "is 33% 'Obj:moving cam' and 31% 'Cam:dynamic scene'. Read these results as a "
-            "diagnostic across tasks, not as an estimate of DSI-Bench accuracy."
-        ),
+        "caveat": caveat,
         "questions": entries,
     }
 
