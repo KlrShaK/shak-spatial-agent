@@ -415,7 +415,7 @@ def _markdown(summary: Mapping[str, Any]) -> str:
         "",
         f"- Implementation commit: `{metadata.get('code_sha', 'unknown')}`",
         (
-            f"- Blackwell Slurm job(s): "
+            f"- Slurm job(s): "
             f"`{metadata.get('slurm_job_ids', [metadata.get('slurm_job_id', 'unknown')])}` "
             f"on `{metadata.get('slurm_nodes', [metadata.get('slurm_node', 'unknown')])}`"
         ),
