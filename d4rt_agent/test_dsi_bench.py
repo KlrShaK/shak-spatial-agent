@@ -399,7 +399,7 @@ class BlindQueryTest(unittest.TestCase):
 
     def test_query_refused_once_enough_come_back_empty(self) -> None:
         orchestrator = _StubOrchestrator()
-        with self.assertRaisesRegex(ValueError, "nothing visible"):
+        with self.assertRaisesRegex(ValueError, "invisible target frames"):
             orchestrator._refuse_hopeless_query(self._evidence(blind=3))
 
     def test_refusal_supplies_a_template_and_blames_the_right_thing(self) -> None:
@@ -411,12 +411,32 @@ class BlindQueryTest(unittest.TestCase):
         self.assertIn("limitations", message)
         self.assertIn("t_cam cannot make an unobserved target visible", message)
 
-    def test_partly_visible_results_do_not_count_as_blind(self) -> None:
+    def test_repeated_partly_visible_endpoint_search_is_refused(self) -> None:
         evidence = {
-            f"d4rt_{index}": {"t_tgt": [0, 31], "math_visibility": [True, False]}
-            for index in range(1, 6)
+            f"d4rt_{index}": {
+                "t_tgt": [0, 32 - index],
+                "math_visibility": [True, False],
+            }
+            for index in range(1, 4)
         }
-        _StubOrchestrator()._refuse_hopeless_query(evidence)
+        with self.assertRaisesRegex(ValueError, "Do not walk backward"):
+            _StubOrchestrator()._refuse_hopeless_query(
+                evidence,
+                {"t_tgt": [0, 28]},
+            )
+
+    def test_batched_recovery_is_allowed_after_partly_visible_results(self) -> None:
+        evidence = {
+            f"d4rt_{index}": {
+                "t_tgt": [0, 32 - index],
+                "math_visibility": [True, False],
+            }
+            for index in range(1, 4)
+        }
+        _StubOrchestrator()._refuse_hopeless_query(
+            evidence,
+            {"t_tgt": [0, 5, 10, 15, 20, 25]},
+        )
 
     def test_the_deadline_message_carries_the_template(self) -> None:
         try:

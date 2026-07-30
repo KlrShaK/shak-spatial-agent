@@ -18,6 +18,7 @@ from d4rt_agent.simple_v2 import (
     TOOL_TURN_PROTOCOL_TEXT,
     SimpleV2Orchestrator,
     ToolExecutionError,
+    _redact_host_policy,
     _validate_final_evidence,
     extract_first_action,
     replay_tool_trace,
@@ -69,6 +70,10 @@ class ActionExtractionTest(unittest.TestCase):
         self.assertEqual(extracted.start, 3)
         self.assertEqual(raw[extracted.start:extracted.end], self.ACTION)
         self.assertEqual(raw[extracted.end:], "  \n")
+
+
+class ActionExtractionContinuedTest(unittest.TestCase):
+    ACTION = ActionExtractionTest.ACTION
 
     def test_action_inside_markdown_code_fence(self) -> None:
         raw = f"Reasoning.\n```json\n{self.ACTION}\n```"
@@ -156,6 +161,39 @@ class ActionExtractionTest(unittest.TestCase):
         self.assertEqual(raw[:extracted.end], prefix + self.ACTION)
         self.assertEqual(raw[extracted.end], "\n")
         self.assertEqual(raw[extracted.end:], suffix)
+
+
+class ModelFacingResultTest(unittest.TestCase):
+    def test_repeated_clip_provenance_is_not_returned_to_the_model(self) -> None:
+        full = {
+            "backend": "live_d4rt_decoder",
+            "sampled_to_original": [{"sampled_frame": 0, "original_frame": 0}],
+            "coordinate_frame": "constant contract already in the prompt",
+            "original_t_src": 0,
+            "original_t_tgt": [31],
+            "original_t_cam": 0,
+            "point_mode": "ensemble5",
+            "query_points": [[10.0, 20.0]],
+            "label": "runner",
+            "t_src": 0,
+            "t_tgt": [31],
+            "t_cam": 0,
+            "math_visibility": [True],
+            "math_trajectory_aligned_xyz_m": [[1.0, 2.0, 3.0]],
+            "predictions": [{"visible": True, "individual_point_results": [1, 2, 3]}],
+        }
+
+        visible = _redact_host_policy(full)
+
+        self.assertEqual(visible["label"], "runner")
+        self.assertEqual(visible["math_visibility"], [True])
+        self.assertNotIn("sampled_to_original", visible)
+        self.assertNotIn("coordinate_frame", visible)
+        self.assertNotIn("original_t_tgt", visible)
+        self.assertNotIn("individual_point_results", visible["predictions"][0])
+        # Compaction is model-facing only; the authoritative result is untouched.
+        self.assertIn("sampled_to_original", full)
+        self.assertIn("individual_point_results", full["predictions"][0])
 
 
 class ActionContractTest(unittest.TestCase):

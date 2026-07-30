@@ -208,10 +208,31 @@ def _format_evidence_state(state: Mapping[str, Any]) -> str:
 
 
 def _redact_host_policy(result: dict[str, Any]) -> dict[str, Any]:
-    """Remove host policy metadata before returning a tool result to Qwen."""
+    """Return the useful measurement without repeating host provenance.
+
+    The full result stays in the evidence registry and trace.  The model-facing
+    copy omits immutable clip/query provenance that is already present in the
+    prompt or action.  Repeating the 32-row sampled-frame mapping and coordinate
+    contract after every query made long conversations overwhelmingly consist of
+    host boilerplate, which in turn made late rejection messages easy to ignore.
+    """
 
     redacted = {
-        key: value for key, value in result.items() if key not in {"point_mode", "query_points"}
+        key: value
+        for key, value in result.items()
+        if key
+        not in {
+            "backend",
+            "benchmark_alignment",
+            "bbox_pixel",
+            "coordinate_frame",
+            "original_t_cam",
+            "original_t_src",
+            "original_t_tgt",
+            "point_mode",
+            "query_points",
+            "sampled_to_original",
+        }
     }
     predictions = redacted.get("predictions")
     if isinstance(predictions, list):

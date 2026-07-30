@@ -171,7 +171,7 @@ class DSIOrchestrator(SimpleV2Orchestrator):
                 "already have. Emit exactly this shape, filled in: " + self.ANSWER_TEMPLATE
             )
         if name == "query_d4rt":
-            self._refuse_hopeless_query(evidence)
+            self._refuse_hopeless_query(evidence, arguments)
         try:
             return super()._execute_action(name, arguments, evidence, step=step)
         except ActionRejected as error:
@@ -181,7 +181,11 @@ class DSIOrchestrator(SimpleV2Orchestrator):
                 ) from error
             raise
 
-    def _refuse_hopeless_query(self, evidence: Mapping[str, dict[str, Any]]) -> None:
+    def _refuse_hopeless_query(
+        self,
+        evidence: Mapping[str, dict[str, Any]],
+        arguments: Mapping[str, Any] | None = None,
+    ) -> None:
         """Stop the model hunting for a frame where an absent object is visible.
 
         Both questions still failing after job 8084609 died the same way: the
@@ -192,20 +196,51 @@ class DSIOrchestrator(SimpleV2Orchestrator):
         Refusing the query is the only reliable way to end the pattern.
         """
 
-        blind = [
-            call_id
-            for call_id, prior in evidence.items()
-            if call_id.startswith("d4rt_") and not any(prior.get("math_visibility") or [True])
-        ]
-        if len(blind) < self.MAX_BLIND_QUERIES:
+        blind: list[str] = []
+        partly_visible: list[str] = []
+        invisible_frames: set[int] = set()
+        for call_id, prior in evidence.items():
+            if not call_id.startswith("d4rt_"):
+                continue
+            visibility = prior.get("math_visibility")
+            targets = prior.get("t_tgt")
+            if (
+                not isinstance(visibility, list)
+                or not isinstance(targets, list)
+                or len(visibility) != len(targets)
+            ):
+                continue
+            flags = [bool(value) for value in visibility]
+            if flags and not any(flags):
+                blind.append(call_id)
+            elif any(flags) and not all(flags):
+                partly_visible.append(call_id)
+            invisible_frames.update(
+                int(frame)
+                for frame, visible in zip(targets, flags)
+                if not visible and isinstance(frame, int)
+            )
+
+        too_many_empty = len(blind) >= self.MAX_BLIND_QUERIES
+        proposed_targets = arguments.get("t_tgt", []) if arguments else []
+        walking_one_frame = (
+            len(partly_visible) >= self.MAX_BLIND_QUERIES
+            and isinstance(proposed_targets, list)
+            and len(proposed_targets) <= 2
+        )
+        if not too_many_empty and not walking_one_frame:
             return
+        failed_ids = blind if too_many_empty else partly_visible
+        failed_frames = sorted(invisible_frames)
         raise ActionRejected(
-            f"{len(blind)} queries ({', '.join(sorted(blind))}) have already come back with "
-            "nothing visible, so the tracked point is absent from those frames and no further "
-            "query will recover it. Changing t_cam cannot make an unobserved target visible. "
-            "Stop measuring and answer now from the frames that did resolve, plus what the "
-            "images show, recording the gap in `limitations`. Emit exactly this shape, filled "
-            "in: " + self.ANSWER_TEMPLATE
+            f"{len(failed_ids)} prior queries ({', '.join(sorted(failed_ids))}) already "
+            f"reported invisible target frames {failed_frames}. Do not walk backward or "
+            "forward one frame per call: that repeats the failed search pattern and will "
+            "exhaust the run. Changing t_cam cannot make an unobserved target visible. "
+            "Either use one query containing at least three well-spaced, not-yet-tested "
+            "target frames to locate the visible interval, or stop measuring and answer "
+            "from the evidence that did resolve, recording the gap in `limitations`. "
+            "A final answer has exactly this shape: " + self.ANSWER_TEMPLATE
         )
 
     def _diagnose_math(
