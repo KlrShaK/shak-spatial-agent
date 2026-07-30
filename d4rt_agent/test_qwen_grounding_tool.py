@@ -294,6 +294,9 @@ class GroundingToolTests(unittest.TestCase):
             ],
         )
         self.assertNotIn("point_id", str(result["points_2d_1000"]))
+        user_prompt = qwen.calls[0]["messages"][1]["content"][-1]["text"]
+        self.assertIn("Return 3 points when that many clear", user_prompt)
+        self.assertIn("Use null only if none", user_prompt)
 
     def test_not_found_is_successful_parsed_evidence_shape(self) -> None:
         qwen = _FakeQwen(['{"points_2d_1000":[]}'])

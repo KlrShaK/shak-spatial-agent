@@ -364,8 +364,10 @@ Return exactly one JSON object and no other text:
 {{"points_2d_1000":[{{"xy":[x,y],"description":"what this point marks"}}]}}
 
 Normalize coordinates to integers from 0 to 1000 with origin at the top-left.
-Return at most {count} points. Return fewer points rather than inventing unreliable
-ones. If no requested point can be located, return:
+Return {count} points when that many clear requested locations are visible; otherwise
+return as many reliable requested points as are visible. When multiple valid choices
+exist, choose clear representative locations. Use null only if none of the requested
+points can be located:
 {{"points_2d_1000":null}}"""
 
 
