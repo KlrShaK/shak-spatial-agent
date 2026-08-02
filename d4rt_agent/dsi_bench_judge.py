@@ -414,13 +414,15 @@ def collect(args: argparse.Namespace) -> int:
             "Run 'status --wait' until it completes."
         )
 
+    # Always re-download: the server's output file is authoritative, and a stale
+    # local file from an earlier (e.g. smaller smoke) batch would silently score
+    # the wrong run. Cheap -- the output is a few hundred KB.
     output_path = judge_dir / "batch_output.jsonl"
-    if meta.get("output_file_id") and (args.force or not output_path.exists()):
-        _download_file(meta["output_file_id"], output_path)
+    if not meta.get("output_file_id"):
+        raise SystemExit("batch has no output_file_id; run 'status' to refresh, or check for errors.")
+    _download_file(meta["output_file_id"], output_path)
     if meta.get("error_file_id"):
         _download_file(meta["error_file_id"], judge_dir / "batch_errors.jsonl")
-    if not output_path.exists():
-        raise SystemExit(f"no output file downloaded: {output_path}")
 
     answers = _load_answers(args.results_dir)
     manifest = read_manifest(Path(args.results_dir) / "manifest.json")
@@ -529,8 +531,15 @@ def build_score_report(results_dir: Path) -> str:
     by_cate: dict[int, dict[str, int]] = defaultdict(_blank_cell)
     by_cited = {True: _blank_cell(), False: _blank_cell()}
 
-    # Judge-vs-regex agreement, on the answers a regex can already read a letter from.
+    # Judge-vs-regex agreement, on the answers a regex can already read a letter
+    # from. Disagreements are split two ways because they mean opposite things:
+    # the judge declining to map a self-contradictory answer (it opens "C:" but
+    # describes a different option) is the judge being *more* faithful than the
+    # regex; the judge swapping one committed letter for another would be the
+    # judge overriding the agent, which it must never do.
     regex_total = regex_agree = 0
+    judge_escalated = 0  # regex read a letter, judge said UNMAPPABLE
+    judge_overrode = 0   # regex and judge both read letters, but different ones
 
     for question in manifest["questions"]:
         qid = str(question["question_id"])
@@ -551,6 +560,10 @@ def build_score_report(results_dir: Path) -> str:
                 regex_total += 1
                 if regex_letter == choice:
                     regex_agree += 1
+                elif choice == SENTINEL_UNMAPPABLE:
+                    judge_escalated += 1
+                else:
+                    judge_overrode += 1
 
     lines: list[str] = []
     lines.append("# DSI-Bench full-split run — accuracy\n")
@@ -567,8 +580,13 @@ def build_score_report(results_dir: Path) -> str:
     agree_pct = (regex_agree / regex_total * 100) if regex_total else 0.0
     lines.append(
         f"> **Judge validation:** on the {regex_total} answers a regex can already read a "
-        f"letter from, the judge agrees {regex_agree}/{regex_total} = {agree_pct:.1f}% of the "
-        "time. High agreement means the judge is extracting the stated choice, not inventing one.\n"
+        f"leading letter from, the judge agrees with that letter {regex_agree}/{regex_total} = "
+        f"{agree_pct:.1f}% of the time. Of the {regex_total - regex_agree} disagreements, "
+        f"{judge_escalated} are the judge declining to map a self-contradictory answer (it "
+        f"opens with one letter but describes a different option) and only {judge_overrode} "
+        "are the judge choosing a different committed letter. A near-zero override count is "
+        "the signal that matters: the judge is not overriding the agent's stated choice, only "
+        "refusing to map answers that commit to none.\n"
     )
 
     lines.append("## Overall\n")
@@ -646,7 +664,6 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     p_status.set_defaults(func=status)
 
     p_collect = sub.add_parser("collect", help="download results into judgments.json")
-    p_collect.add_argument("--force", action="store_true", help="re-download the output file")
     p_collect.add_argument("--partial", action="store_true", help="allow an incomplete batch (smoke test / early look)")
     p_collect.set_defaults(func=collect)
 

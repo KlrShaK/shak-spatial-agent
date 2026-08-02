@@ -193,6 +193,27 @@ class ScoreReportTest(unittest.TestCase):
         }
         (judge_dir / "judgments.json").write_text(json.dumps(judgments))
 
+    def test_self_contradictory_answer_counts_as_escalation_not_override(self) -> None:
+        """An answer that opens 'A:' but is judged UNMAPPABLE is the judge declining
+        to map a contradiction — never an override of a committed letter."""
+
+        with tempfile.TemporaryDirectory() as raw:
+            tmp = Path(raw)
+            (tmp / "answers").mkdir()
+            (tmp / "judge").mkdir()
+            rec = _record(qid="internet_c1_contra", text="A: option A. But actually it is C.", gt="C")
+            (tmp / "answers" / f"{rec['question_id']}.json").write_text(json.dumps(rec))
+            (tmp / "manifest.json").write_text(json.dumps({"questions": [
+                {"question_id": rec["question_id"], "gt": "C", "cate": 1,
+                 "dataset": "internet", "option_letters": ["A", "B", "C", "D"]}]}))
+            # Regex reads the leading 'A'; the judge returned UNMAPPABLE.
+            (tmp / "judge" / "judgments.json").write_text(json.dumps(
+                {"internet_c1_contra": {"choice": SENTINEL_UNMAPPABLE, "source": "gpt"}}))
+            report = build_score_report(tmp)
+
+        self.assertIn("1 are the judge declining to map a self-contradictory answer", report)
+        self.assertIn("only 0 are the judge choosing a different committed letter", report)
+
     def test_report_counts_and_accuracy(self) -> None:
         with tempfile.TemporaryDirectory() as raw:
             tmp = Path(raw)
