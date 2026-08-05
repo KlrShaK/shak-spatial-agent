@@ -21,7 +21,7 @@
 #
 # Executed that way, --all-questions picks up three things automatically:
 #
-#   partition cuda13pr.24h and --time=24:00:00, instead of the 4 h header below
+#   partition cuda13pr.24h and --time=24:00:00, instead of the 3 h header below
 #   results dir d4rt_agent/results/dsi_bench_full, the `_full` suffix appended
 #   job name d4rt-dsi-full, logging to dsi_bench_full_%j.out
 #
@@ -30,7 +30,7 @@
 # and silently breaking the pairing with every previous run.
 #
 # `sbatch <this file>` still works and still honours --all-questions, but sbatch
-# has already read the 4 h header by then, so only the results dir moves. Submit
+# has already read the 3 h header by then, so only the results dir moves. Submit
 # by executing the file when you want the allocation to follow the flag.
 #
 # Overridable per submit: SUBMIT_PARTITION, SUBMIT_TIME, SUBMIT_JOB_NAME,
@@ -57,7 +57,7 @@
 #SBATCH --cpus-per-task=4
 #SBATCH --mem-per-cpu=6G
 #SBATCH --tmp=8G
-#SBATCH --time=04:00:00
+#SBATCH --time=03:00:00
 #SBATCH --output=/cluster/work/igp_psr/spanwar/Open-d4rt/logs/d4rt_agent/dsi_bench_%j.out
 
 set -euo pipefail
@@ -234,7 +234,7 @@ echo "CODE_SHA=$(git rev-parse HEAD)"
 # the login node, so a bad submit fails now rather than after queueing.
 #
 # Inside a job SLURM_JOB_ID is set and this is skipped, so `sbatch <this file>`
-# still behaves exactly as it did before, with the 4 h header.
+# still behaves exactly as it did before, with the 3 h header.
 if [[ -z "${SLURM_JOB_ID:-}" ]]; then
   if [[ "$ALL_QUESTIONS" == "1" ]]; then
     SUBMIT_PARTITION="${SUBMIT_PARTITION:-cuda13pr.24h}"
@@ -243,7 +243,7 @@ if [[ -z "${SLURM_JOB_ID:-}" ]]; then
     SUBMIT_OUTPUT="${SUBMIT_OUTPUT:-$REPO_ROOT/logs/d4rt_agent/dsi_bench_full_%j.out}"
   else
     SUBMIT_PARTITION="${SUBMIT_PARTITION:-cuda13pr.4h}"
-    SUBMIT_TIME="${SUBMIT_TIME:-04:00:00}"
+    SUBMIT_TIME="${SUBMIT_TIME:-03:00:00}"
     SUBMIT_JOB_NAME="${SUBMIT_JOB_NAME:-d4rt-dsi-bw}"
     SUBMIT_OUTPUT="${SUBMIT_OUTPUT:-$REPO_ROOT/logs/d4rt_agent/dsi_bench_%j.out}"
   fi

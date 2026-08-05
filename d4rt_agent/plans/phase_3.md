@@ -108,8 +108,10 @@ Run the launcher, do not `sbatch` it: executed, it picks the census allocation
 and submits itself. It prints the pending count before queueing anything, so a
 resubmission states up front how much is left.
 
-Set `SUBMIT_PARTITION=cuda13pr.120h SUBMIT_TIME=120:00:00` to run to completion
-in one submission instead of resuming across 24 h jobs.
+There is no single-submission variant. The census does not fit one job at any
+wall clock this account can request, so resuming across 24 h jobs is the only
+route — which is why the runner skips answered questions rather than treating a
+resumption as a special case.
 
 ## 5. Where the output lives
 
