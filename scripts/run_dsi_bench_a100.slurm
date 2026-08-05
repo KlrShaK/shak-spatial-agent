@@ -12,30 +12,39 @@
 # which is the cost the single-load design exists to avoid.
 #
 # ---------------------------------------------------------------------------
-# The full 1769-question census instead of the 25-question sample:
+# The full 1769-question census instead of the 25-question sample. RUN the file,
+# do not sbatch it -- it submits itself with the allocation the census needs:
 #
-#   sbatch --export=ALL,POINT_MODE=ensemble5 scripts/run_dsi_bench_a100.slurm --all-questions
-#   sbatch --export=ALL,POINT_MODE=ensemble5,ALL_QUESTIONS=1 scripts/run_dsi_bench_a100.slurm
+#   POINT_MODE=ensemble5 ./scripts/run_dsi_bench_a100.slurm --all-questions
+#   POINT_MODE=ensemble5 ALL_QUESTIONS=1 ./scripts/run_dsi_bench_a100.slurm
 #
-# Both spellings do the same thing, and both redirect the run into a *separate*
-# `_full` results directory -- d4rt_agent/results/dsi_bench_full by default. The
-# two designs cannot share a directory: the manifest lives at
-# <results-dir>/manifest.json, so one would overwrite the other and silently
-# break the pairing with every previous run.
+# Executed that way, --all-questions picks up three things automatically:
+#
+#   --time=24:00:00, instead of the 4 h header below
+#   results dir d4rt_agent/results/dsi_bench_full, the `_full` suffix appended
+#   job name d4rt-dsi-a100-full, logging to dsi_bench_a100_full_%j.out
+#
+# The suffix is not cosmetic: the manifest lives at <results-dir>/manifest.json,
+# so a shared directory would mean each design overwriting the other's selection
+# and silently breaking the pairing with every previous run.
+#
+# `sbatch <this file>` still works and still honours --all-questions, but sbatch
+# has already read the 4 h header by then, so only the results dir moves. Submit
+# by executing the file when you want the allocation to follow the flag.
+#
+# Overridable per submit: SUBMIT_PARTITION, SUBMIT_TIME, SUBMIT_JOB_NAME,
+# SUBMIT_OUTPUT.
 #
 # Build the census manifest once, up front, on the login node (CPU, seconds):
 #
 #   "$D4RT_PYTHON" -m d4rt_agent.dsi_bench_run --all-questions --dry-run \
 #       --results-dir d4rt_agent/results/dsi_bench_full
 #
-# The census is tens of GPU-hours and will not finish in this script's 4 h
-# allocation. It resumes by resubmission like any other run -- the runner skips
-# every question already answered -- but for a longer allocation override the
-# directive on the command line, where sbatch's own flags win over the #SBATCH
-# lines below:
-#
-#   sbatch --time=24:00:00 --export=ALL,POINT_MODE=ensemble5 \
-#          scripts/run_dsi_bench_a100.slurm --all-questions
+# The census is tens of GPU-hours and outlasts even a 24 h job. Resubmit the
+# identical command to continue: the runner writes one file per question and
+# skips every question already answered, so a resubmission picks up exactly the
+# questions still missing. Both this script and the runner print the pending
+# count before any GPU work starts.
 
 #SBATCH --job-name=d4rt-dsi-a100
 #SBATCH --gpus=nvidia_a100_80gb_pcie:1
@@ -46,6 +55,10 @@
 #SBATCH --output=/cluster/work/igp_psr/spanwar/Open-d4rt/logs/d4rt_agent/dsi_bench_a100_%j.out
 
 set -euo pipefail
+
+# Resolved before anything cds, and used only on the submit-time path below --
+# inside a job SLURM runs a spool copy, so this would not point at the repo.
+SELF="$(readlink -f "${BASH_SOURCE[0]}")"
 
 REPO_ROOT=/cluster/work/igp_psr/spanwar/Open-d4rt
 D4RT_PYTHON=/cluster/work/igp_psr/spanwar/envs/d4rt/bin/python
@@ -154,6 +167,66 @@ if [[ -d "$RESULTS_DIR/answers" ]]; then
   DONE_ALREADY="$(find "$RESULTS_DIR/answers" -maxdepth 1 -name '*.json' | wc -l)"
 fi
 
+# Printed before the submit-time re-exec below, so what is being queued is
+# visible on the login node and not only once the job starts.
+echo "ALL_QUESTIONS=$ALL_QUESTIONS"
+echo "MODE=$MODE  immutable POINT_MODE=$POINT_MODE  LIMIT=${LIMIT:-all}"
+echo "RESULTS_DIR=$RESULTS_DIR"
+echo "MANIFEST_PATH=$MANIFEST_PATH (design=$DESIGN, $TOTAL questions)"
+echo "ANSWERS ALREADY ON DISK=$DONE_ALREADY"
+
+# ---------------------------------------------------------------------------
+# Submit-time re-exec.
+#
+# sbatch reads the #SBATCH block out of this file before the body ever runs, so
+# the header cannot depend on --all-questions; there is no in-file way to make
+# it conditional. Executing this file instead of submitting it lets the
+# allocation be chosen here and passed on the sbatch command line, where it
+# outranks the header:
+#
+#   POINT_MODE=ensemble5 ./scripts/run_dsi_bench_a100.slurm --all-questions
+#
+# Everything above this point -- argument parsing, POINT_MODE/MODE validation,
+# and the manifest existence and design checks -- has therefore already run on
+# the login node, so a bad submit fails now rather than after queueing.
+#
+# Inside a job SLURM_JOB_ID is set and this is skipped, so `sbatch <this file>`
+# still behaves exactly as it did before, with the 4 h header.
+#
+# Unlike the Blackwell launcher this file pins no partition, so neither does the
+# resubmission: only the wall clock changes, and SUBMIT_PARTITION is there if a
+# 24 h A100 queue has to be named explicitly.
+if [[ -z "${SLURM_JOB_ID:-}" ]]; then
+  if [[ "$ALL_QUESTIONS" == "1" ]]; then
+    SUBMIT_TIME="${SUBMIT_TIME:-24:00:00}"
+    SUBMIT_JOB_NAME="${SUBMIT_JOB_NAME:-d4rt-dsi-a100-full}"
+    SUBMIT_OUTPUT="${SUBMIT_OUTPUT:-$REPO_ROOT/logs/d4rt_agent/dsi_bench_a100_full_%j.out}"
+  else
+    SUBMIT_TIME="${SUBMIT_TIME:-04:00:00}"
+    SUBMIT_JOB_NAME="${SUBMIT_JOB_NAME:-d4rt-dsi-a100}"
+    SUBMIT_OUTPUT="${SUBMIT_OUTPUT:-$REPO_ROOT/logs/d4rt_agent/dsi_bench_a100_%j.out}"
+  fi
+
+  SUBMIT_OPTS=(--time="$SUBMIT_TIME" --job-name="$SUBMIT_JOB_NAME" --output="$SUBMIT_OUTPUT")
+  if [[ -n "${SUBMIT_PARTITION:-}" ]]; then
+    SUBMIT_OPTS+=(--partition="$SUBMIT_PARTITION")
+  fi
+
+  # Re-stated on the command line rather than relied on through --export=ALL:
+  # ALL_QUESTIONS=1 given as a plain shell assignment is not in the environment,
+  # and the resubmitted job would then quietly run the sample.
+  SUBMIT_ARGS=()
+  if [[ "$ALL_QUESTIONS" == "1" ]]; then
+    SUBMIT_ARGS+=(--all-questions)
+  fi
+
+  mkdir -p "$REPO_ROOT/logs/d4rt_agent"
+  echo "Submitting from login node:"
+  echo "  time=$SUBMIT_TIME name=$SUBMIT_JOB_NAME partition=${SUBMIT_PARTITION:-<default>}"
+  echo "  $TOTAL questions, $DONE_ALREADY already answered, $((TOTAL - DONE_ALREADY)) pending"
+  exec sbatch "${SUBMIT_OPTS[@]}" --export=ALL "$SELF" "${SUBMIT_ARGS[@]}"
+fi
+
 mkdir -p logs/d4rt_agent "$RESULTS_DIR" "$LOCAL_DEPS"
 cp -a "$DEPS_DIR/." "$LOCAL_DEPS/"
 
@@ -184,11 +257,6 @@ if [[ -n "${LIMIT:-}" ]]; then
   EXTRA+=(--limit "$LIMIT")
 fi
 
-echo "ALL_QUESTIONS=$ALL_QUESTIONS"
-echo "MODE=$MODE  immutable POINT_MODE=$POINT_MODE  LIMIT=${LIMIT:-all}"
-echo "RESULTS_DIR=$RESULTS_DIR"
-echo "MANIFEST_PATH=$MANIFEST_PATH (design=$DESIGN, $TOTAL questions)"
-echo "ANSWERS ALREADY ON DISK=$DONE_ALREADY"
 nvidia-smi --query-gpu=name,memory.total,memory.free --format=csv
 
 "$D4RT_PYTHON" -m d4rt_agent.dsi_bench_run \

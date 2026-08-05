@@ -13,32 +13,39 @@
 # which is the cost the single-load design exists to avoid.
 #
 # ---------------------------------------------------------------------------
-# The full 1769-question census instead of the 25-question sample:
+# The full 1769-question census instead of the 25-question sample. RUN the file,
+# do not sbatch it -- it submits itself with the allocation the census needs:
 #
-#   sbatch --export=ALL,POINT_MODE=ensemble5 scripts/run_dsi_bench_blackwell.slurm --all-questions
-#   sbatch --export=ALL,POINT_MODE=ensemble5,ALL_QUESTIONS=1 scripts/run_dsi_bench_blackwell.slurm
+#   POINT_MODE=ensemble5 ./scripts/run_dsi_bench_blackwell.slurm --all-questions
+#   POINT_MODE=ensemble5 ALL_QUESTIONS=1 ./scripts/run_dsi_bench_blackwell.slurm
 #
-# Both spellings do the same thing, and both redirect the run into a *separate*
-# `_full` results directory -- d4rt_agent/results/dsi_bench_full by default. The
-# two designs cannot share a directory: the manifest lives at
-# <results-dir>/manifest.json, so one would overwrite the other and silently
-# break the pairing with every previous run. Appending the suffix here is what
-# makes the flag safe to pass to the ordinary launcher.
+# Executed that way, --all-questions picks up three things automatically:
+#
+#   partition cuda13pr.24h and --time=24:00:00, instead of the 4 h header below
+#   results dir d4rt_agent/results/dsi_bench_full, the `_full` suffix appended
+#   job name d4rt-dsi-full, logging to dsi_bench_full_%j.out
+#
+# The suffix is not cosmetic: the manifest lives at <results-dir>/manifest.json,
+# so a shared directory would mean each design overwriting the other's selection
+# and silently breaking the pairing with every previous run.
+#
+# `sbatch <this file>` still works and still honours --all-questions, but sbatch
+# has already read the 4 h header by then, so only the results dir moves. Submit
+# by executing the file when you want the allocation to follow the flag.
+#
+# Overridable per submit: SUBMIT_PARTITION, SUBMIT_TIME, SUBMIT_JOB_NAME,
+# SUBMIT_OUTPUT.
 #
 # Build the census manifest once, up front, on the login node (CPU, seconds):
 #
 #   "$D4RT_PYTHON" -m d4rt_agent.dsi_bench_run --all-questions --dry-run \
 #       --results-dir d4rt_agent/results/dsi_bench_full
 #
-# The census is ~45-50 GPU-hours for the agent pass, so it will not finish in
-# this script's 4 h partition. It resumes by resubmission like any other run --
-# the runner skips every question already answered -- but for longer allocations
-# override the directives on the command line, where sbatch's own flags win over
-# the #SBATCH lines below:
-#
-#   sbatch --partition=cuda13pr.24h --time=24:00:00 \
-#          --export=ALL,POINT_MODE=ensemble5 \
-#          scripts/run_dsi_bench_blackwell.slurm --all-questions
+# The census is ~45-50 GPU-hours for the agent pass, so it outlasts even a 24 h
+# job. Resubmit the identical command to continue: the runner writes one file per
+# question and skips every question already answered, so a resubmission picks up
+# exactly the questions still missing. Both this script and the runner print the
+# pending count before any GPU work starts.
 
 #SBATCH --job-name=d4rt-dsi-bw
 #SBATCH --partition=cuda13pr.4h
@@ -54,6 +61,10 @@
 #SBATCH --output=/cluster/work/igp_psr/spanwar/Open-d4rt/logs/d4rt_agent/dsi_bench_%j.out
 
 set -euo pipefail
+
+# Resolved before anything cds, and used only on the submit-time path below --
+# inside a job SLURM runs a spool copy, so this would not point at the repo.
+SELF="$(readlink -f "${BASH_SOURCE[0]}")"
 
 REPO_ROOT=/cluster/work/igp_psr/spanwar/Open-d4rt
 D4RT_PYTHON=/cluster/work/igp_psr/spanwar/envs/d4rt_bw/bin/python
@@ -206,6 +217,57 @@ echo "FORCE=$FORCE"
 echo "MODE=$MODE  immutable POINT_MODE=$POINT_MODE  LIMIT=${LIMIT:-all}"
 echo "GROUNDING_TOOL=isolated_qwen bbox_tokens=96 points_tokens=192 seed=42"
 echo "CODE_SHA=$(git rev-parse HEAD)"
+
+# ---------------------------------------------------------------------------
+# Submit-time re-exec.
+#
+# sbatch reads the #SBATCH block out of this file before the body ever runs, so
+# the header cannot depend on --all-questions; there is no in-file way to make
+# it conditional. Executing this file instead of submitting it lets the
+# allocation be chosen here and passed on the sbatch command line, where it
+# outranks the header:
+#
+#   POINT_MODE=ensemble5 ./scripts/run_dsi_bench_blackwell.slurm --all-questions
+#
+# Everything above this point -- argument parsing, POINT_MODE/MODE validation,
+# and the manifest existence and design checks -- has therefore already run on
+# the login node, so a bad submit fails now rather than after queueing.
+#
+# Inside a job SLURM_JOB_ID is set and this is skipped, so `sbatch <this file>`
+# still behaves exactly as it did before, with the 4 h header.
+if [[ -z "${SLURM_JOB_ID:-}" ]]; then
+  if [[ "$ALL_QUESTIONS" == "1" ]]; then
+    SUBMIT_PARTITION="${SUBMIT_PARTITION:-cuda13pr.24h}"
+    SUBMIT_TIME="${SUBMIT_TIME:-24:00:00}"
+    SUBMIT_JOB_NAME="${SUBMIT_JOB_NAME:-d4rt-dsi-full}"
+    SUBMIT_OUTPUT="${SUBMIT_OUTPUT:-$REPO_ROOT/logs/d4rt_agent/dsi_bench_full_%j.out}"
+  else
+    SUBMIT_PARTITION="${SUBMIT_PARTITION:-cuda13pr.4h}"
+    SUBMIT_TIME="${SUBMIT_TIME:-04:00:00}"
+    SUBMIT_JOB_NAME="${SUBMIT_JOB_NAME:-d4rt-dsi-bw}"
+    SUBMIT_OUTPUT="${SUBMIT_OUTPUT:-$REPO_ROOT/logs/d4rt_agent/dsi_bench_%j.out}"
+  fi
+
+  # Re-stated on the command line rather than relied on through --export=ALL:
+  # ALL_QUESTIONS=1 given as a plain shell assignment is not in the environment,
+  # and the resubmitted job would then quietly run the sample.
+  SUBMIT_ARGS=()
+  if [[ "$ALL_QUESTIONS" == "1" ]]; then
+    SUBMIT_ARGS+=(--all-questions)
+  fi
+
+  mkdir -p "$REPO_ROOT/logs/d4rt_agent"
+  echo "Submitting from login node:"
+  echo "  partition=$SUBMIT_PARTITION time=$SUBMIT_TIME name=$SUBMIT_JOB_NAME"
+  echo "  $TOTAL questions, $DONE_ALREADY already answered, $((TOTAL - DONE_ALREADY)) pending"
+  exec sbatch \
+    --partition="$SUBMIT_PARTITION" \
+    --time="$SUBMIT_TIME" \
+    --job-name="$SUBMIT_JOB_NAME" \
+    --output="$SUBMIT_OUTPUT" \
+    --export=ALL \
+    "$SELF" "${SUBMIT_ARGS[@]}"
+fi
 
 mkdir -p logs/d4rt_agent "$RESULTS_DIR" "$LOCAL_DEPS"
 cp -a "$DEPS_DIR/." "$LOCAL_DEPS/"
