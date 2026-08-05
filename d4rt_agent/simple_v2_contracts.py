@@ -187,6 +187,44 @@ ACTION_SCHEMAS: tuple[dict[str, Any], ...] = (
 )
 
 
+# One fillable skeleton per action, handed back verbatim whenever the host
+# rejects a turn.  Telling a model that just broke the contract to consult the
+# schemas in the first user turn is a long-range retrieval across the whole
+# conversation, and that is the retrieval we already know degrades; a literal
+# template costs a few dozen tokens and needs no retrieval at all.
+#
+# Every template is valid JSON that `validate_action` accepts, and placeholders
+# live only inside string values.  Writing `"t_src": "<frame>"` would demonstrate
+# a quoted integer, and demonstrations are what set the output format -- so the
+# example values carry the real types and the rejection text tells the model to
+# replace them.
+ACTION_TEMPLATES: dict[str, str] = {
+    "query_d4rt": (
+        '{"action":"query_d4rt","arguments":{"label":"<object name>","t_src":8,'
+        '"visual_evidence":"<appearance, where it sits in the image, and one nearby '
+        'landmark that separates it from similar objects>",'
+        '"bbox_2d_1000":[402,318,468,520],"t_tgt":[6,12,18,24],"t_cam":8,'
+        '"justification":"<why these frames and this viewpoint>"}}'
+    ),
+    # Evidence identifiers stay placeholders. The commonest reason to be shown a
+    # template is citing an ID that does not exist, and naming a concrete d4rt_1
+    # underneath that rejection would demonstrate the hallucination it corrects.
+    # The turn already carries HOST EVIDENCE STATE listing the IDs that do exist.
+    "python_math": (
+        '{"action":"python_math","arguments":{"bindings":'
+        '{"first":{"evidence_id":"<evidence_id>","path":["predictions",0,"benchmark_aligned_xyz_m"]},'
+        '"last":{"evidence_id":"<evidence_id>","path":["predictions",7,"benchmark_aligned_xyz_m"]}},'
+        '"code":"<expressions over the bound names, one per line>",'
+        '"justification":"<what this computes>"}}'
+    ),
+    "final_answer": (
+        '{"action":"final_answer","arguments":{"kind":"numeric","value":1.23,'
+        '"unit":"<unit>","evidence_ids":["<evidence_id>"],'
+        '"limitations":"<what stayed uncertain>"}}'
+    ),
+}
+
+
 FINAL_ANSWER_KINDS = ("numeric", "text")
 MAX_FINAL_TEXT_CHARS = 2000
 

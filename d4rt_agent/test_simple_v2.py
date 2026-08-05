@@ -14,6 +14,7 @@ import numpy as np
 from d4rt_agent.simple_v2 import (
     ActionRejected,
     OrchestrationError,
+    PARSE_FAILURE_PLACEHOLDER,
     SYSTEM_PROMPT,
     TOOL_TURN_PROTOCOL_PATH,
     TOOL_TURN_PROTOCOL_TEXT,
@@ -29,6 +30,7 @@ from d4rt_agent.prompt_sections import load_prompt
 from d4rt_agent.simple_v2_backend import LiveD4RTBackend
 from d4rt_agent.simple_v2_contracts import (
     ACTION_SCHEMAS,
+    ACTION_TEMPLATES,
     grounding_points,
     SAFE_MATH_FUNCTIONS,
     restricted_python_math,
@@ -197,6 +199,54 @@ class ModelFacingResultTest(unittest.TestCase):
         # Compaction is model-facing only; the authoritative result is untouched.
         self.assertIn("sampled_to_original", full)
         self.assertIn("individual_point_results", full["predictions"][0])
+
+
+class ActionTemplateDriftTest(unittest.TestCase):
+    """The templates restate an enforced contract, so they must be generated-tight.
+
+    A skeleton the host would itself reject is worse than none: the model copies
+    it, gets rejected again, and now has two failing exemplars in context.  These
+    tests are the reason the templates can be quoted at the model verbatim.
+    """
+
+    def test_there_is_one_template_per_schema(self) -> None:
+        self.assertEqual(
+            set(ACTION_TEMPLATES),
+            {schema["name"] for schema in ACTION_SCHEMAS},
+        )
+
+    def test_every_template_is_valid_json_naming_its_own_action(self) -> None:
+        for name, template in ACTION_TEMPLATES.items():
+            with self.subTest(action=name):
+                decoded = json.loads(template)
+                self.assertEqual(decoded["action"], name)
+
+    def test_every_template_carries_the_required_arguments(self) -> None:
+        required = {
+            schema["name"]: set(schema["parameters"]["required"])
+            for schema in ACTION_SCHEMAS
+        }
+        for name, template in ACTION_TEMPLATES.items():
+            with self.subTest(action=name):
+                arguments = json.loads(template)["arguments"]
+                self.assertLessEqual(required[name], set(arguments))
+
+    def test_every_template_survives_the_validator(self) -> None:
+        # The check that matters. Placeholders live inside string values, so a
+        # template is a shape the host accepts as-is; if one ever stops being
+        # accepted, it stopped being a usable instruction at the same moment.
+        for name, template in ACTION_TEMPLATES.items():
+            with self.subTest(action=name):
+                validated_name, _ = validate_action(json.loads(template))
+                self.assertEqual(validated_name, name)
+
+    def test_numeric_fields_are_numbers_not_quoted_placeholders(self) -> None:
+        # Demonstrations set the output format, so a template showing "t_src":"<n>"
+        # would teach the model to quote its integers.
+        arguments = json.loads(ACTION_TEMPLATES["query_d4rt"])["arguments"]
+        self.assertIsInstance(arguments["t_src"], int)
+        self.assertIsInstance(arguments["t_cam"], int)
+        self.assertTrue(all(isinstance(frame, int) for frame in arguments["t_tgt"]))
 
 
 class ActionContractTest(unittest.TestCase):
@@ -1132,8 +1182,132 @@ class OrchestratorTest(unittest.TestCase):
         self.assertIn("HOST EVIDENCE STATE", qwen.message_snapshots[1])
         self.assertIn("Available evidence:\\n- none", qwen.message_snapshots[1])
         self.assertEqual(set(solved["evidence"]), {"d4rt_1", "math_1"})
-        self.assertIn(prose, qwen.message_snapshots[1])
         self.assertIn("must end with one corrected JSON action", qwen.message_snapshots[1])
+
+        # The two channels diverge on purpose: the trace above keeps the whole
+        # malformed turn for the audit, and the conversation keeps none of it,
+        # because whatever sits there is what the next sample is conditioned on.
+        self.assertNotIn(prose, qwen.message_snapshots[1])
+        self.assertIn(PARSE_FAILURE_PLACEHOLDER, qwen.message_snapshots[1])
+        # extract_first_action quotes the response in its message; that quote
+        # must not sneak back in through the rejection text either.
+        self.assertNotIn("forgot to submit", qwen.message_snapshots[1])
+
+    def test_a_parse_rejection_restates_all_three_shapes(self) -> None:
+        # Nothing in the response named an action, so there is no way to guess
+        # which one was meant -- and this is the turn where the model has shown
+        # it least knows what it is supposed to produce.
+        qwen = _ScriptedQwen([
+            "I will look at the endpoints.",
+            json.dumps(self._query_action()),
+            json.dumps(self._math_action()),
+            json.dumps(self._final_action()),
+        ])
+        SimpleV2Orchestrator(
+            qwen=qwen,
+            backend=_FakeBackend(),
+            sampled_video=self._sampled(),
+            max_steps=4,
+        ).solve({"id": "endpoint_displacement", "question": "How far did it move?"})
+
+        rejection = qwen.message_snapshots[1]
+        for template in ACTION_TEMPLATES.values():
+            self.assertIn(json.dumps(template)[1:-1], rejection)
+        self.assertIn("The three action shapes", rejection)
+
+    def test_a_validation_rejection_restates_only_the_attempted_shape(self) -> None:
+        broken = json.dumps({
+            "action": "query_d4rt",
+            "arguments": {"label": "ball", "justification": "Measure it."},
+        })
+        qwen = _ScriptedQwen([
+            broken,
+            json.dumps(self._query_action()),
+            json.dumps(self._math_action()),
+            json.dumps(self._final_action()),
+        ])
+        SimpleV2Orchestrator(
+            qwen=qwen,
+            backend=_FakeBackend(),
+            sampled_video=self._sampled(),
+            max_steps=4,
+        ).solve({"id": "endpoint_displacement", "question": "How far did it move?"})
+
+        rejection = qwen.message_snapshots[1]
+        self.assertIn("The shape of a `query_d4rt` action", rejection)
+        self.assertIn(json.dumps(ACTION_TEMPLATES["query_d4rt"])[1:-1], rejection)
+        # The other two would be noise on a turn whose intent is unambiguous.
+        self.assertNotIn(json.dumps(ACTION_TEMPLATES["python_math"])[1:-1], rejection)
+
+    def test_an_unsupported_action_name_falls_back_to_the_full_menu(self) -> None:
+        qwen = _ScriptedQwen([
+            json.dumps({"action": "inspect_frame", "arguments": {}}),
+            json.dumps(self._query_action()),
+            json.dumps(self._math_action()),
+            json.dumps(self._final_action()),
+        ])
+        SimpleV2Orchestrator(
+            qwen=qwen,
+            backend=_FakeBackend(),
+            sampled_video=self._sampled(),
+            max_steps=4,
+        ).solve({"id": "endpoint_displacement", "question": "How far did it move?"})
+
+        rejection = qwen.message_snapshots[1]
+        self.assertIn("The three action shapes", rejection)
+        for template in ACTION_TEMPLATES.values():
+            self.assertIn(json.dumps(template)[1:-1], rejection)
+
+    def test_a_final_validation_rejection_restates_the_answer_shape(self) -> None:
+        uncited = json.dumps({
+            "action": "final_answer",
+            "arguments": {
+                "value": 1.0,
+                "unit": "m",
+                "evidence_ids": ["d4rt_1"],
+                "limitations": "",
+            },
+        })
+        qwen = _ScriptedQwen([
+            uncited,
+            json.dumps(self._query_action()),
+            json.dumps(self._math_action()),
+            json.dumps(self._final_action()),
+        ])
+        SimpleV2Orchestrator(
+            qwen=qwen,
+            backend=_FakeBackend(),
+            sampled_video=self._sampled(),
+            max_steps=4,
+        ).solve({"id": "endpoint_displacement", "question": "How far did it move?"})
+
+        rejected = qwen.message_snapshots[1]
+        self.assertIn("The shape of a `final_answer` action", rejected)
+        self.assertIn(json.dumps(ACTION_TEMPLATES["final_answer"])[1:-1], rejected)
+
+    def test_the_step_budget_is_reported_on_every_turn(self) -> None:
+        # Stated once in the opening turn, the total is a scalar the model can
+        # only recover by counting its own context; the host already holds it.
+        qwen = _ScriptedQwen([
+            "No action here.",
+            json.dumps(self._query_action()),
+            json.dumps(self._math_action()),
+            json.dumps(self._final_action()),
+        ])
+        SimpleV2Orchestrator(
+            qwen=qwen,
+            backend=_FakeBackend(),
+            sampled_video=self._sampled(),
+            max_steps=6,
+        ).solve({"id": "endpoint_displacement", "question": "How far did it move?"})
+
+        # Snapshot 0 is the opening turn, before any action has been spent.
+        self.assertNotIn("actions remain", qwen.message_snapshots[0])
+        # A rejected turn (step 1) and two accepted ones must all count down.
+        self.assertIn("5 of 6 actions remain", qwen.message_snapshots[1])
+        self.assertIn("4 of 6 actions remain", qwen.message_snapshots[2])
+        self.assertIn("3 of 6 actions remain", qwen.message_snapshots[3])
+        self.assertIn("Rejected actions consume one", qwen.message_snapshots[1])
 
     def test_validation_rejection_retains_boundary_and_extracted_action(self) -> None:
         invalid = {

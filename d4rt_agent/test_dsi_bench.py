@@ -31,7 +31,12 @@ from d4rt_agent.dsi_bench_data import (
 )
 from d4rt_agent.dsi_bench_run import DSIOrchestrator, SYSTEM_PROMPT_PATH, _task_for
 from d4rt_agent.prompt_sections import load_prompt, render_prompt, section_names
-from d4rt_agent.simple_v2_contracts import restricted_python_math, validate_action
+from d4rt_agent.simple_v2 import ActionRejected
+from d4rt_agent.simple_v2_contracts import (
+    ACTION_TEMPLATES,
+    restricted_python_math,
+    validate_action,
+)
 
 
 CSV_PATH = metadata_csv()
@@ -403,12 +408,14 @@ class BlindQueryTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "invisible target frames"):
             orchestrator._refuse_hopeless_query(self._evidence(blind=3))
 
-    def test_refusal_supplies_a_template_and_blames_the_right_thing(self) -> None:
-        try:
+    def test_refusal_routes_to_the_answer_template_and_blames_the_right_thing(self) -> None:
+        # The skeleton itself is now appended by the orchestrator, so what this
+        # rejection has to get right is which action it asks for next -- pasting
+        # the query_d4rt shape under a refusal to query would undo the refusal.
+        with self.assertRaises(ActionRejected) as caught:
             _StubOrchestrator()._refuse_hopeless_query(self._evidence(blind=4))
-        except ValueError as error:
-            message = str(error)
-        self.assertIn("final_answer", message)
+        message = str(caught.exception)
+        self.assertEqual(caught.exception.template_action, "final_answer")
         self.assertIn("limitations", message)
         self.assertIn("t_cam cannot make an unobserved target visible", message)
 
@@ -439,12 +446,32 @@ class BlindQueryTest(unittest.TestCase):
             {"t_tgt": [0, 5, 10, 15, 20, 25]},
         )
 
-    def test_the_deadline_message_carries_the_template(self) -> None:
-        try:
+    def test_the_deadline_routes_to_the_answer_template(self) -> None:
+        with self.assertRaises(ActionRejected) as caught:
             _StubOrchestrator(max_steps=14)._execute_action("query_d4rt", {}, {}, step=13)
-        except ValueError as error:
-            message = str(error)
-        self.assertIn('"action":"final_answer"', message)
+        self.assertEqual(caught.exception.template_action, "final_answer")
+        self.assertIn("must be final_answer", str(caught.exception))
+
+    def test_dsi_replaces_the_numeric_answer_template(self) -> None:
+        """The DSI skeleton must be the only final_answer shape the loop shows.
+
+        DSI-Bench is multiple choice, so the base numeric skeleton would demand
+        a `value`/`unit` pair that _validate_final has no use for.
+        """
+
+        templates = DSIOrchestrator.ACTION_TEMPLATES
+        self.assertEqual(templates["final_answer"], DSIOrchestrator.ANSWER_TEMPLATE)
+        self.assertNotEqual(templates["final_answer"], ACTION_TEMPLATES["final_answer"])
+        # Everything else is inherited unchanged, so there is one statement of it.
+        self.assertEqual(templates["query_d4rt"], ACTION_TEMPLATES["query_d4rt"])
+        self.assertEqual(templates["python_math"], ACTION_TEMPLATES["python_math"])
+
+    def test_the_overriding_template_still_survives_the_validator(self) -> None:
+        # Same standard as the base templates: a skeleton the host would reject
+        # teaches the model a shape that costs it another step.
+        name, arguments = validate_action(json.loads(DSIOrchestrator.ANSWER_TEMPLATE))
+        self.assertEqual(name, "final_answer")
+        self.assertEqual(arguments["kind"], "text")
 
 
 class SystemPromptTest(unittest.TestCase):

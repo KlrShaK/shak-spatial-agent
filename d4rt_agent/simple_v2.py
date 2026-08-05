@@ -30,6 +30,7 @@ from .simple_v2_backend import (
 )
 from .simple_v2_contracts import (
     ACTION_SCHEMAS,
+    ACTION_TEMPLATES,
     DEFAULT_ASSUMED_FPS,
     NUM_SAMPLED_FRAMES,
     POINT_MODES,
@@ -86,6 +87,11 @@ TOOL_TURN_PROTOCOL_PATH = (
     Path(__file__).resolve().parent / "prompts" / "tool_turn_protocol.md"
 )
 TOOL_TURN_PROTOCOL_TEXT = TOOL_TURN_PROTOCOL_PATH.read_text(encoding="utf-8")
+
+# Stands in for a response that carried no action.  Short, and deliberately not
+# JSON: whatever occupies this turn is the most recent assistant output the next
+# sample conditions on, so it must not resemble an action at all.
+PARSE_FAILURE_PLACEHOLDER = "[no JSON action emitted; response discarded by the host]"
 
 
 def _utc_now() -> str:
@@ -434,7 +440,17 @@ class OrchestrationError(RuntimeError):
 
 
 class ActionRejected(ValueError):
-    """A model-correctable tool request rejected by host policy or inputs."""
+    """A model-correctable tool request rejected by host policy or inputs.
+
+    ``template_action`` names the action the model should emit *next*, which is
+    not always the one it just failed at.  A rejection whose whole purpose is to
+    stop the model querying would be undercut by pasting the query_d4rt skeleton
+    underneath it.
+    """
+
+    def __init__(self, message: str, *, template_action: str | None = None) -> None:
+        super().__init__(message)
+        self.template_action = template_action
 
 
 class ToolExecutionError(RuntimeError):
@@ -454,6 +470,10 @@ class ToolExecutionError(RuntimeError):
 
 class SimpleV2Orchestrator:
     """Host-enforced three-action loop with replayable evidence."""
+
+    # Subclasses serving other benchmarks override individual entries so the
+    # skeleton the model is shown is the one their _validate_final accepts.
+    ACTION_TEMPLATES: Mapping[str, str] = ACTION_TEMPLATES
 
     def __init__(
         self,
@@ -496,6 +516,38 @@ class SimpleV2Orchestrator:
 
         return None
 
+    def _budget_line(self, step: int) -> str:
+        """State the remaining step budget, which is host knowledge, every turn.
+
+        Naming the total once in the opening turn makes the model recover a
+        scalar we already hold by counting its own conversation, and it only ever
+        did that arithmetic when _step_notice finally shouted at it.  Phrased as
+        a countdown rather than an allowance: the failure mode here is spending
+        the budget, not stopping early.
+        """
+
+        remaining = max(self.max_steps - step, 0)
+        return (
+            f"Budget: {remaining} of {self.max_steps} actions remain after this one. "
+            "Rejected actions consume one."
+        )
+
+    def _action_templates(self, template_action: str | None) -> str:
+        """Restate the contract the model just broke, inline and in full."""
+
+        templates = dict(self.ACTION_TEMPLATES)
+        if template_action in templates:
+            selected = {template_action: templates[template_action]}
+            lead = f"The shape of a `{template_action}` action"
+        else:
+            # Nothing named an action, so the model needs the whole menu; this is
+            # also the turn where it least knows what it is supposed to produce.
+            selected = templates
+            lead = "The three action shapes"
+        lines = [f"{lead}, with example values you must replace:"]
+        lines.extend(selected.values())
+        return "\n".join(lines)
+
     def _reject_turn(
         self,
         *,
@@ -507,14 +559,26 @@ class SimpleV2Orchestrator:
         messages: list[dict[str, Any]],
         step: int,
         missing_action: bool = False,
+        model_reason: str | None = None,
+        template_action: str | None = None,
     ) -> None:
-        """Record one rejected action and return host truth to the model."""
+        """Record one rejected action and return host truth to the model.
+
+        ``model_reason`` splits the two audiences apart.  The trace keeps the
+        full diagnostic, including any quotation of the offending response; the
+        model gets a version that does not quote text we are deliberately
+        keeping out of its context.
+        """
 
         reason = str(error)
+        # The ledger is rendered straight into the conversation, so it carries the
+        # model-facing reason; attempt["error"] keeps the full diagnostic for the
+        # audit. Otherwise a quotation stripped from the rejection text reappears
+        # two paragraphs later under "Reason:".
         state = _evidence_state(
             evidence_entries,
             last_action="rejected",
-            reason=reason,
+            reason=model_reason or reason,
         )
         attempt.update(
             status="rejected",
@@ -532,11 +596,13 @@ class SimpleV2Orchestrator:
             {
                 "type": "text",
                 "text": (
-                    f"Action rejected: {reason}. {correction} using only the supplied "
-                    "schemas."
+                    f"Action rejected: {(model_reason or reason).rstrip('. ')}. "
+                    f"{correction}.\n"
+                    + self._action_templates(template_action)
                 ),
             },
             {"type": "text", "text": _format_evidence_state(state)},
+            {"type": "text", "text": self._budget_line(step)},
         ]
         notice = self._step_notice(step)
         if notice:
@@ -600,9 +666,14 @@ class SimpleV2Orchestrator:
             try:
                 extracted = extract_first_action(raw)
             except ValueError as error:
+                # Do not echo the malformed turn back.  Left in context it is an
+                # in-context exemplar of the format we just refused, and the next
+                # sample is drawn conditioned on it.  The trace keeps the whole
+                # response; this channel gets a stub, because the chat template
+                # still needs an assistant turn between the two user turns.
                 messages.append({
                     "role": "assistant",
-                    "content": [{"type": "text", "text": raw}],
+                    "content": [{"type": "text", "text": PARSE_FAILURE_PLACEHOLDER}],
                 })
                 self._reject_turn(
                     attempt=attempt,
@@ -613,6 +684,10 @@ class SimpleV2Orchestrator:
                     messages=messages,
                     step=step,
                     missing_action=True,
+                    # extract_first_action quotes 500 characters of the response
+                    # in its message; that quotation belongs in the trace, not in
+                    # the context we just cleaned.
+                    model_reason="your last response contained no JSON action",
                 )
                 continue
 
@@ -632,6 +707,10 @@ class SimpleV2Orchestrator:
             try:
                 name, arguments = validate_action(extracted.value)
             except (KeyError, TypeError, ValueError) as error:
+                # validate_action raised before it returned a name, so read the
+                # intent straight off the decoded action; an unsupported name
+                # falls through to the full menu.
+                attempted = extracted.value.get("action", extracted.value.get("name"))
                 self._reject_turn(
                     attempt=attempt,
                     error=error,
@@ -640,6 +719,7 @@ class SimpleV2Orchestrator:
                     trace=trace,
                     messages=messages,
                     step=step,
+                    template_action=attempted if isinstance(attempted, str) else None,
                 )
                 continue
 
@@ -656,6 +736,7 @@ class SimpleV2Orchestrator:
                         trace=trace,
                         messages=messages,
                         step=step,
+                        template_action=name,
                     )
                     continue
 
@@ -694,6 +775,9 @@ class SimpleV2Orchestrator:
                     trace=trace,
                     messages=messages,
                     step=step,
+                    # A rejection that exists to redirect the model names its own
+                    # next action; otherwise repeat the one it just attempted.
+                    template_action=error.template_action or name,
                 )
                 continue
             except Exception as error:
@@ -752,6 +836,7 @@ class SimpleV2Orchestrator:
                 "type": "text",
                 "text": _format_evidence_state(state),
             })
+            response_content.append({"type": "text", "text": self._budget_line(step)})
             notice = self._step_notice(step)
             if notice:
                 response_content.append({"type": "text", "text": notice})

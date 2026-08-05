@@ -56,7 +56,13 @@ from .simple_v2_backend import (
     LiveD4RTBackend,
 )
 from .prompt_sections import load_prompt, parse_override_args, section_names
-from .simple_v2_contracts import NUM_SAMPLED_FRAMES, POINT_MODES, SampledVideo, sample_video_cpu
+from .simple_v2_contracts import (
+    ACTION_TEMPLATES,
+    NUM_SAMPLED_FRAMES,
+    POINT_MODES,
+    SampledVideo,
+    sample_video_cpu,
+)
 
 
 DEFAULT_RESULTS_DIR = Path("d4rt_agent/results/dsi_bench")
@@ -125,11 +131,16 @@ class DSIOrchestrator(SimpleV2Orchestrator):
     # Handed to the model whenever it is being told to stop measuring. A model
     # that has just issued a dozen queries follows that pattern rather than an
     # instruction; a literal skeleton to fill in is what breaks it.
+    #
+    # DSI-Bench answers are multiple choice, so the base numeric skeleton is the
+    # wrong shape here. It replaces that entry rather than living beside it: two
+    # statements of one contract is exactly the drift the templates exist to stop.
     ANSWER_TEMPLATE = (
         '{"action":"final_answer","arguments":{"kind":"text",'
         '"text":"<letter>: <that option\'s text>. <the measurements behind it>",'
         '"evidence_ids":["d4rt_1"],"limitations":"<what stayed uncertain>"}}'
     )
+    ACTION_TEMPLATES = {**ACTION_TEMPLATES, "final_answer": ANSWER_TEMPLATE}
 
     def __init__(self, *, require_d4rt: bool = True, **kwargs: Any) -> None:
         super().__init__(**kwargs)
@@ -170,7 +181,10 @@ class DSIOrchestrator(SimpleV2Orchestrator):
             raise ActionRejected(
                 "no steps remain for measurement — this is your last action, so it must "
                 "be final_answer. Choose the best-supported option from the evidence you "
-                "already have. Emit exactly this shape, filled in: " + self.ANSWER_TEMPLATE
+                "already have",
+                # The skeleton the host appends must be the action being demanded,
+                # not the query_d4rt this rejection exists to refuse.
+                template_action="final_answer",
             )
         if name == "query_d4rt":
             self._refuse_hopeless_query(evidence, arguments)
@@ -241,8 +255,8 @@ class DSIOrchestrator(SimpleV2Orchestrator):
             "exhaust the run. Changing t_cam cannot make an unobserved target visible. "
             "Either use one query containing at least three well-spaced, not-yet-tested "
             "target frames to locate the visible interval, or stop measuring and answer "
-            "from the evidence that did resolve, recording the gap in `limitations`. "
-            "A final answer has exactly this shape: " + self.ANSWER_TEMPLATE
+            "from the evidence that did resolve, recording the gap in `limitations`",
+            template_action="final_answer",
         )
 
     def _diagnose_math(
