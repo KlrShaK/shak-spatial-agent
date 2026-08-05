@@ -21,6 +21,7 @@ from __future__ import annotations
 import argparse
 from datetime import datetime, timezone
 import gc
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -54,6 +55,7 @@ from .simple_v2_backend import (
     DEFAULT_D4RT_CONFIG,
     LiveD4RTBackend,
 )
+from .prompt_sections import load_prompt, parse_override_args, section_names
 from .simple_v2_contracts import NUM_SAMPLED_FRAMES, POINT_MODES, SampledVideo, sample_video_cpu
 
 
@@ -448,7 +450,25 @@ def run_agent(args: argparse.Namespace, manifest: Mapping[str, Any], entries: Se
     if not pending:
         return 0
 
-    system_prompt = SYSTEM_PROMPT_PATH.read_text(encoding="utf-8")
+    declared = section_names(SYSTEM_PROMPT_PATH.read_text(encoding="utf-8"))
+    excluded = tuple(args.prompt_exclude or ())
+    overrides = parse_override_args(args.prompt_override)
+    system_prompt = load_prompt(
+        SYSTEM_PROMPT_PATH, exclude=excluded, override=overrides
+    )
+    prompt_provenance = {
+        "sha256": hashlib.sha256(system_prompt.encode("utf-8")).hexdigest(),
+        "chars": len(system_prompt),
+        "sections_active": [name for name in declared if name not in excluded],
+        "sections_excluded": list(excluded),
+        "sections_overridden": {name: str(path) for name, path in overrides.items()},
+    }
+    print(
+        f"prompt: {prompt_provenance['chars']} chars, "
+        f"{len(prompt_provenance['sections_active'])}/{len(declared)} sections, "
+        f"sha {prompt_provenance['sha256'][:12]}",
+        flush=True,
+    )
     # Built from the first pending clip so a resumed job never decodes a video it
     # is about to skip.
     first = sample_video_cpu(Path(pending[0]["video_path"]))
@@ -482,6 +502,9 @@ def run_agent(args: argparse.Namespace, manifest: Mapping[str, Any], entries: Se
             **_entry_facts(entry),
             "point_mode": args.point_mode,
             "benchmark_alignment": {"type": DSI_ALIGNMENT_TYPE, "scale": DSI_BENCHMARK_SCALE},
+            # Which prompt this row was actually produced under.  Without it an
+            # ablation is a claim about a file that has since moved on.
+            "prompt": prompt_provenance,
         }
         try:
             sampled = sample_video_cpu(Path(entry["video_path"]))
@@ -667,9 +690,26 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--d4rt-dtype", choices=("bfloat16", "float16", "float32"), default="bfloat16")
     parser.add_argument("--device", choices=("auto", "cuda", "cpu"), default="cuda")
     parser.add_argument("--query-chunk-size", type=int, default=256)
-    parser.add_argument("--max-new-tokens", type=int, default=768)
+    parser.add_argument("--max-new-tokens", type=int, default=1024)
     # The facing-axis recipe alone costs three queries plus a calculation, so a
     # budget of 10 left almost no room to recover from one wasted step.
+    parser.add_argument(
+        "--prompt-exclude",
+        nargs="*",
+        default=None,
+        metavar="SECTION",
+        help=(
+            "drop these system-prompt sections, for ablations "
+            f"(declared: {', '.join(section_names(SYSTEM_PROMPT_PATH.read_text(encoding='utf-8')))})"
+        ),
+    )
+    parser.add_argument(
+        "--prompt-override",
+        nargs="*",
+        default=None,
+        metavar="SECTION=PATH",
+        help="replace a system-prompt section's body with the contents of a file",
+    )
     parser.add_argument("--max-steps", type=int, default=14)
     parser.add_argument("--seed", type=int, default=42)
     return parser.parse_args(argv)
