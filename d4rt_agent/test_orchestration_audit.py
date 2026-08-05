@@ -82,6 +82,7 @@ def _valid_record(*, suffix: str = "") -> dict[str, object]:
             "label": "runner",
             "bbox_2d_1000": [100, 100, 300, 500],
             "t_src": 0,
+            "visual_evidence": "the runner in the lower centre of sampled frame 0, just left of the tall grey post",
             "t_tgt": [0, 31],
             "t_cam": 0,
             "justification": "Measure motion.",

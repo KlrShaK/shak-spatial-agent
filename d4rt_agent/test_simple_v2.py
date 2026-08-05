@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import math
 from pathlib import Path
+import re
 import tempfile
 import unittest
 
@@ -24,10 +25,12 @@ from d4rt_agent.simple_v2 import (
     replay_tool_trace,
     resolve_bindings,
 )
+from d4rt_agent.prompt_sections import load_prompt
 from d4rt_agent.simple_v2_backend import LiveD4RTBackend
 from d4rt_agent.simple_v2_contracts import (
     ACTION_SCHEMAS,
     grounding_points,
+    SAFE_MATH_FUNCTIONS,
     restricted_python_math,
     uniform_sample_indices,
     validate_action,
@@ -314,6 +317,7 @@ class ActionContractTest(unittest.TestCase):
                     "label": "cupboard",
                     "bbox_2d_1000": [300, 240, 470, 640],
                     "t_src": 20,
+                    "visual_evidence": "the cupboard in the lower centre of sampled frame 20, just left of the tall grey post",
                     "t_tgt": [25],
                     "t_cam": t_cam,
                     "justification": "Express the position from the requested viewpoint.",
@@ -353,6 +357,7 @@ class ActionContractTest(unittest.TestCase):
                     "label": "object",
                     "bbox_2d_1000": [0, 0, 10, 10],
                     "t_src": 0,
+                    "visual_evidence": "the object in the lower centre of sampled frame 0, just left of the tall grey post",
                     "t_tgt": [31],
                     "t_cam": 0,
                     "justification": "Need geometry.",
@@ -376,6 +381,7 @@ class ActionContractTest(unittest.TestCase):
                     "label": "object",
                     "bbox_2d_1000": [0, 0, 10, 10],
                     "t_src": 0,
+                    "visual_evidence": "the object in the lower centre of sampled frame 0, just left of the tall grey post",
                     "t_tgt": [32],
                     "t_cam": 0,
                     "justification": "Need geometry.",
@@ -696,6 +702,109 @@ class RestrictedMathTest(unittest.TestCase):
             )
 
 
+class VectorMathTest(unittest.TestCase):
+    """Vector primitives exist so camera egomotion is expressible at all.
+
+    One tracked point cannot separate camera rotation from translation, and
+    neither can two.  Recovering the rigid motion needs at least three
+    non-collinear points, a frame built from cross products, and an angle —
+    and the calculator has no ``acos``, so ``angle`` has to be a primitive.
+    """
+
+    STATIC_A = {
+        "a0": [-2.0, 0.0, 8.0], "a1": [2.0, 0.0, 9.0], "a2": [0.0, 1.5, 7.0],
+    }
+
+    def test_sub_dot_and_cross_build_a_frame(self) -> None:
+        result = restricted_python_math(
+            {"p": [1.0, 0.0, 0.0], "q": [0.0, 1.0, 0.0]},
+            "d = sub(p, q)\ns = dot(p, q)\nn = cross(p, q)",
+        )
+        self.assertEqual(result["d"], [1.0, -1.0, 0.0])
+        self.assertEqual(result["s"], 0.0)
+        self.assertEqual(result["n"], [0.0, 0.0, 1.0])
+
+    def test_angle_is_degrees_and_clamped(self) -> None:
+        result = restricted_python_math(
+            {"p": [1.0, 0.0, 0.0], "q": [0.0, 1.0, 0.0], "r": [2.0, 0.0, 0.0]},
+            "right = angle(p, q)\nsame = angle(p, r)",
+        )
+        self.assertAlmostEqual(result["right"], 90.0)
+        # Parallel vectors must not trip an acos domain error.
+        self.assertAlmostEqual(result["same"], 0.0)
+
+    def test_angle_rejects_a_zero_length_vector(self) -> None:
+        with self.assertRaisesRegex(ValueError, "zero-length"):
+            restricted_python_math(
+                {"p": [0.0, 0.0, 0.0], "q": [1.0, 0.0, 0.0]}, "a = angle(p, q)"
+            )
+
+    def test_centroid_skips_occluded_rows(self) -> None:
+        # Occluded rows come back zero-filled; an unmasked mean is dragged to the origin.
+        points = [[1.0, 1.0, 1.0], [0.0, 0.0, 0.0], [3.0, 3.0, 3.0]]
+        result = restricted_python_math(
+            {"points": points, "vis": [True, False, True]},
+            "masked = centroid(points, vis)\nnaive = centroid(points)",
+        )
+        self.assertEqual(result["masked"], [2.0, 2.0, 2.0])
+        self.assertAlmostEqual(result["naive"][0], 4.0 / 3.0)
+
+    def test_centroid_needs_at_least_one_visible_row(self) -> None:
+        with self.assertRaisesRegex(ValueError, "no visible rows"):
+            restricted_python_math(
+                {"points": [[1.0, 1.0, 1.0]], "vis": [False]}, "c = centroid(points, vis)"
+            )
+
+    def test_cross_requires_three_components(self) -> None:
+        with self.assertRaisesRegex(ValueError, "3-component"):
+            restricted_python_math(
+                {"p": [1.0, 0.0], "q": [0.0, 1.0]}, "n = cross(p, q)"
+            )
+
+    def test_three_static_points_recover_a_camera_rotation(self) -> None:
+        """The whole point of the additions: a 30 degree rotation must come back as 30."""
+
+        import numpy as np
+
+        theta = np.radians(30.0)
+        rotation = np.array([
+            [np.cos(theta), 0.0, np.sin(theta)],
+            [0.0, 1.0, 0.0],
+            [-np.sin(theta), 0.0, np.cos(theta)],
+        ])
+        before = np.array([self.STATIC_A[k] for k in ("a0", "a1", "a2")])
+        after = (rotation @ before.T).T + np.array([0.3, 0.0, -0.5])
+        bindings = dict(self.STATIC_A)
+        bindings.update({f"b{i}": row.tolist() for i, row in enumerate(after)})
+        result = restricted_python_math(
+            bindings,
+            "u = sub(a1, a0)\nv = sub(b1, b0)\n"
+            "turn = angle(u, v)\n"
+            "rigid = abs(dist(a0, a1) - dist(b0, b1))",
+        )
+        self.assertAlmostEqual(result["turn"], 30.0, places=4)
+        # A rigid scene must preserve inter-point distance; this is the check that
+        # tells the model its "static" points were actually static.
+        self.assertAlmostEqual(result["rigid"], 0.0, places=9)
+
+
+class MathDocDriftTest(unittest.TestCase):
+    """The prompt's function list must equal the enforced allowlist.
+
+    `hypot` was enforced but undocumented, so the agent could only discover it by
+    tripping over it.  Any rule the runtime enforces has one source of truth.
+    """
+
+    def test_prompt_lists_exactly_the_enforced_functions(self) -> None:
+        prompt = load_prompt(
+            Path(__file__).resolve().parent / "prompts" / "dsi_bench_system.md"
+        )
+        match = re.search(r"Functions:(.*?)No string-key", prompt, re.DOTALL)
+        self.assertIsNotNone(match, "contracts section must list the math functions")
+        documented = set(re.findall(r"`(\w+)`", match.group(1)))
+        self.assertEqual(documented, set(SAFE_MATH_FUNCTIONS))
+
+
 class GroundTruthTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
@@ -857,6 +966,7 @@ class OrchestratorTest(unittest.TestCase):
                 "label": "ball",
                 "bbox_2d_1000": [400, 400, 500, 500],
                 "t_src": 0,
+                "visual_evidence": "the ball in the lower centre of sampled frame 0, just left of the tall grey post",
                 "t_tgt": [0, 31],
                 "t_cam": 0,
                 "justification": "Measure both endpoints.",
@@ -1031,6 +1141,7 @@ class OrchestratorTest(unittest.TestCase):
             "arguments": {
                 "bbox_2d_1000": [0, 0, 10, 10],
                 "t_src": 0,
+                "visual_evidence": "the target in the lower centre of sampled frame 0, just left of the tall grey post",
                 "t_tgt": [0],
                 "t_cam": 0,
                 "justification": "Missing the required label.",
@@ -1059,6 +1170,7 @@ class OrchestratorTest(unittest.TestCase):
             "arguments": {
                 "bbox_2d_1000": [0, 0, 10, 10],
                 "t_src": 0,
+                "visual_evidence": "the target in the lower centre of sampled frame 0, just left of the tall grey post",
                 "t_tgt": [0, 31],
                 "t_cam": 0,
                 "justification": "Missing label.",
@@ -1295,6 +1407,7 @@ class OrchestratorTest(unittest.TestCase):
                     "label": "ball",
                     "bbox_2d_1000": [400, 400, 500, 500],
                     "t_src": 0,
+                    "visual_evidence": "the ball in the lower centre of sampled frame 0, just left of the tall grey post",
                     "t_tgt": [0],
                     "t_cam": 0,
                     "justification": "Need the two endpoint positions.",
@@ -1306,6 +1419,7 @@ class OrchestratorTest(unittest.TestCase):
                     "label": "ball",
                     "bbox_2d_1000": [400, 400, 500, 500],
                     "t_src": 0,
+                    "visual_evidence": "the ball in the lower centre of sampled frame 0, just left of the tall grey post",
                     "t_tgt": [31],
                     "t_cam": 0,
                     "justification": "Need the ending position.",
@@ -1382,6 +1496,7 @@ class OrchestratorTest(unittest.TestCase):
                     "label": "object",
                     "bbox_2d_1000": [400, 400, 500, 500],
                     "t_src": 0,
+                    "visual_evidence": "the object in the lower centre of sampled frame 0, just left of the tall grey post",
                     "t_tgt": frames,
                     "t_cam": 0,
                     "justification": "Need the full visible trajectory.",

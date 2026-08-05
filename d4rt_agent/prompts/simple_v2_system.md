@@ -296,7 +296,7 @@ The quantity is straight-line displacement of one object over `[5,24]`. Two posi
 suffice, so I will ground the suitcase in Sampled frame 5 and request both endpoints in a
 single fixed camera frame.
 
-{"action":"query_d4rt","arguments":{"label":"red suitcase","bbox_2d_1000":[620,430,710,610],"t_src":5,"t_tgt":[5,24],"t_cam":0,"justification":"Ground the requested object in Sampled frame 5 and obtain the user-specified endpoint positions."}}
+{"action":"query_d4rt","arguments":{"label":"red suitcase","t_src":5,"visual_evidence":"upright crimson hard-shell case on the tiled floor, immediately right of the glass barrier","bbox_2d_1000":[620,430,710,610],"t_tgt":[5,24],"t_cam":0,"justification":"Ground the requested object in Sampled frame 5 and obtain the user-specified endpoint positions."}}
 
 --- END ASSISTANT TURN; STOP AND WAIT FOR HOST ---
 
@@ -350,7 +350,7 @@ ASSISTANT TURN 1
 "Distance covered" is travelled path length, not endpoint displacement. I need all 32
 ordered targets and the visibility mask so disappearance gaps are never bridged.
 
-{"action":"query_d4rt","arguments":{"label":"toy vehicle","bbox_2d_1000":[120,680,260,820],"t_src":0,"t_tgt":[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31],"t_cam":0,"justification":"Ground the requested object in Sampled frame 0 and obtain every sampled position for travelled path length."}}
+{"action":"query_d4rt","arguments":{"label":"toy vehicle","t_src":0,"visual_evidence":"small yellow toy truck low in the left foreground, resting on the rug beside the skirting board","bbox_2d_1000":[120,680,260,820],"t_tgt":[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31],"t_cam":0,"justification":"Ground the requested object in Sampled frame 0 and obtain every sampled position for travelled path length."}}
 
 --- END ASSISTANT TURN; STOP AND WAIT FOR HOST ---
 
@@ -412,7 +412,7 @@ ASSISTANT TURN 1
 Speed needs both displacement and elapsed time. I will first measure the cyclist at a
 wide visible baseline in one fixed camera frame.
 
-{"action":"query_d4rt","arguments":{"label":"cyclist","bbox_2d_1000":[380,260,540,720],"t_src":4,"t_tgt":[4,28],"t_cam":4,"justification":"Measure the cyclist at the two visible endpoints needed for average speed."}}
+{"action":"query_d4rt","arguments":{"label":"cyclist","t_src":4,"visual_evidence":"rider in the dark jersey at centre frame, on the road just past the painted white line","bbox_2d_1000":[380,260,540,720],"t_tgt":[4,28],"t_cam":4,"justification":"Measure the cyclist at the two visible endpoints needed for average speed."}}
 
 --- END ASSISTANT TURN; STOP AND WAIT FOR HOST ---
 
@@ -476,7 +476,7 @@ ASSISTANT TURN 1
 This direction is asked from a specific moment, so `t_cam` must be 25. The cupboard is
 clearest in frame 20, but I will express its target position in the frame-25 camera basis.
 
-{"action":"query_d4rt","arguments":{"label":"cupboard","bbox_2d_1000":[300,240,470,640],"t_src":20,"t_tgt":[25],"t_cam":25,"justification":"Ground the cupboard where it is clearest and express its position from the frame-25 viewpoint the question asks about."}}
+{"action":"query_d4rt","arguments":{"label":"cupboard","t_src":20,"visual_evidence":"tall wooden cupboard with two panelled doors against the left wall, beside the open doorway","bbox_2d_1000":[300,240,470,640],"t_tgt":[25],"t_cam":25,"justification":"Ground the cupboard where it is clearest and express its position from the frame-25 viewpoint the question asks about."}}
 
 --- END ASSISTANT TURN; STOP AND WAIT FOR HOST ---
 
@@ -539,7 +539,7 @@ This needs measured direction components and path length before description. The
 first becomes clearly visible in frame 3, so I will query every frame from 3 through 31
 under one fixed viewpoint.
 
-{"action":"query_d4rt","arguments":{"label":"person","bbox_2d_1000":[410,220,560,780],"t_src":3,"t_tgt":[3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31],"t_cam":3,"justification":"Ground the person in the first frame where they are clearly visible and take every later position from that one viewpoint."}}
+{"action":"query_d4rt","arguments":{"label":"person","t_src":3,"visual_evidence":"figure in the light jacket at centre frame, standing on the pavement left of the lamp post","bbox_2d_1000":[410,220,560,780],"t_tgt":[3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31],"t_cam":3,"justification":"Ground the person in the first frame where they are clearly visible and take every later position from that one viewpoint."}}
 
 --- END ASSISTANT TURN; STOP AND WAIT FOR HOST ---
 

@@ -113,19 +113,33 @@ ACTION_SCHEMAS: tuple[dict[str, Any], ...] = (
         "description": (
             "Query live 3D positions for an object box grounded in the explicitly "
             "declared sampled source frame t_src, expressed in the camera frame of "
-            "the chosen viewpoint t_cam."
+            "the chosen viewpoint t_cam. Describe what you see in visual_evidence "
+            "before writing the box; the box must be derived from that description."
         ),
         "parameters": {
             "type": "object",
+            # Order matters: the model decodes left to right, so t_src and
+            # visual_evidence are required before bbox_2d_1000 to make the box
+            # conditional on a freshly written description of the source image.
             "required": [
-                "label", "bbox_2d_1000", "t_src", "t_tgt", "t_cam", "justification"
+                "label", "t_src", "visual_evidence",
+                "bbox_2d_1000", "t_tgt", "t_cam", "justification",
             ],
             "properties": {
                 "label": {"type": "string"},
+                "t_src": {"type": "integer", "minimum": 0, "maximum": 31},
+                "visual_evidence": {
+                    "type": "string",
+                    "description": (
+                        "What the target looks like in sampled frame t_src and where "
+                        "it sits, including one nearby landmark that separates it from "
+                        "similar objects. Written before the box, and the box must "
+                        "enclose what is described here."
+                    ),
+                },
                 "bbox_2d_1000": {
                     "type": "array", "items": {"type": "number"}, "minItems": 4, "maxItems": 4
                 },
-                "t_src": {"type": "integer", "minimum": 0, "maximum": 31},
                 "t_tgt": {
                     "type": "array",
                     "items": {"type": "integer", "minimum": 0, "maximum": 31},
@@ -186,6 +200,73 @@ def _require_justification(arguments: Mapping[str, Any]) -> str:
     return value.strip()
 
 
+MIN_VISUAL_EVIDENCE_CHARS = 25
+MAX_VISUAL_EVIDENCE_CHARS = 300
+MIN_VISUAL_EVIDENCE_WORDS = 5
+
+# Phrases that describe nothing.  The forced-grounding trial showed the model
+# will emit the required token while skipping the work it stands for, so the
+# generic openers it produced are rejected by name.
+_EMPTY_EVIDENCE_PHRASES = (
+    "the object",
+    "the target",
+    "the requested object",
+    "visible in the frame",
+    "visible in the image",
+    "as described",
+    "see above",
+    "same as before",
+    "clearly visible",
+)
+
+
+def _require_visual_evidence(arguments: Mapping[str, Any], label: str) -> str:
+    """Require a description that could only be written by looking at the frame.
+
+    This is the forced-grounding protocol relocated from prose into the action.
+    The archived prompt-only version asked for a declaration before the JSON and
+    a box that matched it exactly; only 60% of turns complied because nothing
+    could check it, while the surrounding format compliance collapsed.  Inside
+    the action there is one copy of the box, so there is nothing to keep in sync,
+    and every rule below is enforced by the host rather than remembered.
+    """
+
+    value = arguments.get("visual_evidence")
+    if not isinstance(value, str) or not value.strip():
+        raise ValueError(
+            "query_d4rt.visual_evidence is required: describe what the target looks "
+            "like in sampled frame t_src and where it sits, then derive the box from "
+            "that description"
+        )
+    text = " ".join(value.split())
+    if len(text) < MIN_VISUAL_EVIDENCE_CHARS or len(text.split()) < MIN_VISUAL_EVIDENCE_WORDS:
+        raise ValueError(
+            f"query_d4rt.visual_evidence is too short ({len(text)} chars): name the "
+            "target's appearance, its region of the image, and one nearby landmark "
+            "that separates it from similar objects"
+        )
+    if len(text) > MAX_VISUAL_EVIDENCE_CHARS:
+        raise ValueError(
+            "query_d4rt.visual_evidence is too long (maximum "
+            f"{MAX_VISUAL_EVIDENCE_CHARS} characters); one sentence is enough"
+        )
+    normalized = text.lower().strip(" .")
+    if normalized == label.lower().strip(" ."):
+        raise ValueError(
+            "query_d4rt.visual_evidence repeats the label instead of describing it. "
+            "Say what the target looks like and where it is in this frame."
+        )
+    if normalized in _EMPTY_EVIDENCE_PHRASES or any(
+        normalized.startswith(phrase) and len(normalized) <= len(phrase) + 8
+        for phrase in _EMPTY_EVIDENCE_PHRASES
+    ):
+        raise ValueError(
+            f"query_d4rt.visual_evidence is generic ({text!r}). It must describe this "
+            "specific frame: appearance, image region, and a distinguishing landmark."
+        )
+    return text
+
+
 def validate_action(action: Mapping[str, Any]) -> tuple[str, dict[str, Any]]:
     """Validate one Qwen action and normalize its argument types."""
 
@@ -213,6 +294,16 @@ def validate_action(action: Mapping[str, Any]) -> tuple[str, dict[str, Any]]:
         label = args.get("label")
         if not isinstance(label, str) or not label.strip():
             raise ValueError("query_d4rt.label must be non-empty")
+        # Validated in the order the schema declares, which is the order the
+        # model decodes: the source frame exists, it is described, and only then
+        # is the box read.  A missing t_src must report itself rather than
+        # surfacing as a complaint about the description of a frame not named.
+        if "t_src" not in args:
+            raise ValueError(
+                "query_d4rt.t_src must declare the sampled source frame used to ground the box"
+            )
+        args["t_src"] = int(args["t_src"])
+        args["visual_evidence"] = _require_visual_evidence(args, label)
         bbox = args.get("bbox_2d_1000")
         if not isinstance(bbox, list) or len(bbox) != 4:
             raise ValueError("bbox_2d_1000 must be [x_min, y_min, x_max, y_max]")
@@ -222,11 +313,6 @@ def validate_action(action: Mapping[str, Any]) -> tuple[str, dict[str, Any]]:
         if bbox[0] > bbox[2] or bbox[1] > bbox[3]:
             raise ValueError("bbox_2d_1000 min coordinates must not exceed max coordinates")
         args["bbox_2d_1000"] = bbox
-        if "t_src" not in args:
-            raise ValueError(
-                "query_d4rt.t_src must declare the sampled source frame used to ground the box"
-            )
-        args["t_src"] = int(args["t_src"])
         targets = args.get("t_tgt")
         if not isinstance(targets, list) or not targets:
             raise ValueError("t_tgt must be a non-empty list")
@@ -397,6 +483,76 @@ def _visible_path_length(points: Any, visible: Any | None = None) -> float:
     return total
 
 
+def _vector(value: Any, *, name: str, size: int | None = None) -> np.ndarray:
+    array = _numeric_array(value)
+    if array.ndim != 1:
+        raise ValueError(f"{name} expects a single position like [x,y,z], got shape {array.shape}")
+    if size is not None and array.shape[0] != size:
+        raise ValueError(f"{name} expects a {size}-component vector, got {array.shape[0]}")
+    return array
+
+
+def _sub(a: Any, b: Any) -> list[float]:
+    va, vb = _vector(a, name="sub"), _vector(b, name="sub")
+    if va.shape != vb.shape:
+        raise ValueError("sub operands must have the same length")
+    return [float(value) for value in va - vb]
+
+
+def _dot(a: Any, b: Any) -> float:
+    va, vb = _vector(a, name="dot"), _vector(b, name="dot")
+    if va.shape != vb.shape:
+        raise ValueError("dot operands must have the same length")
+    return float(np.dot(va, vb))
+
+
+def _cross(a: Any, b: Any) -> list[float]:
+    va = _vector(a, name="cross", size=3)
+    vb = _vector(b, name="cross", size=3)
+    return [float(value) for value in np.cross(va, vb)]
+
+
+def _angle(a: Any, b: Any) -> float:
+    """Angle between two vectors in degrees.
+
+    Exposed as a primitive because the calculator has no ``acos``: without it a
+    rotation is not expressible at all.  Degrees rather than radians because the
+    model reasons about scenes in degrees and the arbitrary-scale caveat does
+    not apply to angles — they are the one absolute quantity here.
+    """
+
+    va, vb = _vector(a, name="angle"), _vector(b, name="angle")
+    if va.shape != vb.shape:
+        raise ValueError("angle operands must have the same length")
+    na, nb = float(np.linalg.norm(va)), float(np.linalg.norm(vb))
+    if na == 0.0 or nb == 0.0:
+        raise ValueError("angle is undefined for a zero-length vector")
+    cosine = float(np.clip(np.dot(va, vb) / (na * nb), -1.0, 1.0))
+    return float(np.degrees(np.arccos(cosine)))
+
+
+def _centroid(points: Any, visible: Any | None = None) -> list[float]:
+    """Mean position over an ``[N,3]`` trajectory, honouring a visibility mask.
+
+    Takes the mask for the same reason ``path_length`` does: occluded rows come
+    back zero-filled, so an unmasked mean is pulled toward the origin by every
+    frame the tracker lost.
+    """
+
+    xyz = _numeric_array(points)
+    if xyz.ndim != 2 or xyz.shape[1] != 3:
+        raise ValueError("centroid points must have shape [N,3]")
+    if visible is None:
+        mask = np.ones((xyz.shape[0],), dtype=bool)
+    else:
+        mask = np.asarray(visible, dtype=bool)
+        if mask.shape != (xyz.shape[0],):
+            raise ValueError("centroid visibility must have shape [N]")
+    if not mask.any():
+        raise ValueError("centroid has no visible rows to average")
+    return [float(value) for value in xyz[mask].mean(axis=0)]
+
+
 SAFE_MATH_FUNCTIONS: dict[str, Callable[..., Any]] = {
     "abs": abs,
     "min": lambda value: float(np.min(_numeric_array(value))),
@@ -410,6 +566,16 @@ SAFE_MATH_FUNCTIONS: dict[str, Callable[..., Any]] = {
     "mean": _mean,
     "std": _std,
     "path_length": _visible_path_length,
+    # Vector primitives.  One tracked point cannot separate camera rotation from
+    # translation and neither can two; recovering the rigid motion needs at least
+    # three non-collinear points, which in turn needs a frame built from cross
+    # products and compared by angle.  None of that is expressible with scalar
+    # helpers alone, and the calculator has no acos.
+    "sub": _sub,
+    "dot": _dot,
+    "cross": _cross,
+    "angle": _angle,
+    "centroid": _centroid,
 }
 
 
@@ -421,7 +587,10 @@ _SAFE_FUNCTION_HINT = (
     "to sum a trajectory's consecutive steps, dist(a, b) for the distance between two "
     "positions, and norm(a), sum(a), mean(a), std(a), min(a), max(a), sqrt(x), abs(x), "
     "round(x, n) for the rest. Array arithmetic, slicing, and integer indexing all work, "
-    "so points[0], points[-1], and end - start are available without iterating."
+    "so points[0], points[-1], and end - start are available without iterating. "
+    "For vectors use sub(a, b) to build an edge, dot(a, b) and cross(a, b) to build a "
+    "frame from three points, angle(a, b) for the angle between two vectors in degrees, "
+    "and centroid(points, visibility) for the mean position of a trajectory."
 )
 
 

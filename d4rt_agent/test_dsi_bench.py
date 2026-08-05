@@ -30,6 +30,7 @@ from d4rt_agent.dsi_bench_data import (
     video_slug,
 )
 from d4rt_agent.dsi_bench_run import DSIOrchestrator, SYSTEM_PROMPT_PATH, _task_for
+from d4rt_agent.prompt_sections import load_prompt, render_prompt, section_names
 from d4rt_agent.simple_v2_contracts import restricted_python_math, validate_action
 
 
@@ -447,7 +448,9 @@ class BlindQueryTest(unittest.TestCase):
 
 
 class SystemPromptTest(unittest.TestCase):
-    PROMPT = SYSTEM_PROMPT_PATH.read_text(encoding="utf-8")
+    # Assert against the rendered prompt — section markers are stripped before
+    # Qwen sees anything, so the rendered text is what these invariants are about.
+    PROMPT = load_prompt(SYSTEM_PROMPT_PATH)
     SIMPLE_PROMPT = (
         SYSTEM_PROMPT_PATH.parent / "simple_v2_system.md"
     ).read_text(encoding="utf-8")
@@ -480,6 +483,25 @@ class SystemPromptTest(unittest.TestCase):
 
     @staticmethod
     def _assistant_blocks(prompt: str) -> list[str]:
+        """Split the worked example into one block per modelled response.
+
+        Blocks are delimited by ``**Step N.**`` rather than the old
+        ``ASSISTANT TURN``/``HOST TURN`` pair.  The host side is no longer
+        rendered at all: demonstrations teach format, so showing a host reply
+        taught the model to emit one, which is the fabricated-evidence failure.
+        """
+
+        if "**Step 1.**" in prompt:
+            return [
+                match.group("body")
+                for match in re.finditer(
+                    r"^\*\*Step \d+\.\*\*"
+                    r"(?P<body>.*?)"
+                    r"(?=^\*\*Step \d+\.\*\*|\Z)",
+                    prompt,
+                    flags=re.MULTILINE | re.DOTALL,
+                )
+            ]
         return [
             match.group("body")
             for match in re.finditer(
@@ -520,27 +542,28 @@ class SystemPromptTest(unittest.TestCase):
                 self.assertNotIn("HOST TURN", block)
 
     def test_dsi_examples_compose_tools_and_measure_before_answering(self) -> None:
-        example_sections = self.PROMPT.split("\n### Example ")[1:]
-        expected_names = [
-            ["query_d4rt", "query_d4rt", "python_math", "final_answer"],
-            ["query_d4rt", "query_d4rt", "python_math", "final_answer"],
-            ["query_d4rt", "query_d4rt", "query_d4rt", "python_math", "final_answer"],
+        example_sections = self.PROMPT.split("\n## Worked example")[1:]
+        self.assertEqual(len(example_sections), 1)
+        actions = [
+            json.loads(line)
+            for line in example_sections[0].splitlines()
+            if line.startswith('{"action":"')
         ]
-        self.assertEqual(len(example_sections), len(expected_names))
-        for section, expected in zip(example_sections, expected_names):
-            actions = [
-                json.loads(line)
-                for line in section.splitlines()
-                if line.startswith('{"action":"')
-            ]
-            self.assertEqual(
-                [validate_action(action)[0] for action in actions],
-                expected,
-            )
-            final = actions[-1]
-            self.assertEqual(final["arguments"]["kind"], "text")
-            cited = final["arguments"]["evidence_ids"]
-            self.assertTrue(any(item.startswith("d4rt_") for item in cited), cited)
+        self.assertEqual(
+            [validate_action(action)[0] for action in actions],
+            ["query_d4rt", "query_d4rt", "python_math", "final_answer"],
+        )
+        final = actions[-1]
+        self.assertEqual(final["arguments"]["kind"], "text")
+        cited = final["arguments"]["evidence_ids"]
+        self.assertTrue(any(item.startswith("d4rt_") for item in cited), cited)
+        # The one example must still demonstrate the binding shape, because it is
+        # the most-rejected action type and prose alone did not teach it.
+        maths = [a for a in actions if a["action"] == "python_math"]
+        self.assertTrue(maths)
+        for binding in maths[0]["arguments"]["bindings"].values():
+            self.assertIn("evidence_id", binding)
+            self.assertIn("path", binding)
 
     def test_example_evidence_is_introduced_by_an_earlier_host_turn(self) -> None:
         evidence_pattern = re.compile(r"^(?:d4rt|math)_\d+$")
@@ -575,12 +598,21 @@ class SystemPromptTest(unittest.TestCase):
             self.assertNotIn("REUSE GROUNDING:", prompt)
 
     def test_example_calculations_run_under_the_restricted_evaluator(self) -> None:
+        # Stand-ins shaped like a real tool result: an [N,3] trajectory with its
+        # [N] mask, two endpoint positions, and a spread vector.
+        trajectory = [
+            [0.10, 0.40, 4.10], [0.05, 0.40, 4.62], [-0.02, 0.41, 5.15],
+            [-0.09, 0.41, 5.68], [-0.16, 0.42, 6.20], [-0.24, 0.42, 6.73],
+            [-0.31, 0.43, 7.26], [-0.34, 0.43, 7.91],
+        ]
         values = {
-            "start": [1.0, 0.5, 8.0],
-            "end": [0.6, 0.4, 4.3],
+            "traj": trajectory,
+            "vis": [True] * len(trajectory),
+            "first": trajectory[0],
+            "last": trajectory[-1],
+            "start": trajectory[0],
+            "end": trajectory[-1],
             "spread": [0.03, 0.02, 0.04],
-            "front": [0.6, 0.3, 4.0],
-            "rear": [0.2, 0.3, 4.4],
         }
         for line in self.PROMPT.splitlines():
             if not line.startswith('{"action":"python_math"'):
