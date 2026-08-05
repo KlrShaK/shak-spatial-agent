@@ -21,13 +21,20 @@
 
 set -euo pipefail
 
-REPO_ROOT=/cluster/work/igp_psr/spanwar/Open-d4rt
+# Overridable so a worktree can be evaluated without disturbing the main
+# checkout: a job submitted against a shared tree measures whatever that tree
+# happens to contain by the time it starts, which is not necessarily what was
+# submitted. #SBATCH --output takes no variable, so logs stay in one place.
+REPO_ROOT="${REPO_ROOT:-/cluster/work/igp_psr/spanwar/Open-d4rt}"
 D4RT_PYTHON=/cluster/work/igp_psr/spanwar/envs/d4rt/bin/python
 DEPS_DIR="$REPO_ROOT/.cache/qwen3vl_python"
 LOCAL_DEPS="${TMPDIR:-/tmp/$USER}/qwen3vl_python"
 HF_HOME=/cluster/work/igp_psr/spanwar/hf_cache
 MODEL_CACHE="$HF_HOME/hub/models--Qwen--Qwen3-VL-8B-Instruct/snapshots"
-RESULTS_DIR="d4rt_agent/results/dsi_bench"
+RESULTS_DIR="${RESULTS_DIR:-d4rt_agent/results/dsi_bench}"
+# The runner defaults the manifest to the results dir, so a fresh results dir
+# would silently build a *different* 25 questions. Pin it to keep runs paired.
+MANIFEST_PATH="${MANIFEST_PATH:-$REPO_ROOT/d4rt_agent/results/dsi_bench/manifest.json}"
 MODE="${MODE:-agent}"
 POINT_MODE="${POINT_MODE:?submit with POINT_MODE=centroid or POINT_MODE=ensemble5}"
 
@@ -41,6 +48,10 @@ if [[ "$MODE" != "agent" && "$MODE" != "baseline" ]]; then
 fi
 
 cd "$REPO_ROOT"
+if [[ ! -f "$MANIFEST_PATH" ]]; then
+  echo "Manifest does not exist: $MANIFEST_PATH" >&2
+  exit 2
+fi
 mkdir -p logs/d4rt_agent "$RESULTS_DIR" "$LOCAL_DEPS"
 cp -a "$DEPS_DIR/." "$LOCAL_DEPS/"
 
@@ -68,12 +79,15 @@ if [[ -n "${LIMIT:-}" ]]; then
   EXTRA+=(--limit "$LIMIT")
 fi
 
+echo "REPO_ROOT=$REPO_ROOT"
 echo "MODE=$MODE  immutable POINT_MODE=$POINT_MODE  LIMIT=${LIMIT:-all}"
 echo "Results dir=$RESULTS_DIR"
+echo "MANIFEST_PATH=$MANIFEST_PATH"
 nvidia-smi --query-gpu=name,memory.total,memory.free --format=csv
 
 "$D4RT_PYTHON" -m d4rt_agent.dsi_bench_run \
   --results-dir "$RESULTS_DIR" \
+  --manifest "$MANIFEST_PATH" \
   --point-mode "$POINT_MODE" \
   --qwen-model "$MODEL_DIR" \
   --d4rt-config checkpoints/OpenD4RT_32CLIP_9Dataset_NoAUG/model.yaml \

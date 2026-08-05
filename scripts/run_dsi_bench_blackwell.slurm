@@ -27,7 +27,11 @@
 
 set -euo pipefail
 
-REPO_ROOT=/cluster/work/igp_psr/spanwar/Open-d4rt
+# Overridable so a worktree can be evaluated without disturbing the main
+# checkout: a job submitted against a shared tree measures whatever that tree
+# happens to contain by the time it starts, which is not necessarily what was
+# submitted. #SBATCH --output takes no variable, so logs stay in one place.
+REPO_ROOT="${REPO_ROOT:-/cluster/work/igp_psr/spanwar/Open-d4rt}"
 D4RT_PYTHON=/cluster/work/igp_psr/spanwar/envs/d4rt_bw/bin/python
 DEPS_DIR="$REPO_ROOT/.cache/qwen3vl_python"
 LOCAL_DEPS="${TMPDIR:-/tmp/$USER}/qwen3vl_python"
@@ -85,6 +89,7 @@ if [[ -n "$ONLY_FILE" ]]; then
   fi
 fi
 
+echo "REPO_ROOT=$REPO_ROOT"
 echo "RESULTS_DIR=$RESULTS_DIR"
 echo "MANIFEST_PATH=$MANIFEST_PATH"
 echo "ONLY_FILE=${ONLY_FILE:-<unset>} (${#ONLY_IDS[@]} selected ID(s))"
