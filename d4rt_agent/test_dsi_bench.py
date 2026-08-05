@@ -584,6 +584,26 @@ class SystemPromptTest(unittest.TestCase):
 
     @staticmethod
     def _assistant_blocks(prompt: str) -> list[str]:
+        """Split the worked example into one block per modelled response.
+
+        The compact DSI prompt delimits steps with ``**Step N.**`` rather than
+        the verbose ``ASSISTANT TURN``/``HOST TURN`` pair; the host side is not
+        rendered at all, since a demonstrated host reply taught the model to
+        fabricate one. ``simple_v2_system.md`` still uses the older pair, so
+        both forms are checked here.
+        """
+
+        if "**Step 1.**" in prompt:
+            return [
+                match.group("body")
+                for match in re.finditer(
+                    r"^\*\*Step \d+\.\*\*"
+                    r"(?P<body>.*?)"
+                    r"(?=^\*\*Step \d+\.\*\*|\Z)",
+                    prompt,
+                    flags=re.MULTILINE | re.DOTALL,
+                )
+            ]
         return [
             match.group("body")
             for match in re.finditer(
@@ -624,37 +644,29 @@ class SystemPromptTest(unittest.TestCase):
                 self.assertNotIn("HOST TURN", block)
 
     def test_dsi_examples_compose_tools_and_measure_before_answering(self) -> None:
-        example_sections = self.PROMPT.split("\n### Example ")[1:]
-        expected_names = [
-            [
-                "ground_with_qwen", "query_d4rt", "query_d4rt",
-                "python_math", "final_answer",
-            ],
-            [
-                "ground_with_qwen", "query_d4rt", "query_d4rt",
-                "python_math", "final_answer",
-            ],
-            [
-                "ground_with_qwen", "query_d4rt", "ground_with_qwen",
-                "query_d4rt", "python_math", "final_answer",
-            ],
+        example_sections = self.PROMPT.split("\n## Worked example")[1:]
+        self.assertEqual(len(example_sections), 1)
+        actions = [
+            json.loads(line)
+            for line in example_sections[0].splitlines()
+            if line.startswith('{"action":"')
         ]
-        self.assertEqual(len(example_sections), len(expected_names))
-        for section, expected in zip(example_sections, expected_names):
-            section = section.split("\n#### Recovery pattern", 1)[0]
-            actions = [
-                json.loads(line)
-                for line in section.splitlines()
-                if line.startswith('{"action":"')
-            ]
-            self.assertEqual(
-                [validate_action(action)[0] for action in actions],
-                expected,
-            )
-            final = actions[-1]
-            self.assertEqual(final["arguments"]["kind"], "text")
-            cited = final["arguments"]["evidence_ids"]
-            self.assertTrue(any(item.startswith("d4rt_") for item in cited), cited)
+        self.assertEqual(
+            [validate_action(action)[0] for action in actions],
+            ["ground_with_qwen", "query_d4rt", "query_d4rt", "python_math", "final_answer"],
+        )
+        final = actions[-1]
+        self.assertEqual(final["arguments"]["kind"], "text")
+        cited = final["arguments"]["evidence_ids"]
+        self.assertTrue(any(item.startswith("d4rt_") for item in cited), cited)
+        self.assertTrue(any(item.startswith("qg_") for item in cited), cited)
+        # The one example must still demonstrate the binding shape, because it is
+        # the most-rejected action type and prose alone did not teach it.
+        maths = [a for a in actions if a["action"] == "python_math"]
+        self.assertTrue(maths)
+        for binding in maths[0]["arguments"]["bindings"].values():
+            self.assertIn("evidence_id", binding)
+            self.assertIn("path", binding)
 
     def test_example_evidence_is_introduced_by_an_earlier_host_turn(self) -> None:
         evidence_pattern = re.compile(r"^(?:qg|d4rt|math)_\d+$")
@@ -690,18 +702,12 @@ class SystemPromptTest(unittest.TestCase):
             self.assertNotIn("REUSE GROUNDING:", prompt)
 
     def test_example_calculations_run_under_the_restricted_evaluator(self) -> None:
+        # Stand-ins for every variable name bound in the prompt's one
+        # python_math action.
         values = {
             "start": [1.0, 0.5, 8.0],
             "end": [0.6, 0.4, 4.3],
             "spread": [0.03, 0.02, 0.04],
-            "front": [0.6, 0.3, 4.0],
-            "rear": [0.2, 0.3, 4.4],
-            "s1": [1.0, 0.0, 8.0],
-            "s2": [0.0, 0.0, 8.2],
-            "s3": [-1.0, 0.0, 8.1],
-            "e1": [0.8, 0.0, 3.0],
-            "e2": [-0.2, 0.0, 3.2],
-            "e3": [-1.2, 0.0, 3.1],
         }
         for line in self.PROMPT.splitlines():
             if not line.startswith('{"action":"python_math"'):
@@ -710,6 +716,35 @@ class SystemPromptTest(unittest.TestCase):
             bindings = {name: values[name] for name in action["arguments"]["bindings"]}
             outputs = restricted_python_math(bindings, action["arguments"]["code"])
             self.assertTrue(outputs)
+
+    def test_facing_projection_formula_runs_under_the_restricted_evaluator(self) -> None:
+        """The decision table's facing formula is prose code, not an action line.
+
+        It is never executed by ``test_example_calculations_run_under_the_restricted_evaluator``
+        above, so a typo or an unsafe construct in it would go unnoticed until an
+        agent actually tried to use it. Pulled from the indented code block under
+        "Projecting onto an object's own facing" and run for real.
+        """
+
+        match = re.search(
+            r"^\*\*Projecting onto an object's own facing\.\*\*[\s\S]*?\n\n"
+            r"(?P<code>(?:^ {4}.+\n?)+)",
+            self.PROMPT,
+            flags=re.MULTILINE,
+        )
+        self.assertIsNotNone(match)
+        code = "\n".join(
+            line[4:] for line in match.group("code").splitlines()
+        )
+        bindings = {
+            "front": [0.6, 0.3, 4.0],
+            "rear": [0.2, 0.3, 4.4],
+            "start": [1.0, 0.5, 8.0],
+            "end": [0.6, 0.4, 4.3],
+        }
+        outputs = restricted_python_math(bindings, code)
+        for name in ("fx", "fz", "dx", "dz", "fn", "along", "lateral", "up"):
+            self.assertIn(name, outputs)
 
 
 if __name__ == "__main__":

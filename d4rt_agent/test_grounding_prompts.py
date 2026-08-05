@@ -75,7 +75,15 @@ class GroundingPromptContractTests(unittest.TestCase):
                     self.assertIn("t_cam", arguments)
 
     def test_every_example_assistant_turn_contains_one_action(self) -> None:
+        # dsi_bench_system.md no longer uses the ASSISTANT TURN / HOST TURN pair --
+        # its worked example is delimited by "**Step N.**" instead, precisely so a
+        # demonstrated host reply cannot teach the model to fabricate one. That
+        # format, and the one-action-per-step invariant this test checks for the
+        # older format, is covered instead by
+        # test_dsi_bench.SystemPromptTest.test_each_assistant_example_is_one_valid_action_and_stops_at_it.
         for name, text in self.prompts.items():
+            if name == "dsi_bench_system.md":
+                continue
             turns = list(ASSISTANT_TURN.finditer(text))
             with self.subTest(prompt=name):
                 self.assertGreaterEqual(len(turns), 10)
@@ -107,7 +115,26 @@ class GroundingPromptContractTests(unittest.TestCase):
                     self.assertIn(fragment.lower(), normalized)
 
     def test_complete_bbox_workflow_composes_all_four_tools(self) -> None:
+        # dsi_bench_system.md folded Examples A/B/C into one dense "## Worked
+        # example"; the same bbox-grounding-then-measure shape is checked below
+        # instead, and its tool sequence and binding shape are checked further
+        # by test_dsi_bench.SystemPromptTest.test_dsi_examples_compose_tools_and_measure_before_answering.
         for name, text in self.prompts.items():
+            if name == "dsi_bench_system.md":
+                with self.subTest(prompt=name):
+                    section = text.split("\n## Worked example", 1)[1]
+                    actions = _actions(section)
+                    self.assertEqual("ground_with_qwen", actions[0]["action"])
+                    self.assertEqual("bbox", actions[0]["arguments"]["mode"])
+                    self.assertNotIn("count", actions[0]["arguments"])
+                    self.assertIn("query_d4rt", [a["action"] for a in actions[1:-2]])
+                    self.assertEqual(
+                        ["python_math", "final_answer"],
+                        [a["action"] for a in actions[-2:]],
+                    )
+                    query = next(a for a in actions if a["action"] == "query_d4rt")
+                    self.assertEqual("qg_1", query["arguments"]["grounding_id"])
+                continue
             bbox_example = text.split("### Example A", 1)[1].split("### Example B", 1)[0]
             names = [action["action"] for action in _actions(bbox_example)]
             with self.subTest(prompt=name):
@@ -124,7 +151,23 @@ class GroundingPromptContractTests(unittest.TestCase):
                 self.assertEqual("qg_1", query["arguments"]["grounding_id"])
 
     def test_static_background_workflow_preserves_point_tracks(self) -> None:
+        # dsi_bench_system.md teaches the static-background points workflow through
+        # its decision table and contracts section rather than a second full JSON
+        # example -- the compact prompt's one demonstrated flow is the bbox range
+        # question, per test_complete_bbox_workflow_composes_all_four_tools above.
+        # Checked here at the level that still applies: points mode is contracted
+        # to require count, and point_ids is documented, and tracks are taught as
+        # separate rather than averaged.
+        if "dsi_bench_system.md" in self.prompts:
+            with self.subTest(prompt="dsi_bench_system.md"):
+                text = self.prompts["dsi_bench_system.md"]
+                self.assertIn('mode="points"', text)
+                self.assertIn("point_ids", text)
+                self.assertIn("point_tracks", text)
+                self.assertIn("separate physical", text.lower())
         for name, text in self.prompts.items():
+            if name == "dsi_bench_system.md":
+                continue
             static_example = text.split("### Example B", 1)[1].split(
                 "### Example C", 1
             )[0]
@@ -145,10 +188,22 @@ class GroundingPromptContractTests(unittest.TestCase):
                 self.assertIn("independent", static_example)
 
     def test_recovery_example_waits_then_issues_a_new_grounding_action(self) -> None:
+        # dsi_bench_system.md dropped the standalone "#### Recovery pattern" demo
+        # along with Examples A/B/C; not_found recovery is taught as a
+        # troubleshooting-table row instead (checked in
+        # test_bbox_points_and_recovery_rules_are_explicit and here at the prose
+        # level), consistent with the compact prompt teaching one dense worked
+        # flow and covering every other path through prose and tables.
+        if "dsi_bench_system.md" in self.prompts:
+            with self.subTest(prompt="dsi_bench_system.md"):
+                text = self.prompts["dsi_bench_system.md"]
+                self.assertIn('status="not_found"', text)
+                self.assertIn("Rephrase `request`", text)
+                self.assertIn("different `t_src`", text)
         for name, text in self.prompts.items():
-            recovery = text.split("### Example C", 1)[-1]
             if name == "dsi_bench_system.md":
-                recovery = text.split("#### Recovery pattern", 1)[1]
+                continue
+            recovery = text.split("### Example C", 1)[-1]
             actions = _actions(recovery)
             grounding_actions = [
                 action for action in actions
