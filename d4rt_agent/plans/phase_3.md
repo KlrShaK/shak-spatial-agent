@@ -59,10 +59,16 @@ reference to the measurement — not distinguishable from the tool-free control.
 
 ### 2.3 One GPU, many jobs
 
-`scripts/run_dsi_bench_full_blackwell.slurm` requests a single Blackwell GPU and
-walks the questions sequentially. Each answer is written the moment it finishes
-and finished questions are skipped, so the run is resumed by resubmitting the
-identical command. A job that dies mid-question repeats only that question.
+`scripts/run_dsi_bench_blackwell.slurm --all-questions` requests a single
+Blackwell GPU and walks the questions sequentially. Each answer is written the
+moment it finishes and finished questions are skipped, so the run is resumed by
+resubmitting the identical command. A job that dies mid-question repeats only
+that question.
+
+Executed rather than submitted, the launcher submits itself: `--all-questions`
+selects the 24 h partition, the `_full` results directory and its own job name
+and log file, none of which the `#SBATCH` header can decide, because sbatch
+reads that header before the script body runs.
 
 Per-job identity goes to `run_metadata_<jobid>.json` rather than a single
 `run_metadata.json`, which a resumed job would overwrite. Every answer embeds
@@ -95,11 +101,15 @@ D4RT_PYTHON=/cluster/work/igp_psr/spanwar/envs/d4rt_bw/bin/python
     --results-dir d4rt_agent/results/dsi_bench_full
 
 # then, as many times as it takes
-sbatch --export=ALL,POINT_MODE=ensemble5 scripts/run_dsi_bench_full_blackwell.slurm
+POINT_MODE=ensemble5 ./scripts/run_dsi_bench_blackwell.slurm --all-questions
 ```
 
-Add `--partition=cuda13pr.120h --time=120:00:00` to run to completion in one
-submission instead of resuming across 24 h jobs.
+Run the launcher, do not `sbatch` it: executed, it picks the census allocation
+and submits itself. It prints the pending count before queueing anything, so a
+resubmission states up front how much is left.
+
+Set `SUBMIT_PARTITION=cuda13pr.120h SUBMIT_TIME=120:00:00` to run to completion
+in one submission instead of resuming across 24 h jobs.
 
 ## 5. Where the output lives
 
