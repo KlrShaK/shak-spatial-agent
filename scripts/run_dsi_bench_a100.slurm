@@ -81,6 +81,6 @@ nvidia-smi --query-gpu=name,memory.total,memory.free --format=csv
   --d4rt-dtype bfloat16 \
   --device cuda \
   --seed 42 \
-  --max-new-tokens 768 \
+  --max-new-tokens 1024 \
   --max-steps 14 \
   "${EXTRA[@]}"
