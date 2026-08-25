@@ -1,0 +1,214 @@
+{
+  "split": "std",
+  "csv_path": "/cluster/work/igp_psr/spanwar/datasets/DSI-Bench/metadatas/std.csv",
+  "total_rows": 1769,
+  "distinct_templates": 34,
+  "templates": {
+    "In this video clip, relative to its starting orientation and location, how is the SUBJ's location moving?": {
+      "count": 779,
+      "by_cate": {
+        "2": 230,
+        "3": 549
+      }
+    },
+    "In this video clip, how is the SUBJ's location moving in the 3D scene relative to his/her/its starting orientation and location?": {
+      "count": 655,
+      "by_cate": {
+        "0": 73,
+        "1": 582
+      }
+    },
+    "In this video clip, how is the SUBJ's location moving in the 3D scene relative to his/her/its own starting orientation and location?": {
+      "count": 112,
+      "by_cate": {
+        "0": 112
+      }
+    },
+    "How does the distance between the observer and the SUBJ change in this video?": {
+      "count": 108,
+      "by_cate": {
+        "4": 108
+      }
+    },
+    "In this video, how does the SUBJ's position change relative to the SUBJ's own orientation?": {
+      "count": 85,
+      "by_cate": {
+        "5": 85
+      }
+    },
+    "How does the distance between the observer and the white SUBJ change in this video?": {
+      "count": 2,
+      "by_cate": {
+        "4": 2
+      }
+    },
+    "How does the distance between the observer and the runner change in this video?": {
+      "count": 1,
+      "by_cate": {
+        "4": 1
+      }
+    },
+    "How does the distance between the observer and the troops change in this video?": {
+      "count": 1,
+      "by_cate": {
+        "4": 1
+      }
+    },
+    "How does the distance between the observer and the e-bike change in this video?": {
+      "count": 1,
+      "by_cate": {
+        "4": 1
+      }
+    },
+    "How does the distance between the observer and the pedestrian change in this video?": {
+      "count": 1,
+      "by_cate": {
+        "4": 1
+      }
+    },
+    "How does the distance between the observer and the duck change in this video?": {
+      "count": 1,
+      "by_cate": {
+        "4": 1
+      }
+    },
+    "How does the distance between the observer and the chicken change in this video?": {
+      "count": 1,
+      "by_cate": {
+        "4": 1
+      }
+    },
+    "How does the distance between the observer and the bulldozer change in this video?": {
+      "count": 1,
+      "by_cate": {
+        "4": 1
+      }
+    },
+    "How does the distance between the observer and the weeder change in this video?": {
+      "count": 1,
+      "by_cate": {
+        "4": 1
+      }
+    },
+    "How does the distance between the observer and the paragliding change in this video?": {
+      "count": 1,
+      "by_cate": {
+        "4": 1
+      }
+    },
+    "How does the distance between the observer and the wheelchair change in this video?": {
+      "count": 1,
+      "by_cate": {
+        "4": 1
+      }
+    },
+    "How does the distance between the observer and the swimmer change in this video?": {
+      "count": 1,
+      "by_cate": {
+        "4": 1
+      }
+    },
+    "How does the distance between the observer and the drink change in this video?": {
+      "count": 1,
+      "by_cate": {
+        "4": 1
+      }
+    },
+    "How does the distance between the observer and the beaver change in this video?": {
+      "count": 1,
+      "by_cate": {
+        "4": 1
+      }
+    },
+    "How does the distance between the observer and the bike change in this video?": {
+      "count": 1,
+      "by_cate": {
+        "4": 1
+      }
+    },
+    "How does the distance between the observer and the baby change in this video?": {
+      "count": 1,
+      "by_cate": {
+        "4": 1
+      }
+    },
+    "How does the distance between the observer and the ship change in this video?": {
+      "count": 1,
+      "by_cate": {
+        "4": 1
+      }
+    },
+    "How does the distance between the observer and the dear change in this video?": {
+      "count": 1,
+      "by_cate": {
+        "4": 1
+      }
+    },
+    "How does the distance between the observer and the chimpanzees change in this video?": {
+      "count": 1,
+      "by_cate": {
+        "4": 1
+      }
+    },
+    "How does the distance between the observer and the blue SUBJ change in this video?": {
+      "count": 1,
+      "by_cate": {
+        "4": 1
+      }
+    },
+    "How does the distance between the observer and the dragon change in this video?": {
+      "count": 1,
+      "by_cate": {
+        "4": 1
+      }
+    },
+    "How does the distance between the observer and the soldier change in this video?": {
+      "count": 1,
+      "by_cate": {
+        "4": 1
+      }
+    },
+    "How does the distance between the observer and the fighter change in this video?": {
+      "count": 1,
+      "by_cate": {
+        "4": 1
+      }
+    },
+    "How does the distance between the observer and the Chimpanzees change in this video?": {
+      "count": 1,
+      "by_cate": {
+        "4": 1
+      }
+    },
+    "How does the distance between the observer and the characters change in this video?": {
+      "count": 1,
+      "by_cate": {
+        "4": 1
+      }
+    },
+    "How does the distance between the observer and the chaaracter change in this video?": {
+      "count": 1,
+      "by_cate": {
+        "4": 1
+      }
+    },
+    "How does the distance between the observer and the aircraft change in this video?": {
+      "count": 1,
+      "by_cate": {
+        "4": 1
+      }
+    },
+    "How does the distance between the observer and the raccoon change in this video?": {
+      "count": 1,
+      "by_cate": {
+        "4": 1
+      }
+    },
+    "How does the distance between the observer and the robot change in this video?": {
+      "count": 1,
+      "by_cate": {
+        "4": 1
+      }
+    }
+  }
+}

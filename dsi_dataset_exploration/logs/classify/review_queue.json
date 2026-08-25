@@ -1,0 +1,18 @@
+{
+  "generated_at": "2026-08-25T14:38:25.880362+00:00",
+  "total_classified": 200,
+  "total_disagreements": 0,
+  "bucket_frequency": {
+    "subject_own_frame": 67,
+    "subject_observer_frame": 0,
+    "distance_change": 33,
+    "camera_own_frame": 67,
+    "camera_subject_frame": 33,
+    "observer_orient_rel_subject": 0,
+    "subject_orient_over_time": 0,
+    "observer_orient_over_time": 0,
+    "subject_orient_rel_observer": 0,
+    "OTHER": 0
+  },
+  "queue": []
+}
