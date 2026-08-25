@@ -1,0 +1,94 @@
+{
+  "question_id": "internet_c2_internet_5h0ik7qbiki_video-scene-00099_7a8c21d9",
+  "cate": 2,
+  "category_name": "Cam:static scene",
+  "hypothesis_bucket": "camera_own_frame",
+  "model": "gpt-5.6-luna",
+  "requested_at": "2026-08-25T14:37:58.053991+00:00",
+  "latency_seconds": 1.639,
+  "messages": [
+    {
+      "role": "system",
+      "content": "# DSI-Bench measurement-bucket classifier\n\nYou are helping validate a taxonomy for a video-question-answering benchmark. You\nare given one question and its multiple-choice options, with **no video, no\ncategory label, and no other metadata** \u2014 only the text a downstream\nvision-language model would see.\n\nYour job is not to answer the question. It is to name the one physical quantity\nthe question is measuring, and in what reference frame, then match that to\nexactly one of the buckets you are given.\n\n## How to decide\n\n1. Ignore the answer options' surface wording (forward/backward/clockwise/\n   orbiting/...) \u2014 that describes what an answer could look like, not what is\n   being measured. Focus on the question stem.\n2. Identify two things: which entity's motion or state is being asked about\n   (the subject/object in the scene, or the observer/camera), and relative to\n   what frame (its own starting frame, the other party's frame, or as a plain\n   scalar quantity like distance).\n3. Pick exactly one bucket key from the list you are given. If the question\n   does not cleanly match any of them, answer `OTHER` \u2014 do not force a fit.\n4. `rationale`: one short sentence naming the quantity and frame you\n   identified, e.g. \"asks how the subject's own position changed, in its own\n   starting frame.\" Do not just restate the question.\n\n## Output\n\nRespond with only the structured JSON object the response format requires:\n`bucket` (one of the enum values you were given) and `rationale`. No other\ntext, no markdown.\n"
+    },
+    {
+      "role": "user",
+      "content": "Question:\nIn this video clip, relative to its starting orientation and location, how is the observer's location moving?\n\nOptions:\nA: Moving right\nB: Moving forward-right\nC: Orbiting clockwise\nD: Orbiting counterclockwise\n\nBuckets:\n- subject_own_frame: Trajectory of the subject relative to its own frame\n- subject_observer_frame: Trajectory of the subject relative to the observer/camera\n- distance_change: Change of distance between the subject and the observer\n- camera_own_frame: Trajectory of the camera/observer relative to its own frame\n- camera_subject_frame: Trajectory of the camera/observer relative to the subject\n- observer_orient_rel_subject: Orientation change of the observer relative to the subject (OpenCV coordinate convention)\n- subject_orient_over_time: Change of orientation of the subject through time\n- observer_orient_over_time: Change of orientation of the observer through time\n- subject_orient_rel_observer: Orientation change of the subject relative to the orientation of the observer\n- OTHER: none of the above fit"
+    }
+  ],
+  "response_format": {
+    "type": "json_schema",
+    "json_schema": {
+      "name": "measurement_bucket",
+      "strict": true,
+      "schema": {
+        "type": "object",
+        "properties": {
+          "bucket": {
+            "type": "string",
+            "enum": [
+              "subject_own_frame",
+              "subject_observer_frame",
+              "distance_change",
+              "camera_own_frame",
+              "camera_subject_frame",
+              "observer_orient_rel_subject",
+              "subject_orient_over_time",
+              "observer_orient_over_time",
+              "subject_orient_rel_observer",
+              "OTHER"
+            ]
+          },
+          "rationale": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "bucket",
+          "rationale"
+        ],
+        "additionalProperties": false
+      }
+    }
+  },
+  "raw_response": {
+    "id": "chatcmpl-EGmZgAeGnwTOATutr030xWfLGh5hu",
+    "object": "chat.completion",
+    "created": 1787668676,
+    "model": "gpt-5.6-luna",
+    "choices": [
+      {
+        "index": 0,
+        "message": {
+          "role": "assistant",
+          "content": "{\"bucket\":\"camera_own_frame\",\"rationale\":\"Asks how the observer's location changes relative to its own starting orientation and position.\"}",
+          "refusal": null,
+          "annotations": []
+        },
+        "finish_reason": "stop"
+      }
+    ],
+    "usage": {
+      "prompt_tokens": 663,
+      "completion_tokens": 75,
+      "total_tokens": 738,
+      "prompt_tokens_details": {
+        "cached_tokens": 0,
+        "cache_write_tokens": 0,
+        "audio_tokens": 0
+      },
+      "completion_tokens_details": {
+        "reasoning_tokens": 33,
+        "audio_tokens": 0,
+        "accepted_prediction_tokens": 0,
+        "rejected_prediction_tokens": 0
+      }
+    },
+    "service_tier": "default",
+    "system_fingerprint": null
+  },
+  "parsed": {
+    "bucket": "camera_own_frame",
+    "rationale": "Asks how the observer's location changes relative to its own starting orientation and position."
+  }
+}
