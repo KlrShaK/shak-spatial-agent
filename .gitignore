@@ -1,0 +1,28 @@
+__pycache__/
+*.py[cod]
+*.log
+
+.env
+.venv/
+env/
+venv/
+
+/tmp
+
+# Local dependency cache and runtime output
+/.cache/
+/logs/
+
+# Editor state
+*.swp
+
+# Generated experiment artifacts
+/d4rt_agent/results/*/*.json
+/d4rt_agent/results/*/*.html
+/d4rt_agent/results/dsi_bench/videos/
+d4rt_agent/results/*
+
+.claude/
+.codex/
+.cursorignore
+.cursorindexingignore
