@@ -59,10 +59,15 @@ class Target:
 
     relative_path: str
     subject: str
+    # Which split the clip comes from. DSI-Bench ships `std`, `reverse`, `hflip`
+    # and `reverse_hflip` at the SAME relative_path, so a hardcoded root silently
+    # serves std frames for every split -- and a run scored against augmented
+    # ground truth then lands below chance rather than erroring.
+    video_root: Path | None = None
 
     @property
     def video_path(self) -> Path:
-        return DSI_VIDEO_ROOT / self.relative_path
+        return (self.video_root or DSI_VIDEO_ROOT) / self.relative_path
 
     @property
     def slug(self) -> str:
