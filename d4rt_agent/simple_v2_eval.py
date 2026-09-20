@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 import math
+import os
 from pathlib import Path
 import re
 from typing import Any, Sequence
@@ -17,8 +18,14 @@ import numpy as np
 from .simple_v2_contracts import NUM_SAMPLED_FRAMES
 
 
-DEFAULT_WORLDTRACK_NPZ = Path("data/worldtrack_release/pstudio_mini/basketball_6.npz")
-DEFAULT_DEMO_DATA = Path("demo/pstudio_mini/basketball_6/assets/demo_data.json")
+# d4rt_agent/simple_v2_eval.py -> repo root
+REPO_ROOT = Path(__file__).resolve().parents[1]
+# The basketball WorldTrack release and its demo assets ship with Open-d4rt,
+# vendored here as a submodule -- override via D4RT_CORE_ROOT env var if you
+# need to point elsewhere. Same pattern as simple_v2_backend.DEFAULT_D4RT_DIR.
+D4RT_CORE_ROOT = Path(os.environ.get("D4RT_CORE_ROOT", str(REPO_ROOT / "third-party-tools" / "Open-D4RT")))
+DEFAULT_WORLDTRACK_NPZ = D4RT_CORE_ROOT / "data/worldtrack_release/pstudio_mini/basketball_6.npz"
+DEFAULT_DEMO_DATA = D4RT_CORE_ROOT / "demo/pstudio_mini/basketball_6/assets/demo_data.json"
 DEFAULT_GT_SEED = (346.0, 166.0, 0)
 
 
