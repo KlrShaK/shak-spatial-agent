@@ -18,7 +18,7 @@
 # see the --fallback branch below. Whichever starts first claims the attempt and
 # cancels the other.
 set -euo pipefail
-REPO_ROOT=/cluster/work/igp_psr/spanwar/Open-d4rt
+REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$REPO_ROOT"
 AUGS="std reverse hflip reverse_hflip"
 FALLBACK_DELAY_MIN="${FALLBACK_DELAY_MIN:-10}"

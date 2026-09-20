@@ -52,7 +52,7 @@
 #SBATCH --mem-per-cpu=6G
 #SBATCH --tmp=8G
 #SBATCH --time=03:00:00
-#SBATCH --output=/cluster/work/igp_psr/spanwar/Open-d4rt/logs/d4rt_agent/dsi_bench_a100_%j.out
+#SBATCH --output=/cluster/work/igp_psr/spanwar/shak-spatial-agent/logs/d4rt_agent/dsi_bench_a100_%j.out
 
 set -euo pipefail
 
@@ -60,7 +60,7 @@ set -euo pipefail
 # inside a job SLURM runs a spool copy, so this would not point at the repo.
 SELF="$(readlink -f "${BASH_SOURCE[0]}")"
 
-REPO_ROOT=/cluster/work/igp_psr/spanwar/Open-d4rt
+REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 D4RT_PYTHON=/cluster/work/igp_psr/spanwar/envs/d4rt/bin/python
 DEPS_DIR="$REPO_ROOT/.cache/qwen3vl_python"
 LOCAL_DEPS="${TMPDIR:-/tmp/$USER}/qwen3vl_python"

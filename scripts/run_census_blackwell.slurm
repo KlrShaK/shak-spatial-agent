@@ -21,6 +21,6 @@
 # while any shorter one could start at 21:11. 12h keeps handovers (and their
 # ~5 min of model loading) infrequent while still fitting backfill gaps.
 #SBATCH --time=12:00:00
-#SBATCH --output=/cluster/work/igp_psr/spanwar/Open-d4rt/logs/d4rt_agent/census_blackwell_%j.out
+#SBATCH --output=/cluster/work/igp_psr/spanwar/shak-spatial-agent/logs/d4rt_agent/census_blackwell_%j.out
 # Soft deadline 30 min inside the wall clock, so the last question completes.
-DEADLINE_MIN=1410 source /cluster/work/igp_psr/spanwar/Open-d4rt/scripts/run_census_body.sh
+DEADLINE_MIN=1410 source "$(cd "$(dirname "$0")/.." && pwd)/scripts/run_census_body.sh"

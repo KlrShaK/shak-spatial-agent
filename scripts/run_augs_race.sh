@@ -7,7 +7,7 @@
 # Two jobs per call (A100 + Blackwell); the first to start claims the attempt
 # and cancels the other, exactly as scripts/run_agent_v4_race.sh does.
 set -euo pipefail
-REPO_ROOT=/cluster/work/igp_psr/spanwar/Open-d4rt
+REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 HF_HOME=/cluster/work/igp_psr/spanwar/hf_cache
 cd "$REPO_ROOT"
 

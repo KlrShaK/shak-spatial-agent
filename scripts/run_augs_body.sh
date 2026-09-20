@@ -21,7 +21,7 @@
 
 set -euo pipefail
 
-REPO_ROOT=/cluster/work/igp_psr/spanwar/Open-d4rt
+REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 D4RT_PYTHON=/cluster/work/igp_psr/spanwar/envs/d4rt_bw_third_party/bin/python
 HF_HOME=/cluster/work/igp_psr/spanwar/hf_cache
 cd "$REPO_ROOT"

@@ -13,6 +13,6 @@
 #SBATCH --mem-per-cpu=6G
 #SBATCH --tmp=16G
 #SBATCH --time=03:00:00
-#SBATCH --output=/cluster/work/igp_psr/spanwar/Open-d4rt/logs/d4rt_agent/agentv4_bw_%j.out
+#SBATCH --output=/cluster/work/igp_psr/spanwar/shak-spatial-agent/logs/d4rt_agent/agentv4_bw_%j.out
 
-source /cluster/work/igp_psr/spanwar/Open-d4rt/scripts/agent_v4_body.sh
+source "$(cd "$(dirname "$0")/.." && pwd)/scripts/agent_v4_body.sh"

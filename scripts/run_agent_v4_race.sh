@@ -23,8 +23,12 @@
 
 set -euo pipefail
 
-REPO_ROOT=/cluster/work/igp_psr/spanwar/Open-d4rt
+REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 HF_HOME=/cluster/work/igp_psr/spanwar/hf_cache
+# Open-d4rt is vendored as a submodule, same as the other third-party tools --
+# override via D4RT_CORE_ROOT if you need to point elsewhere.
+D4RT_CORE_ROOT="${D4RT_CORE_ROOT:-$REPO_ROOT/third-party-tools/Open-D4RT}"
+export D4RT_CORE_ROOT
 cd "$REPO_ROOT"
 
 # Minted here rather than inside the job so that a resubmission continues the
@@ -45,8 +49,8 @@ for cache in \
   fi
 done
 for weight in \
-    "$REPO_ROOT/checkpoints/OpenD4RT_32CLIP_9Dataset_NoAUG/opend4rt.ckpt" \
-    "$REPO_ROOT/checkpoints/OpenD4RT_32CLIP_9Dataset_NoAUG/model.yaml"; do
+    "$D4RT_CORE_ROOT/checkpoints/OpenD4RT_32CLIP_9Dataset_NoAUG/opend4rt.ckpt" \
+    "$D4RT_CORE_ROOT/checkpoints/OpenD4RT_32CLIP_9Dataset_NoAUG/model.yaml"; do
   if [[ ! -f "$weight" ]]; then
     echo "Missing D4RT weight: $weight" >&2
     exit 2

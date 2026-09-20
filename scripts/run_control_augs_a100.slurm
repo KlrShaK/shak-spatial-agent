@@ -6,5 +6,5 @@
 #SBATCH --mem-per-cpu=6G
 #SBATCH --tmp=16G
 #SBATCH --time=02:00:00
-#SBATCH --output=/cluster/work/igp_psr/spanwar/Open-d4rt/logs/d4rt_agent/ctlaugs_a100_%j.out
-MODE=control source /cluster/work/igp_psr/spanwar/Open-d4rt/scripts/run_augs_body.sh
+#SBATCH --output=/cluster/work/igp_psr/spanwar/shak-spatial-agent/logs/d4rt_agent/ctlaugs_a100_%j.out
+MODE=control source "$(cd "$(dirname "$0")/.." && pwd)/scripts/run_augs_body.sh"

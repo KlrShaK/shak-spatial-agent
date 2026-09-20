@@ -10,7 +10,7 @@
 # exits non-zero on a condition a human should look at, so whatever launched it
 # is notified rather than the run quietly dying.
 set -uo pipefail
-REPO_ROOT=/cluster/work/igp_psr/spanwar/Open-d4rt
+REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$REPO_ROOT"
 POLL="${1:-300}"
 AUGS="std reverse hflip reverse_hflip"

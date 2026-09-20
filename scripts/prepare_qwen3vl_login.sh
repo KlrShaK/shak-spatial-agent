@@ -4,7 +4,7 @@
 
 set -euo pipefail
 
-REPO_ROOT=/cluster/work/igp_psr/spanwar/Open-d4rt
+REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 D4RT_PYTHON=/cluster/work/igp_psr/spanwar/envs/d4rt/bin/python
 UV=/cluster/home/spanwar/.local/bin/uv
 DEPS_DIR="$REPO_ROOT/.cache/qwen3vl_python"

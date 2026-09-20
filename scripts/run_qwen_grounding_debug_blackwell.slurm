@@ -11,11 +11,11 @@
 #SBATCH --mem-per-cpu=6G
 #SBATCH --tmp=8G
 #SBATCH --time=01:00:00
-#SBATCH --output=/cluster/work/igp_psr/spanwar/Open-d4rt/logs/d4rt_agent/qwen_grounding_debug_%j.out
+#SBATCH --output=/cluster/work/igp_psr/spanwar/shak-spatial-agent/logs/d4rt_agent/qwen_grounding_debug_%j.out
 
 set -euo pipefail
 
-REPO_ROOT=/cluster/work/igp_psr/spanwar/Open-d4rt
+REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 D4RT_PYTHON=/cluster/work/igp_psr/spanwar/envs/d4rt_bw/bin/python
 DEPS_DIR="$REPO_ROOT/.cache/qwen3vl_python"
 LOCAL_DEPS="${TMPDIR:-/tmp/$USER}/qwen3vl_python"

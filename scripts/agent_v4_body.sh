@@ -13,7 +13,7 @@
 
 set -euo pipefail
 
-REPO_ROOT=/cluster/work/igp_psr/spanwar/Open-d4rt
+REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 # The third-party venv, because it is the only one carrying SAM3 and the timm
 # that Orient-Anything needs.
 D4RT_PYTHON=/cluster/work/igp_psr/spanwar/envs/d4rt_bw_third_party/bin/python

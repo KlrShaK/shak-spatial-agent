@@ -7,7 +7,8 @@
 # warns about -- so it is worth a test that does not need a GPU to run.
 
 set -euo pipefail
-cd /cluster/work/igp_psr/spanwar/Open-d4rt
+REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+cd "$REPO_ROOT"
 
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
