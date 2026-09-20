@@ -136,12 +136,33 @@ def predict_angles(model: Any, image: Any) -> dict[str, float]:
     }
 
 
-def orient_target(target: Target, run_dir: Path, model: Any) -> dict[str, Any]:
+def orient_target(
+    target: Target,
+    run_dir: Path,
+    model: Any,
+    *,
+    paths: Any | None = None,
+    sampled: Any | None = None,
+    save_crops: bool = True,
+) -> dict[str, Any]:
+    """Orient one target's subject on every frame.
+
+    ``paths`` and ``sampled`` exist for the per-question agent driver, which
+    keeps one work directory per (video, subject) pair -- two questions about
+    different subjects in the same clip would otherwise write to the same slug --
+    and has already decoded the clip, which is not worth doing twice.
+    """
+
     from d4rt_agent.simple_v2_contracts import sample_video_cpu
 
-    paths = video_paths(run_dir, target)
-    masks = np.load(paths.masks / "masks.npy")
-    sampled = sample_video_cpu(target.video_path)
+    paths = video_paths(run_dir, target) if paths is None else paths
+    # Written compressed since 2026-08: a bool mask stack is several MB raw and
+    # a few hundred KB compressed. `.npy` is still read when an older run dir has one.
+    masks_npz = paths.masks / "masks.npz"
+    masks = (np.load(masks_npz)["masks"] if masks_npz.exists()
+             else np.load(paths.masks / "masks.npy"))
+    if sampled is None:
+        sampled = sample_video_cpu(target.video_path)
     frames = sampled.frames_rgb
 
     rows: list[dict[str, Any]] = []
@@ -151,7 +172,10 @@ def orient_target(target: Target, run_dir: Path, model: Any) -> dict[str, Any]:
             rows.append({"frame": t, "status": "no_mask"})
             continue
         image, centre = cropped
-        image.save(paths.orientation / f"crop_{t:02d}.png")
+        # Diagnostics only -- 32 PNGs per question, which a census-scale run does
+        # not want to write, let alone keep.
+        if save_crops:
+            image.save(paths.orientation / f"crop_{t:02d}.png")
         try:
             angles = predict_angles(model, image)
         except Exception as exc:  # keep going; one bad frame is not fatal

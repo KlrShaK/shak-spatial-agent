@@ -286,14 +286,28 @@ def padding_grid_points(frames_dir: Path, grid_px: np.ndarray) -> np.ndarray:
     return (luma[:, index[:, 1], index[:, 0]] < LETTERBOX_LUMA).all(axis=0)
 
 
-def analyze_target(target: Target, run_dir: Path) -> dict[str, Any]:
-    paths = video_paths(run_dir, target)
-    subject = dict(np.load(paths.d4rt / "subject.npz"))
+def analyze_target(
+    target: Target, run_dir: Path, *, paths: Any | None = None
+) -> dict[str, Any]:
+    """Turn one target's raw model output into a trajectory and an orientation track.
+
+    ``paths`` overrides the slug-derived location, for the per-question agent
+    driver which keys its work directories on (video, subject) rather than on the
+    video alone.
+
+    The subject arrays are optional: a camera-only question never segments a
+    subject, and camera recovery needs only the grid.
+    """
+
+    paths = video_paths(run_dir, target) if paths is None else paths
     camera = dict(np.load(paths.d4rt / "camera.npz"))
     points = read_json(paths.points_json)
 
+    subject_path = paths.d4rt / "subject.npz"
+    subject = dict(np.load(subject_path)) if subject_path.exists() else None
+
     poses = recover_camera_poses(camera)
-    trajectory = build_trajectory(subject)
+    trajectory = build_trajectory(subject) if subject is not None else None
 
     # The 144-point camera grid, NOT the 20 subject points.
     #
@@ -331,7 +345,8 @@ def analyze_target(target: Target, run_dir: Path) -> dict[str, Any]:
     if orientation_file.exists():
         orientation_rows = build_orientation(read_json(orientation_file), poses, intrinsics)
 
-    _write_trajectory_csv(paths.analysis / "trajectory.csv", trajectory)
+    if trajectory is not None:
+        _write_trajectory_csv(paths.analysis / "trajectory.csv", trajectory)
     if orientation_rows:
         _write_orientation_csv(paths.analysis / "orientation.csv", orientation_rows)
 
@@ -348,6 +363,17 @@ def analyze_target(target: Target, run_dir: Path) -> dict[str, Any]:
         inlier_counts=poses["inlier_counts"],
         conditioning=poses["conditioning"],
     )
+    if trajectory is not None:
+        _write_trajectory_npz(paths, trajectory, orientation_rows)
+
+    summary = _summarise(target, trajectory, poses, orientation_rows, intrinsics)
+    write_json(paths.analysis / "summary.json", summary)
+    return summary
+
+
+def _write_trajectory_npz(
+    paths: Any, trajectory: dict[str, Any], orientation_rows: list[dict[str, Any]]
+) -> None:
     np.savez_compressed(
         paths.analysis / "trajectory.npz",
         xyz=trajectory["xyz"],
@@ -381,26 +407,24 @@ def analyze_target(target: Target, run_dir: Path) -> dict[str, Any]:
         else np.zeros((0,), dtype=bool),
     )
 
-    finite = np.isfinite(trajectory["smoothed"]).all(axis=1)
-    path_length = float(
-        np.linalg.norm(np.diff(trajectory["smoothed"][finite], axis=0), axis=1).sum()
-    ) if finite.sum() > 1 else float("nan")
 
-    summary = {
+def _summarise(
+    target: Target,
+    trajectory: dict[str, Any] | None,
+    poses: dict[str, Any],
+    orientation_rows: list[dict[str, Any]],
+    intrinsics: np.ndarray,
+) -> dict[str, Any]:
+    """The run's own account of what it produced and how far to trust it.
+
+    Subject fields are None on a camera-only run rather than absent, so a reader
+    can tell "there was no subject" from "the subject failed", and so every
+    summary has the same shape.
+    """
+
+    summary: dict[str, Any] = {
         "slug": target.slug,
         "subject": target.subject,
-        "tracks_kept": int(trajectory["keep"].sum()),
-        "tracks_total": int(trajectory["keep"].size),
-        "tracks_rejected": trajectory["reasons"],
-        "subject_scale": trajectory["scale"],
-        "trajectory_path_length": path_length,
-        "displacement_start_to_end": float(
-            np.linalg.norm(
-                trajectory["smoothed"][finite][-1] - trajectory["smoothed"][finite][0]
-            )
-        )
-        if finite.sum() > 1
-        else float("nan"),
         "camera": {
             "scene_scale": poses["scene_scale"],
             "median_relative_rmse": float(np.nanmedian(poses["rmse_relative"][1:])),
@@ -417,9 +441,37 @@ def analyze_target(target: Target, run_dir: Path) -> dict[str, Any]:
             ),
             "intrinsics_fx_fy_cx_cy": intrinsics.tolist(),
         },
-        "warnings": _warnings(trajectory, poses),
     }
-    write_json(paths.analysis / "summary.json", summary)
+
+    if trajectory is None:
+        summary.update({
+            "tracks_kept": None, "tracks_total": None, "tracks_rejected": None,
+            "subject_scale": None, "trajectory_path_length": None,
+            "displacement_start_to_end": None,
+            "warnings": _warnings(None, poses),
+        })
+        return summary
+
+    finite = np.isfinite(trajectory["smoothed"]).all(axis=1)
+    path_length = float(
+        np.linalg.norm(np.diff(trajectory["smoothed"][finite], axis=0), axis=1).sum()
+    ) if finite.sum() > 1 else float("nan")
+
+    summary.update({
+        "tracks_kept": int(trajectory["keep"].sum()),
+        "tracks_total": int(trajectory["keep"].size),
+        "tracks_rejected": trajectory["reasons"],
+        "subject_scale": trajectory["scale"],
+        "trajectory_path_length": path_length,
+        "displacement_start_to_end": float(
+            np.linalg.norm(
+                trajectory["smoothed"][finite][-1] - trajectory["smoothed"][finite][0]
+            )
+        )
+        if finite.sum() > 1
+        else float("nan"),
+        "warnings": _warnings(trajectory, poses),
+    })
     return summary
 
 
@@ -434,16 +486,17 @@ def _total_rotation_degrees(rotations: np.ndarray) -> float:
     return total
 
 
-def _warnings(trajectory: dict[str, Any], poses: dict[str, Any]) -> list[str]:
+def _warnings(trajectory: dict[str, Any] | None, poses: dict[str, Any]) -> list[str]:
     """Conditions that make the output untrustworthy but do not raise."""
 
     out: list[str] = []
-    kept = int(trajectory["keep"].sum())
-    if kept < 6:
-        out.append(
-            f"only {kept} of {trajectory['keep'].size} tracks survived; "
-            "this usually means the seeding frame was bad, not the points"
-        )
+    if trajectory is not None:
+        kept = int(trajectory["keep"].sum())
+        if kept < 6:
+            out.append(
+                f"only {kept} of {trajectory['keep'].size} tracks survived; "
+                "this usually means the seeding frame was bad, not the points"
+            )
     median_rmse = float(np.nanmedian(poses["rmse_relative"][1:]))
     if np.isfinite(median_rmse) and median_rmse > 0.05:
         out.append(
