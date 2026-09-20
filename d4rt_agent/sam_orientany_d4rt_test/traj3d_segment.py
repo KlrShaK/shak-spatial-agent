@@ -255,22 +255,99 @@ def propagate_masks(
     reference_mask: np.ndarray,
     num_frames: int,
     anchor: int = 0,
+    reference_box_xyxy: Any | None = None,
 ) -> tuple[np.ndarray, dict[str, Any]]:
     """Track the chosen subject across the sampled clip.
 
-    Returns a (T, H, W) bool array and a diagnostics dict.  The phrase is used to
-    seed the tracker, but the object we follow is chosen by IoU against
-    ``reference_mask`` on the anchor frame, so we keep the instance the caller
-    picked rather than whichever instance the phrase matches best per frame.
+    Returns a (T, H, W) bool array and a diagnostics dict.  The phrase seeds the
+    tracker, but the object we follow is chosen by IoU against ``reference_mask``
+    on the anchor frame, so we keep the instance the caller picked rather than
+    whichever instance the phrase matches best per frame.
 
     The prompt goes on ``anchor`` and propagation runs in both directions from
     there, so frames before the anchor are covered too.
+
+    **Why there is a second attempt.**  The image model and the video model are
+    prompted with the same phrase and resolve it *independently*.  They can
+    disagree: on CameraBench/M0jmSsQ5ptw.3.12 the phrase "the runner in orange"
+    grounds fine in the image model, but the video model's instances overlap that
+    pick on no frame at all, and matching raises.  Given the chosen box, the
+    video model can be prompted with the geometry instead, which pins identity by
+    construction rather than by hoping two models read one phrase the same way.
+    The text attempt still goes first -- it carries semantics a box does not, and
+    it is what every previously-validated run used.
     """
 
     import torch
     from sam3.model_builder import build_sam3_video_predictor
 
     predictor = build_sam3_video_predictor(gpus_to_use=range(max(torch.cuda.device_count(), 1)))
+
+    attempts: list[dict[str, Any]] = [{"text": subject}]
+    if reference_box_xyxy is not None:
+        height, width = reference_mask.shape
+        x0, y0, x1, y1 = (float(v) for v in reference_box_xyxy)
+        # normalized [xmin, ymin, w, h], which is what add_prompt asserts on
+        box = [
+            max(0.0, min(1.0, x0 / max(width - 1, 1))),
+            max(0.0, min(1.0, y0 / max(height - 1, 1))),
+            max(0.0, min(1.0, (x1 - x0) / max(width - 1, 1))),
+            max(0.0, min(1.0, (y1 - y0) / max(height - 1, 1))),
+        ]
+        # text="visual" is the literal gate the model checks
+        # (sam3_video_inference.add_prompt: `text_str != "visual"`). With the
+        # subject text passed alongside, detection stays TEXT-driven and the box
+        # is only a refinement of whatever the phrase matched -- which is the
+        # very disagreement being worked around, so that variant fails the same
+        # way. "visual" sets TEXT_ID_FOR_VISUAL and promotes the box to the
+        # actual prompt.
+        attempts.append({"text": "visual", "bounding_boxes": [box], "bounding_box_labels": [1]})
+
+    errors: list[str] = []
+    try:
+        for index, prompt in enumerate(attempts):
+            try:
+                per_frame = _run_propagation(predictor, frames_dir, prompt, anchor)
+                tracked_id, iou = _match_object(per_frame.get(anchor, {}), reference_mask)
+            except RuntimeError as error:
+                kind = "box" if "bounding_boxes" in prompt else "text"
+                errors.append(f"attempt {index} ({kind}): {error}")
+                continue
+
+            height, width = reference_mask.shape
+            masks = np.zeros((num_frames, height, width), dtype=bool)
+            present = []
+            for frame_index in range(num_frames):
+                mask = per_frame.get(frame_index, {}).get(tracked_id)
+                if mask is not None and mask.shape == reference_mask.shape and mask.any():
+                    masks[frame_index] = mask
+                    present.append(frame_index)
+
+            diagnostics = {
+                "anchor_frame": anchor,
+                "tracked_obj_id": tracked_id,
+                "anchor_iou_with_reference": iou,
+                "objects_seen_at_anchor": sorted(per_frame.get(anchor, {}).keys()),
+                "frames_with_mask": present,
+                "prompt_used": "box" if "bounding_boxes" in prompt else "text",
+                "failed_attempts": errors,
+            }
+            return masks, diagnostics
+    finally:
+        del predictor
+        torch.cuda.empty_cache()
+
+    raise RuntimeError(
+        "propagation returned no object overlapping the chosen instance; "
+        + "; ".join(errors)
+    )
+
+
+def _run_propagation(
+    predictor: Any, frames_dir: Path, prompt: dict[str, Any], anchor: int
+) -> dict[int, dict[int, np.ndarray]]:
+    """One prompt, one full propagation pass, as {frame: {obj_id: mask}}."""
+
     per_frame: dict[int, dict[int, np.ndarray]] = {}
     with bf16_autocast():
         session = predictor.handle_request(
@@ -278,12 +355,7 @@ def propagate_masks(
         )
         session_id = session["session_id"]
         predictor.handle_request(
-            {
-                "type": "add_prompt",
-                "session_id": session_id,
-                "frame_index": anchor,
-                "text": subject,
-            }
+            {"type": "add_prompt", "session_id": session_id, "frame_index": anchor, **prompt}
         )
 
         for response in predictor.handle_stream_request(
@@ -299,27 +371,7 @@ def propagate_masks(
             }
 
         predictor.handle_request({"type": "close_session", "session_id": session_id})
-
-    tracked_id, iou = _match_object(per_frame.get(anchor, {}), reference_mask)
-    height, width = reference_mask.shape
-    masks = np.zeros((num_frames, height, width), dtype=bool)
-    present = []
-    for frame_index in range(num_frames):
-        mask = per_frame.get(frame_index, {}).get(tracked_id)
-        if mask is not None and mask.shape == reference_mask.shape and mask.any():
-            masks[frame_index] = mask
-            present.append(frame_index)
-
-    diagnostics = {
-        "anchor_frame": anchor,
-        "tracked_obj_id": tracked_id,
-        "anchor_iou_with_reference": iou,
-        "objects_seen_at_anchor": sorted(per_frame.get(anchor, {}).keys()),
-        "frames_with_mask": present,
-    }
-    del predictor
-    torch.cuda.empty_cache()
-    return masks, diagnostics
+    return per_frame
 
 
 def _match_object(at_anchor: dict[int, np.ndarray], reference: np.ndarray) -> tuple[int, float]:
