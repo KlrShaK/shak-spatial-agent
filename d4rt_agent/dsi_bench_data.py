@@ -57,6 +57,11 @@ TOTAL_QUESTIONS = len(DATASETS) * QUESTIONS_PER_DATASET
 # refuse to describe a census as a balanced sample.
 DESIGN_LATIN_RECTANGLE = "latin_rectangle"
 DESIGN_CENSUS = "census"
+DESIGN_RANDOM = "uniform_random"
+
+# The default size of a uniform draw. Large enough that the per-category counts
+# are usable, small enough to finish inside a few GPU sessions.
+DEFAULT_RANDOM_SIZE = 200
 
 DEFAULT_SEED = 20260721
 # Scanned seeds must keep every ground-truth letter inside this band.  With only
@@ -264,6 +269,31 @@ def sample_rows(rows: Sequence[DSIRow], seed: int) -> list[DSIRow]:
     return selected
 
 
+def random_sample_rows(
+    rows: Sequence[DSIRow], seed: int, size: int = DEFAULT_RANDOM_SIZE
+) -> list[DSIRow]:
+    """Draw ``size`` questions uniformly at random, without replacement.
+
+    Deliberately NOT stratified and NOT gt-balanced, unlike `sample_rows`. Those
+    corrections exist to make a 25-question sample readable across tasks; here
+    the point is the opposite -- an unbiased estimate of accuracy on the split as
+    it actually is. That means inheriting the benchmark's own skew: `Obj:moving
+    cam` and `Cam:dynamic scene` are 64% of it between them, so they will
+    dominate the draw, and that is the correct behaviour rather than a defect.
+
+    Videos may repeat. 1769 questions span only 943 videos, and forcing distinct
+    ones would quietly change the population being estimated.
+
+    Sorted before drawing so the sample depends on the seed and not on the order
+    the CSV happened to be written in.
+    """
+
+    if size > len(rows):
+        raise ValueError(f"cannot draw {size} questions from {len(rows)}")
+    ordered = sorted(rows, key=lambda row: (row.relative_path, row.csv_row_index))
+    return random.Random(seed).sample(ordered, size)
+
+
 def census_rows(rows: Sequence[DSIRow]) -> list[DSIRow]:
     """Every question in the split, in a stable, video-grouped order.
 
@@ -326,11 +356,17 @@ def build_manifest(
     seed: int = DEFAULT_SEED,
     balance_gt: bool = True,
     census: bool = False,
+    random_size: int | None = None,
 ) -> dict[str, Any]:
     """Select the questions and describe the selection well enough to repeat it.
 
     With ``census=True`` the split is taken whole and ``seed``/``balance_gt`` are
     ignored -- there is nothing to seed when nothing is being drawn.
+
+    With ``random_size`` set, the questions are drawn uniformly at random and
+    ``balance_gt`` is ignored: balancing the answer key is a variance-reduction
+    trick for a 25-question eyeballed sample, and applying it to a draw whose
+    whole purpose is to be unbiased would defeat it.
     """
 
     csv_path = metadata_csv(dsi_root, split)
@@ -338,6 +374,8 @@ def build_manifest(
     rows = load_rows(csv_path)
     if census:
         chosen_seed, selected = None, census_rows(rows)
+    elif random_size is not None:
+        chosen_seed, selected = seed, random_sample_rows(rows, seed, random_size)
     elif balance_gt:
         chosen_seed, selected = find_balanced_seed(rows, seed)
     else:
@@ -396,6 +434,26 @@ def build_manifest(
             "questions, and the six tasks range from 85 to 582. Any single overall number "
             "is dominated by the largest cells -- read results grouped by dataset and by "
             "task."
+        )
+    elif random_size is not None:
+        sampling = {
+            "design": DESIGN_RANDOM,
+            "description": (
+                f"{random_size} questions drawn uniformly without replacement from all "
+                f"{len(rows)}; not stratified, not gt-balanced, videos may repeat"
+            ),
+            "requested_seed": seed,
+            "seed": chosen_seed,
+            "gt_balanced": False,
+            "total_source_questions": len(rows),
+            "total_selected": len(selected),
+        }
+        caveat = (
+            "Uniform draw, so the category mix is the benchmark's own and is heavily "
+            "skewed: 'Obj:moving cam' and 'Cam:dynamic scene' are 64% of the split "
+            "between them. Read these results as an estimate of full-split accuracy, NOT "
+            "as a per-task diagnostic -- the rarest categories carry too few questions "
+            "here to say anything about individually."
         )
     else:
         sampling = {
