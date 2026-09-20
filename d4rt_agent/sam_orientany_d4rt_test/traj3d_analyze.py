@@ -37,6 +37,7 @@ from d4rt_agent.sam_orientany_d4rt_test.traj3d_geometry import (
     estimate_intrinsics,
     oav2_axes_in_opencv,
     offaxis_correction,
+    estimate_world_up,
     robust_rigid,
     select_tracks,
     sigmoid,
@@ -250,6 +251,41 @@ def _write_orientation_csv(path: Path, rows: list[dict[str, Any]]) -> None:
             )
 
 
+# A grid point this dark in every single frame has no image content behind it.
+LETTERBOX_LUMA = 12.0
+
+
+def padding_grid_points(frames_dir: Path, grid_px: np.ndarray) -> np.ndarray:
+    """Which grid points sit on letterbox padding rather than on the image.
+
+    These clips are letterboxed and the grid is uniform over the *stored* frame,
+    so a good number of points land on black bars. D4RT invents a near-constant
+    depth for them, which makes them perfect rigid inliers and perfect planar
+    inliers -- padding fits *better* than real content.
+
+    That matters here because the largest plane in the cloud decides the world
+    vertical. On the yellow-jacket clip -- a level shot across a frozen lake --
+    the bars outvoted the ice and returned an "up" tilted 59 degrees. Excluding
+    them is what makes the estimate mean anything.
+
+    Returns a boolean mask over ``grid_px``; all-False when the clip has no bars.
+    """
+
+    from PIL import Image
+
+    frames = sorted(Path(frames_dir).glob("*.jpg"))
+    if not frames:
+        return np.zeros(len(grid_px), dtype=bool)
+    luma = np.stack([
+        np.asarray(Image.open(f).convert("L"), dtype=np.float64) for f in frames
+    ])
+    height, width = luma.shape[1:]
+    index = np.round(np.asarray(grid_px)).astype(int)
+    index[:, 0] = np.clip(index[:, 0], 0, width - 1)
+    index[:, 1] = np.clip(index[:, 1], 0, height - 1)
+    return (luma[:, index[:, 1], index[:, 0]] < LETTERBOX_LUMA).all(axis=0)
+
+
 def analyze_target(target: Target, run_dir: Path) -> dict[str, Any]:
     paths = video_paths(run_dir, target)
     subject = dict(np.load(paths.d4rt / "subject.npz"))
@@ -277,6 +313,19 @@ def analyze_target(target: Target, run_dir: Path) -> dict[str, Any]:
         (points["height"], points["width"]),
     )
 
+    # World up, for the reports that need a vertical the camera's own frame does
+    # not supply. Padding points are excluded first -- see padding_grid_points.
+    grid_px = np.asarray(points["camera_grid_px"], dtype=np.float64)
+    grid_xyz = np.asarray(camera["xyz_3d"])[0]
+    grid_weights = np.where(
+        sigmoid(np.asarray(camera["visibility"])[0]) > VISIBILITY_THRESHOLD,
+        sigmoid(np.asarray(camera["confidence"])[0]) ** 2,
+        0.0,
+    )
+    is_padding = padding_grid_points(paths.frames, grid_px)
+    grid_weights = np.where(is_padding, 0.0, grid_weights)
+    world_up, world_up_fraction = estimate_world_up(grid_xyz, grid_weights)
+
     orientation_file = paths.orientation / "orientation.json"
     orientation_rows: list[dict[str, Any]] = []
     if orientation_file.exists():
@@ -288,6 +337,9 @@ def analyze_target(target: Target, run_dir: Path) -> dict[str, Any]:
 
     np.savez_compressed(
         paths.analysis / "camera_poses.npz",
+        world_up_cam0=(world_up if world_up is not None else np.full(3, np.nan)),
+        world_up_inlier_fraction=np.float64(world_up_fraction),
+        grid_padding_fraction=np.float64(float(is_padding.mean())),
         rotation=poses["rotation"],
         translation=poses["translation"],
         rmse=poses["rmse"],

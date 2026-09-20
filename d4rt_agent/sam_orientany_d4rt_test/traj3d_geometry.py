@@ -328,6 +328,85 @@ def robust_rigid(
     )
 
 
+# A plane is accepted as the ground only if it carries at least this share of the
+# cloud and its normal is within this cone of the camera's own up axis. The cone
+# is what stops a large wall being mistaken for the floor; it is generous
+# because the whole point is to handle pitched cameras, and a shot pitched
+# further than this has no usable horizontal frame anyway.
+WORLD_UP_MIN_INLIER_FRACTION = 0.15
+WORLD_UP_MAX_TILT_DEG = 80.0
+
+
+def estimate_world_up(
+    points: np.ndarray,
+    weights: np.ndarray | None = None,
+    *,
+    iterations: int = 800,
+    seed: int = 0,
+) -> tuple[np.ndarray | None, float]:
+    """Recover the world vertical from the dominant plane of a point cloud.
+
+    D4RT reports no gravity, and the camera frame only agrees with the world's
+    up axis when the camera happens to be level. On a pitched camera the two
+    disagree badly: a camera descending vertically past a staircase, pitched 50
+    degrees down, splits that descent almost equally between its own `forward`
+    and `down` axes, so the motion reads as a tie between two different answers
+    instead of a plain descent.
+
+    The ground (or the ceiling, whose normal is the same axis) is usually the
+    largest planar structure in shot, so RANSAC over the D4RT grid recovers it
+    without any extra model. The returned normal is oriented to point *up* in
+    the camera frame -- toward the hemisphere the camera's own up axis is in.
+
+    Returns ``(up_unit_vector_or_None, inlier_fraction)``. None means no plane
+    was confident enough, and the caller should stay in the camera's own frame
+    and say so rather than guess a vertical.
+    """
+
+    points = np.asarray(points, dtype=np.float64)
+    finite = np.isfinite(points).all(axis=1)
+    if weights is not None:
+        finite &= np.asarray(weights, dtype=np.float64) > 0
+    cloud = points[finite]
+    if len(cloud) < 10:
+        return None, 0.0
+
+    threshold = 0.05 * cloud_scale(cloud)
+    if not np.isfinite(threshold) or threshold <= 0:
+        return None, 0.0
+
+    rng = np.random.default_rng(seed)
+    best_normal, best_inliers = None, 0
+    for _ in range(iterations):
+        sample = rng.choice(len(cloud), 3, replace=False)
+        normal = np.cross(cloud[sample[1]] - cloud[sample[0]],
+                          cloud[sample[2]] - cloud[sample[0]])
+        norm = float(np.linalg.norm(normal))
+        if norm < 1e-9:
+            continue
+        normal = normal / norm
+        inliers = int((np.abs((cloud - cloud[sample[0]]) @ normal) < threshold).sum())
+        if inliers > best_inliers:
+            best_normal, best_inliers = normal, inliers
+
+    if best_normal is None:
+        return None, 0.0
+    fraction = best_inliers / len(cloud)
+
+    # Orient it upward: +y is DOWN in the OpenCV camera frame, so the up-pointing
+    # choice is the one with a negative y component.
+    if best_normal[1] > 0:
+        best_normal = -best_normal
+
+    if fraction < WORLD_UP_MIN_INLIER_FRACTION:
+        return None, fraction
+    tilt = np.degrees(np.arccos(np.clip(-best_normal[1], -1.0, 1.0)))
+    if tilt > WORLD_UP_MAX_TILT_DEG:
+        # More likely a wall than the ground.
+        return None, fraction
+    return best_normal, fraction
+
+
 def estimate_intrinsics(
     xyz: np.ndarray, uv_norm: np.ndarray, image_hw: tuple[int, int]
 ) -> np.ndarray:
