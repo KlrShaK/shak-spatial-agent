@@ -23,7 +23,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-# .../Open-d4rt/d4rt_agent/sam_orientany_d4rt_test/traj3d_common.py -> Open-d4rt
+# .../shak-spatial-agent/d4rt_agent/sam_orientany_d4rt_test/traj3d_common.py -> shak-spatial-agent
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
 # The same root the DSI-Bench runner uses, so a traj3d run and a benchmark run
@@ -34,8 +34,11 @@ THIRD_PARTY = REPO_ROOT / "third-party-tools"
 SAM3_DIR = THIRD_PARTY / "sam3"
 ORIENT_DIR = THIRD_PARTY / "Orient-Anything-V2"
 
-D4RT_CONFIG = REPO_ROOT / "checkpoints/OpenD4RT_32CLIP_9Dataset_NoAUG/model.yaml"
-D4RT_CHECKPOINT = REPO_ROOT / "checkpoints/OpenD4RT_32CLIP_9Dataset_NoAUG/opend4rt.ckpt"
+# Open-d4rt is vendored as a submodule, same as the other third-party tools --
+# override via D4RT_CORE_ROOT env var if you need to point elsewhere.
+D4RT_CORE_ROOT = Path(os.environ.get("D4RT_CORE_ROOT", str(THIRD_PARTY / "Open-D4RT")))
+D4RT_CONFIG = D4RT_CORE_ROOT / "checkpoints/OpenD4RT_32CLIP_9Dataset_NoAUG/model.yaml"
+D4RT_CHECKPOINT = D4RT_CORE_ROOT / "checkpoints/OpenD4RT_32CLIP_9Dataset_NoAUG/opend4rt.ckpt"
 
 ORIENT_HF_REPO = "Viglong/OriAnyV2_ckpt"
 ORIENT_HF_FILE = "demo_ckpts/rotmod_realrotaug_best.pt"

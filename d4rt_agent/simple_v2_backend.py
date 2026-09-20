@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import gc
 import math
+import os
 from contextlib import nullcontext
 from pathlib import Path
 from typing import Any
@@ -18,7 +19,12 @@ import numpy as np
 from .simple_v2_contracts import NUM_SAMPLED_FRAMES, SampledVideo, grounding_points
 
 
-DEFAULT_D4RT_DIR = Path("checkpoints/OpenD4RT_32CLIP_9Dataset_NoAUG")
+# d4rt_agent/simple_v2_backend.py -> repo root
+REPO_ROOT = Path(__file__).resolve().parents[1]
+# Open-d4rt is vendored as a submodule, same as the other third-party tools --
+# override via D4RT_CORE_ROOT env var if you need to point elsewhere.
+D4RT_CORE_ROOT = Path(os.environ.get("D4RT_CORE_ROOT", str(REPO_ROOT / "third-party-tools" / "Open-D4RT")))
+DEFAULT_D4RT_DIR = D4RT_CORE_ROOT / "checkpoints/OpenD4RT_32CLIP_9Dataset_NoAUG"
 DEFAULT_D4RT_CONFIG = DEFAULT_D4RT_DIR / "model.yaml"
 DEFAULT_D4RT_CHECKPOINT = DEFAULT_D4RT_DIR / "opend4rt.ckpt"
 
