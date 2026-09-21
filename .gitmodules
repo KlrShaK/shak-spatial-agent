@@ -1,6 +1,3 @@
-[submodule "third-party-tools/Orient-Anything"]
-	path = third-party-tools/Orient-Anything
-	url = https://github.com/SpatialVision/Orient-Anything
 [submodule "third-party-tools/Orient-Anything-V2"]
 	path = third-party-tools/Orient-Anything-V2
 	url = https://github.com/SpatialVision/Orient-Anything-V2.git
