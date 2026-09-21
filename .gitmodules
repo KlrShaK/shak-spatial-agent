@@ -7,3 +7,6 @@
 [submodule "third-party-tools/Open-D4RT"]
 	path = third-party-tools/Open-D4RT
 	url = https://github.com/KlrShaK/Open-d4rt
+[submodule "third-party-tools/Point4D"]
+	path = third-party-tools/Point4D
+	url = https://github.com/KlrShaK/Point4D.git
