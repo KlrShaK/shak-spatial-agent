@@ -19,4 +19,14 @@
 #SBATCH --time=03:00:00
 #SBATCH --output=/cluster/work/igp_psr/spanwar/shak-spatial-agent/logs/d4rt_agent/agentv4_a100_%j.out
 
-source "$(cd "$(dirname "$0")/.." && pwd)/scripts/agent_v4_body.sh"
+# Under sbatch, $0 is SLURM's spool copy of this file, which is nowhere near
+# the repo. SLURM_SUBMIT_DIR is the directory sbatch was invoked from -- the
+# repo root, per the usage above and every race submitter, which all cd there
+# first. The $0 fallback keeps the file runnable directly, outside SLURM.
+REPO_ROOT="${SLURM_SUBMIT_DIR:-$(cd "$(dirname "$0")/.." && pwd)}"
+if [[ ! -f "$REPO_ROOT/scripts/agent_v4_body.sh" ]]; then
+  echo "REPO_ROOT=$REPO_ROOT does not look like the repo (no scripts/agent_v4_body.sh)." >&2
+  echo "Submit from the repository root, or set SLURM_SUBMIT_DIR." >&2
+  exit 2
+fi
+source "$REPO_ROOT/scripts/agent_v4_body.sh"

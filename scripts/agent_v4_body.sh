@@ -13,7 +13,9 @@
 
 set -euo pipefail
 
-REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+# $0 is the LAUNCHER that sourced this -- under sbatch, SLURM's spool copy.
+# BASH_SOURCE[0] is this file, sourced by absolute path, so it resolves.
+REPO_ROOT="${REPO_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
 # The third-party venv, because it is the only one carrying SAM3 and the timm
 # that Orient-Anything needs.
 D4RT_PYTHON=/cluster/work/igp_psr/spanwar/envs/d4rt_bw_third_party/bin/python

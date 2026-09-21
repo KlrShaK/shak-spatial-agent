@@ -13,7 +13,11 @@
 
 set -euo pipefail
 
-REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+# Under sbatch, $0 is SLURM's spool copy of this file, which is nowhere near
+# the repo. SLURM_SUBMIT_DIR is the directory sbatch was invoked from -- the
+# repo root, per the usage above and every race submitter, which all cd there
+# first. The $0 fallback keeps the file runnable directly, outside SLURM.
+REPO_ROOT="${SLURM_SUBMIT_DIR:-$(cd "$(dirname "$0")/.." && pwd)}"
 D4RT_PYTHON=/cluster/work/igp_psr/spanwar/envs/d4rt/bin/python
 DEPS_DIR="$REPO_ROOT/.cache/qwen3vl_python"
 LOCAL_DEPS="${TMPDIR:-/tmp/$USER}/qwen3vl_python"

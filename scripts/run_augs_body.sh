@@ -21,7 +21,9 @@
 
 set -euo pipefail
 
-REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+# $0 is the LAUNCHER that sourced this -- under sbatch, SLURM's spool copy.
+# BASH_SOURCE[0] is this file, sourced by absolute path, so it resolves.
+REPO_ROOT="${REPO_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
 D4RT_PYTHON=/cluster/work/igp_psr/spanwar/envs/d4rt_bw_third_party/bin/python
 HF_HOME=/cluster/work/igp_psr/spanwar/hf_cache
 cd "$REPO_ROOT"
