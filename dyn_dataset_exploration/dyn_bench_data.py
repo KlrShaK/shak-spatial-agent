@@ -454,3 +454,142 @@ def distinct_question_templates(rows: Sequence[DynRow]) -> dict[str, dict[str, A
         template: {"count": count, "by_task": dict(sorted(by_task[template].items()))}
         for template, count in counts.most_common()
     }
+
+
+# --------------------------------------------------------------------------- #
+# Media resolution
+# --------------------------------------------------------------------------- #
+
+_FRAME_INDEX = re.compile(r"(\d+)(?=\.[A-Za-z0-9]+$)")
+_MASK_NAME = re.compile(r"(?:^|_)frame_?(\d+)_obj(\d+)\.png$", re.IGNORECASE)
+_MASK_NAME_BARE = re.compile(r"^(\d+)_obj(\d+)\.png$", re.IGNORECASE)
+
+
+def _video_candidates(dataset: str, video: str) -> list[str]:
+    """Filenames to try under ``videos/<dataset>/``, most likely first.
+
+    Most sources use the bare clip name. SA-V is the exception twice over: its
+    mp4s carry the ``sav_`` prefix *and* drop the ``_manual`` suffix that the
+    parquet's ``video`` column keeps.
+    """
+
+    names = [video, f"{dataset}_{video}"]
+    if video.endswith("_manual"):
+        stem = video[: -len("_manual")]
+        names += [stem, f"{dataset}_{stem}"]
+    return [f"{name}.mp4" for name in dict.fromkeys(names)]
+
+
+def _frame_index_of(name: str) -> int | None:
+    match = _FRAME_INDEX.search(name)
+    return int(match.group(1)) if match else None
+
+
+def resolve_media(dyn_root: Path, dataset: str, video: str) -> dict[str, Any]:
+    """Locate the mp4, the frame directory and the mask directory for one clip.
+
+    Returns a record even when something is missing -- the missing field is
+    ``None`` and lands in the index's ``unresolved`` list. A clip we cannot
+    resolve is a fact worth reporting, not a reason to abort a 1000-clip scan.
+    """
+
+    root = Path(dyn_root)
+    clip = f"{dataset}_{video}"
+
+    video_path: Path | None = None
+    for candidate in _video_candidates(dataset, video):
+        path = root / "videos" / dataset / candidate
+        if path.exists():
+            video_path = path
+            break
+
+    frames_dir = root / "frames" / dataset / clip
+    frame_names = sorted(p.name for p in frames_dir.iterdir()) if frames_dir.is_dir() else []
+    frame_indices = [i for i in (_frame_index_of(n) for n in frame_names) if i is not None]
+
+    masks_dir = root / "masks" / dataset / clip
+    objects: dict[str, list[int]] = {}
+    if masks_dir.is_dir():
+        for name in sorted(p.name for p in masks_dir.iterdir()):
+            match = _MASK_NAME.search(name) or _MASK_NAME_BARE.match(name)
+            if match:
+                objects.setdefault(f"object_{int(match.group(2))}", []).append(int(match.group(1)))
+
+    sampling = root / "multi_json" / dataset / f"{clip}_frame_sampling.json"
+    sampled: dict[str, Any] | None = None
+    if sampling.exists():
+        payload = json.loads(sampling.read_text(encoding="utf-8"))
+        indices = [int(i) for i in payload.get("frame_indices", [])]
+        sampled = {
+            "total_frames": payload.get("total_frames"),
+            "sampled_frames": payload.get("sampled_frames"),
+            "frame_indices": indices,
+            # The shipped frame_paths point at the authors' cluster; we keep the
+            # indices and re-root the paths onto whatever frames/ we actually have.
+            "frame_files": [
+                frame_names[i] if 0 <= i < len(frame_names) else None for i in indices
+            ],
+        }
+
+    return {
+        "dataset": dataset,
+        "video": video,
+        "video_key": f"{dataset}/{video}",
+        "video_slug": video_slug(dataset, video),
+        "video_path": str(video_path) if video_path else None,
+        "frames_dir": str(frames_dir) if frame_names else None,
+        "frame_pattern": frame_names[0] if frame_names else None,
+        "frame_count": len(frame_names),
+        "masks_dir": str(masks_dir) if objects else None,
+        "objects": {name: len(idx) for name, idx in sorted(objects.items())},
+        "mask_frame_stride": _stride_of(next(iter(objects.values()), [])),
+        "frame_sampling": sampled,
+    }
+
+
+def _stride_of(indices: Sequence[int]) -> int | None:
+    """Spacing between consecutive mask frames, when it is constant.
+
+    DynamicReplica ships masks every fifth frame against 300 RGB frames; DAVIS
+    ships one per frame. A downstream tool that assumes dense masks is wrong on
+    one of them, so the index states which it is.
+    """
+
+    if len(indices) < 2:
+        return None
+    steps = {b - a for a, b in zip(sorted(indices), sorted(indices)[1:])}
+    return steps.pop() if len(steps) == 1 else None
+
+
+def build_index(dyn_root: Path = DEFAULT_DYN_ROOT) -> dict[str, Any]:
+    """Resolve every clip named by the VQA rows to its media on disk."""
+
+    rows = load_rows(qa_parquet(dyn_root))
+    keys = sorted({(row.dataset, row.video) for row in rows})
+    clips = [resolve_media(dyn_root, dataset, video) for dataset, video in keys]
+
+    unresolved = [
+        {
+            "video_key": clip["video_key"],
+            "missing": [
+                field_name
+                for field_name in ("video_path", "frames_dir", "masks_dir", "frame_sampling")
+                if not clip[field_name]
+            ],
+        }
+        for clip in clips
+        if not all(clip[f] for f in ("video_path", "frames_dir", "masks_dir", "frame_sampling"))
+    ]
+
+    return {
+        "purpose": "per-clip media resolution across Dyn-Bench's eight source datasets",
+        "dyn_root": str(dyn_root),
+        "generated_at": _utc_now(),
+        "counts": {
+            "clips": len(clips),
+            "unresolved": len(unresolved),
+            "per_dataset": dict(Counter(clip["dataset"] for clip in clips)),
+        },
+        "unresolved": unresolved,
+        "clips": {clip["video_key"]: clip for clip in clips},
+    }
