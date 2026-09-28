@@ -179,3 +179,135 @@ def extract_labels(content: str) -> dict[str, str]:
         "bucket": bucket if bucket in BUCKET_KEYS else OTHER_BUCKET,
         "bucket_rationale": bucket_rationale,
     }
+
+
+# --------------------------------------------------------------------------- #
+# Network
+# --------------------------------------------------------------------------- #
+
+def call_chat_completion(
+    messages: list[dict[str, str]],
+    response_format: Mapping[str, Any],
+    *,
+    model: str,
+    max_completion_tokens: int = DEFAULT_MAX_COMPLETION_TOKENS,
+    timeout: int = DEFAULT_TIMEOUT,
+    max_retries: int = 3,
+) -> dict[str, Any]:
+    """POST one chat/completions request, retrying transient 5xx errors."""
+
+    url = f"{_base_url()}/chat/completions"
+    body = {
+        "model": model,
+        "messages": messages,
+        "response_format": dict(response_format),
+        "max_completion_tokens": max_completion_tokens,
+    }
+    last_error: Exception | None = None
+    for attempt in range(max_retries):
+        try:
+            response = requests.post(url, headers=_auth_headers(), json=body, timeout=timeout)
+        except requests.RequestException as exc:
+            last_error = exc
+            time.sleep(2**attempt)
+            continue
+        if response.status_code >= 500:
+            last_error = RuntimeError(f"http_{response.status_code}: {response.text[:300]}")
+            time.sleep(2**attempt)
+            continue
+        response.raise_for_status()
+        return response.json()
+    raise RuntimeError(f"chat/completions failed after {max_retries} attempts: {last_error}")
+
+
+# --------------------------------------------------------------------------- #
+# Subcommands
+# --------------------------------------------------------------------------- #
+
+def _load_manifest_entries(results_dir: Path) -> list[dict[str, Any]]:
+    manifest = read_manifest(Path(results_dir) / "manifest.json")
+    return manifest["questions"]
+
+
+def _select_entries(
+    entries: Sequence[Mapping[str, Any]], limit: int | None, only: Sequence[str] | None
+) -> list[Mapping[str, Any]]:
+    selected = list(entries)
+    if only:
+        wanted = set(only)
+        selected = [e for e in selected if str(e["question_id"]) in wanted]
+    if limit is not None:
+        selected = selected[:limit]
+    return selected
+
+
+def _already_done(classify_dir: Path) -> set[str]:
+    if not classify_dir.exists():
+        return set()
+    return {path.stem for path in classify_dir.glob("*.json") if path.stem != "review_queue"}
+
+
+def _classify_one(entry: Mapping[str, Any], *, system_prompt: str, model: str) -> dict[str, Any]:
+    messages = classify_messages(entry, system_prompt)
+    response_format = classify_response_format()
+    started = time.monotonic()
+    raw = call_chat_completion(messages, response_format, model=model)
+    latency = time.monotonic() - started
+    parsed = extract_labels(raw["choices"][0]["message"]["content"])
+    return {
+        "question_id": entry["question_id"],
+        # Scoring-side facts, recorded next to the labels but never sent: the
+        # coarse task and family are what the labels get compared against.
+        "task": entry["task"],
+        "dataset": entry["dataset"],
+        "family": entry["family"],
+        "families": entry.get("families", []),
+        "hypothesis_level": entry.get("hypothesis_level", TASK_TO_LEVEL.get(entry["task"])),
+        "model": model,
+        "requested_at": _utc_now(),
+        "latency_seconds": round(latency, 3),
+        "messages": messages,
+        "response_format": response_format,
+        "raw_response": raw,
+        "parsed": parsed,
+    }
+
+
+def classify(args: argparse.Namespace) -> int:
+    entries = _load_manifest_entries(args.results_dir)
+    entries = _select_entries(entries, args.limit, args.only)
+    classify_dir = _classify_dir(args.results_dir)
+    classify_dir.mkdir(parents=True, exist_ok=True)
+
+    done = set() if args.force else _already_done(classify_dir)
+    pending = [e for e in entries if str(e["question_id"]) not in done]
+    print(
+        f"{len(entries)} selected, {len(pending)} pending "
+        f"({len(entries) - len(pending)} already done)"
+    )
+    if not pending:
+        return 0
+
+    system_prompt = SYSTEM_PROMPT_PATH.read_text(encoding="utf-8")
+    errors = 0
+    with ThreadPoolExecutor(max_workers=args.concurrency) as executor:
+        futures = {
+            executor.submit(
+                _classify_one, entry, system_prompt=system_prompt, model=args.model
+            ): entry
+            for entry in pending
+        }
+        for future in as_completed(futures):
+            entry = futures[future]
+            qid = str(entry["question_id"])
+            try:
+                record = future.result()
+            except Exception as exc:  # noqa: BLE001 -- report and continue, never abort the batch
+                errors += 1
+                print(f"  ERROR {qid}: {exc}")
+                continue
+            _write_atomic(classify_dir / f"{qid}.json", record)
+            print(f"  {qid}: {record['parsed']['bucket']} / {record['parsed']['paper_task']}")
+
+    print(f"done: {len(pending) - errors} written, {errors} errors")
+    return 1 if errors else 0
