@@ -251,3 +251,178 @@ def test_distinct_question_templates_counts_per_task():
 
 
 # --------------------------------------------------------------------------- #
+# Water-fill allocation
+# --------------------------------------------------------------------------- #
+
+def test_water_fill_is_equal_when_every_stratum_is_deep_enough():
+    assert water_fill({"a": 100, "b": 100, "c": 100}, 30) == {"a": 10, "b": 10, "c": 10}
+
+
+def test_water_fill_redistributes_what_a_thin_stratum_cannot_take():
+    quota = water_fill({"thin": 2, "fat": 100, "fatter": 100}, 30)
+    assert quota["thin"] == 2
+    assert sum(quota.values()) == 30
+
+
+def test_water_fill_never_exceeds_availability():
+    quota = water_fill({"a": 3, "b": 4}, 100)
+    assert quota == {"a": 3, "b": 4}
+
+
+def test_water_fill_is_independent_of_dict_order():
+    forward = water_fill({"a": 5, "b": 100, "c": 100}, 31)
+    backward = water_fill({"c": 100, "b": 100, "a": 5}, 31)
+    assert forward == backward
+
+
+# --------------------------------------------------------------------------- #
+# Sampling
+# --------------------------------------------------------------------------- #
+
+def _synthetic_rows() -> list[DynRow]:
+    rows: list[DynRow] = []
+    index = 0
+    for task in TASKS:
+        for clip in range(40):
+            for qa_index, (question, options) in enumerate(
+                [
+                    ("How many distinct people appear?", ["A. One", "B. Two"]),
+                    ("What best describes the main activity?", ["A. surfing", "B. skiing"]),
+                ]
+            ):
+                rows.append(
+                    make_row(
+                        task=task,
+                        video=f"clip{clip:03d}",
+                        qa_index=qa_index,
+                        question=question,
+                        options=parse_options(options),
+                        row_index=index,
+                    )
+                )
+                index += 1
+    return rows
+
+
+def test_stratified_sample_is_reproducible_for_one_seed():
+    rows = _synthetic_rows()
+    quotas = {task: 20 for task in TASKS}
+    first = [r.question_id for r in stratified_sample(rows, 7, quotas)]
+    second = [r.question_id for r in stratified_sample(rows, 7, quotas)]
+    assert first == second
+
+
+def test_stratified_sample_does_not_depend_on_input_order():
+    rows = _synthetic_rows()
+    quotas = {task: 20 for task in TASKS}
+    forward = [r.question_id for r in stratified_sample(rows, 7, quotas)]
+    backward = [r.question_id for r in stratified_sample(list(reversed(rows)), 7, quotas)]
+    assert forward == backward
+
+
+def test_stratified_sample_honours_the_per_task_quota():
+    rows = _synthetic_rows()
+    quotas = {task: 20 for task in TASKS}
+    sample = stratified_sample(rows, 7, quotas)
+    for task in TASKS:
+        assert sum(1 for r in sample if r.task == task) == 20
+
+
+def test_stratified_sample_covers_every_family_present():
+    rows = _synthetic_rows()
+    sample = stratified_sample(rows, 7, {task: 20 for task in TASKS})
+    families = {family_of(r.question, r.options) for r in sample}
+    assert families == {"instance_count", "activity_semantic"}
+
+
+def test_stratified_sample_prefers_distinct_videos_within_a_task():
+    rows = _synthetic_rows()
+    sample = stratified_sample(rows, 7, {"qa": 20})
+    keys = [r.video_key for r in sample if r.task == "qa"]
+    assert len(set(keys)) == len(keys)
+
+
+# --------------------------------------------------------------------------- #
+# Stats and IO
+# --------------------------------------------------------------------------- #
+
+def test_build_stats_flags_a_broken_answer_key():
+    rows = [make_row(answer="E")]
+    issues = build_stats(rows)["data_issues"]
+    assert issues and "not one of" in issues[0]["issue"]
+
+
+def test_build_stats_counts_the_shortcut_indicators():
+    rows = [
+        make_row(
+            qa_index=i,
+            options=parse_options(["A. short", "B. a considerably longer option"]),
+            answer="B",
+        )
+        for i in range(4)
+    ]
+    shortcut = build_stats(rows)["shortcut_indicators"]["by_task"]["all"]
+    assert shortcut["answer_is_longest_option"] == 100.0
+    assert shortcut["answer_is_A"] == 0.0
+
+
+def test_write_manifest_round_trips(tmp_path: Path):
+    payload = {"a": 1, "b": ["c"]}
+    path = write_manifest(payload, tmp_path / "m.json")
+    assert read_manifest(path) == payload
+    assert not list(tmp_path.glob("*.tmp"))
+
+
+def test_file_sha256_matches_hashlib(tmp_path: Path):
+    import hashlib
+
+    path = tmp_path / "f.bin"
+    path.write_bytes(b"dyn-bench")
+    assert file_sha256(path) == hashlib.sha256(b"dyn-bench").hexdigest()
+
+
+def test_task_to_level_covers_every_task_with_a_real_paper_level():
+    assert set(TASK_TO_LEVEL) == set(TASKS)
+    from dyn_dataset_exploration.dyn_bench_data import PAPER_LEVELS
+
+    assert set(TASK_TO_LEVEL.values()) == set(PAPER_LEVELS)
+    assert len(PAPER_TASKS) == 9
+
+
+# --------------------------------------------------------------------------- #
+# Against the real dataset
+# --------------------------------------------------------------------------- #
+
+@needs_dataset
+def test_real_dataset_shape():
+    rows = load_rows(qa_parquet(DEFAULT_DYN_ROOT))
+    assert len(rows) == 7000
+    assert {r.task for r in rows} == set(TASKS)
+    assert len({r.video_key for r in rows}) == 1000
+    # The export ships four lowercase answers; load_rows must have folded them.
+    assert {r.answer for r in rows} == {"A", "B", "C", "D"}
+
+
+@needs_dataset
+def test_real_dataset_has_four_options_and_a_valid_answer_everywhere():
+    rows = load_rows(qa_parquet(DEFAULT_DYN_ROOT))
+    assert all(len(r.options) == 4 for r in rows)
+    assert all(r.answer in r.options for r in rows)
+
+
+def test_build_stats_carries_the_normalisation_record():
+    """What load_rows silently fixed must survive into the artifact."""
+
+    stats = build_stats([make_row()], {"lowercase_answer_rows": 4, "whitespace_answer_rows": 0})
+    assert stats["normalisation"]["lowercase_answer_rows"] == 4
+
+
+def test_build_stats_defaults_the_normalisation_record_to_zero():
+    assert build_stats([make_row()])["normalisation"]["lowercase_answer_rows"] == 0
+
+
+@needs_dataset
+def test_real_dataset_ships_four_lowercase_answers():
+    counts = answer_normalisations(qa_parquet(DEFAULT_DYN_ROOT))
+    assert counts["lowercase_answer_rows"] == 4
+    assert counts["whitespace_answer_rows"] == 0
