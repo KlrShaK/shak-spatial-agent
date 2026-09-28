@@ -123,3 +123,131 @@ def test_question_id_is_unique_per_task_and_index():
 # --------------------------------------------------------------------------- #
 # Blindness
 # --------------------------------------------------------------------------- #
+
+def test_format_question_prompt_shows_only_question_and_options():
+    row = make_row(question="Which way?", answer="C", dataset="sav", task="sceneqa")
+    prompt = format_question_prompt(
+        {"question": row.question, "options": row.options, "task": row.task}
+    )
+    assert prompt.splitlines()[0] == "Which way?"
+    assert "sceneqa" not in prompt
+    assert "sav" not in prompt
+    for letter in "ABCD":
+        assert f"{letter}: " in prompt
+
+
+# --------------------------------------------------------------------------- #
+# Families
+# --------------------------------------------------------------------------- #
+
+@pytest.mark.parametrize(
+    "question, options, expected",
+    [
+        (
+            "What is the average speed of the snowboarder?",
+            ["A. 5.2 m/s", "B. 8.7 m/s", "C. 12.1 m/s", "D. 15.3 m/s"],
+            "metric_speed",
+        ),
+        (
+            "At the moment the dog lies down, what is the distance to the tree?",
+            ["A. 5 meters", "B. 10 meters", "C. 15 meters", "D. 20 meters"],
+            "metric_distance",
+        ),
+        ("How many distinct people appear in the video?", ["A. One", "B. Two"], "instance_count"),
+        (
+            "Which happens first: the camera pans, or the child enters the frame?",
+            ["A. Camera", "B. Child"],
+            "event_order",
+        ),
+        (
+            "At approximately 2.67 seconds, where is the skateboarder?",
+            ["A. left", "B. right"],
+            "timestamped",
+        ),
+        (
+            "What is the primary trajectory movement of the camera in the video?",
+            ["A. Pans left", "B. Tilts up"],
+            "camera_trajectory",
+        ),
+        (
+            "Does the deer's grazing action occur continuously, intermittently, or briefly?",
+            ["A. continuously", "B. briefly"],
+            "motion_continuity",
+        ),
+        ("How does the boat's orientation change as it travels?", ["A. left", "B. right"], "subject_orientation"),
+        (
+            "Is the background scene the same at the start and end of the video?",
+            ["A. yes", "B. no"],
+            "scene_revisit",
+        ),
+        (
+            "Do the two men get closer to each other or farther apart?",
+            ["A. closer", "B. farther"],
+            "object_object_relation",
+        ),
+        ("What best describes the main activity in the video?", ["A. surfing"], "activity_semantic"),
+        ("Is this a question about nothing in particular?", ["A. yes"], "unfamilied"),
+    ],
+)
+def test_family_of_assigns_the_expected_primary_family(question, options, expected):
+    assert family_of(question, parse_options(options)) == expected
+
+
+def test_apparent_size_outranks_camera_zoom():
+    """Zoom named as the confound must not steal a question about projected size."""
+
+    question = (
+        "Over time, does the main object visually appear larger or smaller? "
+        "(Considering combined effects of zoom and physical motion)"
+    )
+    assert family_of(question, parse_options(["A. larger", "B. smaller"])) == "apparent_size"
+
+
+def test_metric_units_outrank_the_question_stem():
+    """The same stem is a different measurement when the options carry units."""
+
+    stem = "How far apart are the dog and the tree?"
+    ordinal = parse_options(["A. closer", "B. farther", "C. unchanged", "D. unclear"])
+    metric = parse_options(["A. 5 meters", "B. 10 meters", "C. 15 meters", "D. 20 meters"])
+    assert family_of(stem, ordinal) != "metric_distance"
+    assert family_of(stem, metric) == "metric_distance"
+
+
+def test_all_families_reports_every_match_not_just_the_primary():
+    question = "At approximately 5.0 seconds, what is the distance between the dog and the tree?"
+    options = parse_options(["A. 1 meters", "B. 2 meters", "C. 3 meters", "D. 4 meters"])
+    matched = all_families_of(question, options)
+    assert "metric_distance" in matched
+    assert "timestamped" in matched
+    assert family_of(question, options) == "metric_distance"
+
+
+def test_every_family_name_has_a_description():
+    from dyn_dataset_exploration.dyn_bench_data import FAMILY_DESCRIPTIONS
+
+    assert set(FAMILY_NAMES) == set(FAMILY_DESCRIPTIONS)
+
+
+# --------------------------------------------------------------------------- #
+# Templates
+# --------------------------------------------------------------------------- #
+
+def test_normalize_template_folds_numbers_and_possessives():
+    a = normalize_template("At 5.33 seconds, how does the cat's position change?")
+    b = normalize_template("At 12 seconds, how does the dog's position change?")
+    assert a == b
+
+
+def test_distinct_question_templates_counts_per_task():
+    rows = [
+        make_row(task="qa", qa_index=0, question="How far did the cat's paw move?"),
+        make_row(task="sceneqa", qa_index=1, question="How far did the dog's paw move?"),
+    ]
+    templates = distinct_question_templates(rows)
+    assert len(templates) == 1
+    only = next(iter(templates.values()))
+    assert only["count"] == 2
+    assert only["by_task"] == {"qa": 1, "sceneqa": 1}
+
+
+# --------------------------------------------------------------------------- #
