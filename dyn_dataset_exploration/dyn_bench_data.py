@@ -593,3 +593,95 @@ def build_index(dyn_root: Path = DEFAULT_DYN_ROOT) -> dict[str, Any]:
         "unresolved": unresolved,
         "clips": {clip["video_key"]: clip for clip in clips},
     }
+
+
+# --------------------------------------------------------------------------- #
+# Statistics
+# --------------------------------------------------------------------------- #
+
+def build_stats(
+    rows: Sequence[DynRow], normalisation: Mapping[str, int] | None = None
+) -> dict[str, Any]:
+    """Descriptive facts about the 7000 rows. No model, no sampling, no inference."""
+
+    per_task: dict[str, Any] = {}
+    for task in TASKS:
+        subset = [row for row in rows if row.task == task]
+        lengths = [len(row.options[letter]) for row in subset for letter in row.options]
+        per_task[task] = {
+            "rows": len(subset),
+            "distinct_videos": len({row.video_key for row in subset}),
+            "distinct_questions": len({row.question for row in subset}),
+            "answer_histogram": dict(sorted(Counter(row.answer for row in subset).items())),
+            "option_chars_median": round(statistics.median(lengths), 1) if lengths else 0.0,
+            "primary_family": dict(
+                Counter(family_of(row.question, row.options) for row in subset).most_common()
+            ),
+        }
+
+    family_overlap: Counter[str] = Counter()
+    for row in rows:
+        matched = all_families_of(row.question, row.options)
+        if len(matched) > 1:
+            family_overlap[" + ".join(matched)] += 1
+
+    # Kept because it changes how every accuracy number on this benchmark should
+    # be read, and it costs one pass over the parquet. It is a property of the
+    # option text, not a model run.
+    shortcut: dict[str, Any] = {}
+    for task in (*TASKS, "all"):
+        subset = rows if task == "all" else [row for row in rows if row.task == task]
+        longest = sum(
+            1
+            for row in subset
+            if max(row.option_letters, key=lambda letter: len(row.options[letter])) == row.answer
+        )
+        shortcut[task] = {
+            "rows": len(subset),
+            "answer_is_longest_option": round(100.0 * longest / len(subset), 1) if subset else 0.0,
+            "answer_is_A": round(
+                100.0 * sum(1 for row in subset if row.answer == "A") / len(subset), 1
+            )
+            if subset
+            else 0.0,
+        }
+
+    dirty = [
+        {"question_id": row.question_id, "issue": issue}
+        for row in rows
+        for issue in _row_issues(row)
+    ]
+
+    return {
+        "purpose": "deterministic descriptive statistics over the whole Dyn-Bench VQA split",
+        "generated_at": _utc_now(),
+        "total_rows": len(rows),
+        "normalisation": dict(normalisation or {"lowercase_answer_rows": 0, "whitespace_answer_rows": 0}),
+        "per_dataset": dict(Counter(row.dataset for row in rows).most_common()),
+        "per_task": per_task,
+        "answer_histogram": dict(sorted(Counter(row.answer for row in rows).items())),
+        "family_descriptions": FAMILY_DESCRIPTIONS,
+        "family_totals": dict(
+            Counter(family_of(row.question, row.options) for row in rows).most_common()
+        ),
+        "family_overlaps": dict(family_overlap.most_common(20)),
+        "shortcut_indicators": {
+            "note": (
+                "properties of the shipped option text, not model results -- recorded "
+                "because they bound how much of this benchmark is a vision task"
+            ),
+            "by_task": shortcut,
+        },
+        "data_issues": dirty,
+    }
+
+
+def _row_issues(row: DynRow) -> list[str]:
+    issues: list[str] = []
+    if len(row.options) != 4:
+        issues.append(f"expected 4 options, found {len(row.options)}")
+    if row.answer not in row.options:
+        issues.append(f"answer {row.answer!r} is not one of {sorted(row.options)}")
+    if not row.question:
+        issues.append("empty question")
+    return issues
