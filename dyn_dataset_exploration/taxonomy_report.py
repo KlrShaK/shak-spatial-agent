@@ -166,3 +166,103 @@ def population_estimate(
             for bucket, value in sorted(estimate.items(), key=lambda kv: -kv[1])
         },
     }
+
+
+def population_table(estimate: Mapping[str, Any]) -> str:
+    rows = [
+        [f"`{bucket}`", _coverage_label(bucket), info["rows"], info["share"]]
+        for bucket, info in estimate["by_bucket"].items()
+    ]
+    return _table(["bucket", "AgentV4 coverage", "estimated rows (of 7000)", "share"], rows)
+
+
+def paper_task_section(classifications: Mapping[str, Mapping[str, Any]]) -> str:
+    counts: Counter[str] = Counter(r["parsed"]["paper_task"] for r in classifications.values())
+    total = sum(counts.values())
+    lines: list[str] = []
+    for level, names in PAPER_LEVELS.items():
+        level_total = sum(counts.get(name, 0) for name in names)
+        lines.append(f"**{level}** — {level_total} of {total} sampled questions")
+        lines.append("")
+        lines.append(
+            _table(
+                ["sub-task", "n", "share"],
+                [[f"`{name}`", counts.get(name, 0), _pct(counts.get(name, 0), total)] for name in names],
+            )
+        )
+        lines.append("")
+    if counts.get(OTHER_BUCKET):
+        lines.append(f"`OTHER`: {counts[OTHER_BUCKET]} questions fit none of the nine.")
+        lines.append("")
+    return "\n".join(lines)
+
+
+def level_agreement_table(classifications: Mapping[str, Mapping[str, Any]]) -> str:
+    """Does the shipped coarse task predict the paper's level?
+
+    This is the Dyn-Bench equivalent of the DSI pass's ``cate`` ↔ bucket
+    agreement table. ``TASK_TO_LEVEL`` is the hypothesis; this counts how often
+    the blind classifier lands in the hypothesised level.
+    """
+
+    rows = []
+    for task in TASKS:
+        subset = [r for r in classifications.values() if r["task"] == task]
+        hypothesis = TASK_TO_LEVEL[task]
+        agree = sum(
+            1
+            for r in subset
+            if LEVEL_OF_PAPER_TASK.get(r["parsed"]["paper_task"]) == hypothesis
+        )
+        other = sum(1 for r in subset if r["parsed"]["paper_task"] == OTHER_BUCKET)
+        rows.append([f"`{task}`", hypothesis, len(subset), agree, other, _pct(agree, len(subset))])
+    return _table(
+        ["coarse task", "hypothesised level", "n", "agree", "OTHER", "agreement"], rows
+    )
+
+
+def cross_tab(classifications: Mapping[str, Mapping[str, Any]]) -> str:
+    """Paper sub-task (rows) × measurement bucket (columns), non-empty cells only.
+
+    Rendered as a list rather than a 19-column matrix: at 600 questions the
+    matrix is mostly zeros, and the list makes the few dense cells -- the ones
+    that say which published sub-task a new AgentV5 bucket would actually move --
+    readable without horizontal scrolling.
+    """
+
+    pairs: Counter[tuple[str, str]] = Counter(
+        (r["parsed"]["paper_task"], r["parsed"]["bucket"]) for r in classifications.values()
+    )
+    by_task: dict[str, list[tuple[str, int]]] = {}
+    for (paper_task, bucket), count in pairs.items():
+        by_task.setdefault(paper_task, []).append((bucket, count))
+
+    lines: list[str] = []
+    for paper_task in (*PAPER_TASKS, OTHER_BUCKET):
+        entries = sorted(by_task.get(paper_task, []), key=lambda kv: -kv[1])
+        if not entries:
+            continue
+        total = sum(count for _, count in entries)
+        rendered = ", ".join(f"`{bucket}` {count}" for bucket, count in entries)
+        lines.append(f"- **`{paper_task}`** ({total}) → {rendered}")
+    return "\n".join(lines)
+
+
+def family_to_bucket_table(classifications: Mapping[str, Mapping[str, Any]]) -> str:
+    """Regex family (what we guessed) vs LLM bucket (what it turned out to be).
+
+    The families exist to stratify the sample, not to classify it. This table is
+    how much they happened to agree -- and where they did not, the family regex
+    is the thing that was wrong, not the bucket.
+    """
+
+    by_family: dict[str, Counter[str]] = {}
+    for record in classifications.values():
+        by_family.setdefault(record["family"], Counter())[record["parsed"]["bucket"]] += 1
+    rows = []
+    for family in sorted(by_family, key=lambda f: -sum(by_family[f].values())):
+        counts = by_family[family]
+        total = sum(counts.values())
+        top = ", ".join(f"`{b}` {n}" for b, n in counts.most_common(3))
+        rows.append([f"`{family}`", FAMILY_DESCRIPTIONS.get(family, ""), total, top])
+    return _table(["sampling family", "regex intent", "n", "buckets the LLM assigned"], rows)
