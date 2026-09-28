@@ -685,3 +685,164 @@ def _row_issues(row: DynRow) -> list[str]:
     if not row.question:
         issues.append("empty question")
     return issues
+
+
+# --------------------------------------------------------------------------- #
+# Sampling
+# --------------------------------------------------------------------------- #
+
+def water_fill(available: Mapping[str, int], total: int) -> dict[str, int]:
+    """Spread ``total`` as evenly as possible over strata, capped by availability.
+
+    Equal allocation, not proportional: the point of stratifying by family is
+    that a 60-row family says as much about what AgentV5 needs as a 900-row one.
+    Strata that cannot fill their share hand the remainder back, and the loop
+    repeats until nothing more can be placed. Ties break on the stratum name so
+    the result does not depend on dict order.
+    """
+
+    quota = {name: 0 for name in available}
+    remaining = min(total, sum(available.values()))
+    open_strata = {name for name, count in available.items() if count > 0}
+    while remaining > 0 and open_strata:
+        share, extra = divmod(remaining, len(open_strata))
+        placed = 0
+        for position, name in enumerate(sorted(open_strata)):
+            want = share + (1 if position < extra else 0)
+            can = min(want, available[name] - quota[name])
+            quota[name] += can
+            placed += can
+        remaining -= placed
+        open_strata = {name for name in open_strata if quota[name] < available[name]}
+        if placed == 0:
+            break
+    return {name: count for name, count in quota.items() if count}
+
+
+def _draw(pool: Sequence[DynRow], quota: int, rng: random.Random, used_videos: set[str]) -> list[DynRow]:
+    """Take ``quota`` rows from ``pool``, rare datasets first, distinct videos.
+
+    ``used_videos`` is shared across the families of one task, so a task's 200
+    questions come from 200 different clips wherever the pool allows it; it is
+    *not* shared across tasks, because the same clip answering a camera question
+    and a scene question is two different measurements.
+    """
+
+    rare = [row for row in pool if row.dataset in RARE_DATASETS]
+    common = [row for row in pool if row.dataset not in RARE_DATASETS]
+    rng.shuffle(rare)
+    rng.shuffle(common)
+    reserve = min(len(rare), max(1, int(quota * RARE_RESERVE_FRACTION)) if rare else 0)
+    ordered = [*rare[:reserve], *common, *rare[reserve:]]
+
+    chosen: list[DynRow] = []
+    for row in ordered:
+        if row.video_key in used_videos:
+            continue
+        used_videos.add(row.video_key)
+        chosen.append(row)
+        if len(chosen) == quota:
+            break
+    # Only if distinct-video coverage could not fill the quota do we allow a
+    # repeat clip -- a thin family is worth sampling twice from one video.
+    if len(chosen) < quota:
+        for row in ordered:
+            if row in chosen:
+                continue
+            chosen.append(row)
+            if len(chosen) == quota:
+                break
+    return chosen
+
+
+def stratified_sample(
+    rows: Sequence[DynRow], seed: int, task_quotas: Mapping[str, int] = TASK_QUOTAS
+) -> list[DynRow]:
+    """Draw ``task_quotas[task]`` questions per task, stratified by family."""
+
+    rng = random.Random(seed)
+    selected: list[DynRow] = []
+    for task in sorted(task_quotas):
+        # Sorted explicitly so the draw never depends on parquet row order.
+        pool = sorted(
+            (row for row in rows if row.task == task),
+            key=lambda row: (row.video_key, row.qa_index, row.row_index),
+        )
+        by_family: dict[str, list[DynRow]] = {}
+        for row in pool:
+            by_family.setdefault(family_of(row.question, row.options), []).append(row)
+        quotas = water_fill({name: len(pool_) for name, pool_ in by_family.items()}, task_quotas[task])
+        used_videos: set[str] = set()
+        for family in sorted(quotas):
+            selected.extend(_draw(by_family[family], quotas[family], rng, used_videos))
+    return selected
+
+
+def build_taxonomy_manifest(
+    dyn_root: Path = DEFAULT_DYN_ROOT,
+    seed: int = DEFAULT_SEED,
+    task_quotas: Mapping[str, int] = TASK_QUOTAS,
+) -> dict[str, Any]:
+    """Select the taxonomy sample and describe the selection well enough to repeat it."""
+
+    parquet = qa_parquet(dyn_root)
+    rows = load_rows(parquet)
+    selected = stratified_sample(rows, seed, task_quotas)
+
+    entries: list[dict[str, Any]] = []
+    for row in selected:
+        record = asdict(row)
+        record.update(
+            {
+                "option_letters": row.option_letters,
+                "question_id": row.question_id,
+                "video_key": row.video_key,
+                "video_slug": row.video_slug,
+                "family": family_of(row.question, row.options),
+                "families": all_families_of(row.question, row.options),
+                "hypothesis_level": TASK_TO_LEVEL[row.task],
+            }
+        )
+        entries.append(record)
+
+    ids = Counter(entry["question_id"] for entry in entries)
+    duplicates = [qid for qid, count in ids.items() if count > 1]
+    if duplicates:
+        raise ValueError(f"duplicate question_ids in sample: {duplicates[:5]}")
+
+    return {
+        "benchmark": "Dyn-Bench",
+        "purpose": (
+            "dyn_dataset_exploration taxonomy sample -- family-stratified within each "
+            "coarse task, not proportional to the benchmark's own skew"
+        ),
+        "created_at": _utc_now(),
+        "dyn_root": str(dyn_root),
+        "parquet_path": str(parquet),
+        "parquet_sha256": file_sha256(parquet),
+        "sampling": {
+            "design": "family_stratified",
+            "description": (
+                "equal allocation over question families within each coarse task, capped "
+                "by availability; rare source datasets reserved a share of each family's "
+                "quota; distinct videos within a task"
+            ),
+            "seed": seed,
+            "task_quotas": dict(task_quotas),
+            "rare_datasets": sorted(RARE_DATASETS),
+            "rare_reserve_fraction": RARE_RESERVE_FRACTION,
+            "total_source_questions": len(rows),
+            "total_selected": len(selected),
+        },
+        "counts": {
+            "per_task": dict(Counter(e["task"] for e in entries).most_common()),
+            "per_family": dict(Counter(e["family"] for e in entries).most_common()),
+            "per_dataset": dict(Counter(e["dataset"] for e in entries).most_common()),
+            "distinct_videos": len({e["video_key"] for e in entries}),
+        },
+        "caveat": (
+            "family labels are regex, used as sampling strata and descriptive statistics; "
+            "the taxonomy itself is decided by taxonomy_classify.py"
+        ),
+        "questions": entries,
+    }
