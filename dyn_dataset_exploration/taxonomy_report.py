@@ -491,3 +491,33 @@ def build_report(
         "`AGENT_V5_GAPS.md` for what has to change in `d4rt_agent/`.",
     ]
     return "\n".join(lines)
+
+
+def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--results-dir", type=Path, default=DEFAULT_RESULTS_DIR)
+    return parser.parse_args(argv)
+
+
+def main(argv: Sequence[str] | None = None) -> None:
+    args = parse_args(argv)
+    results_dir = Path(args.results_dir)
+    classify_dir = results_dir / "classify"
+    review_path = classify_dir / "review_queue.json"
+
+    report = build_report(
+        index=_load_json(results_dir / "index.json"),
+        stats=_load_json(results_dir / "stats.json"),
+        templates=_load_json(results_dir / "templates.json"),
+        manifest=_load_json(results_dir / "manifest.json"),
+        classifications=load_classifications(classify_dir),
+        review_queue=_load_json(review_path) if review_path.exists() else None,
+    )
+    out_path = results_dir / "TAXONOMY_REPORT.md"
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    out_path.write_text(report + "\n", encoding="utf-8")
+    print(f"wrote {out_path}")
+
+
+if __name__ == "__main__":
+    main()
