@@ -311,3 +311,133 @@ def classify(args: argparse.Namespace) -> int:
 
     print(f"done: {len(pending) - errors} written, {errors} errors")
     return 1 if errors else 0
+
+
+def load_classifications(classify_dir: Path) -> dict[str, dict[str, Any]]:
+    records: dict[str, dict[str, Any]] = {}
+    if not Path(classify_dir).exists():
+        return records
+    for path in sorted(Path(classify_dir).glob("*.json")):
+        if path.stem == "review_queue":
+            continue
+        record = json.loads(path.read_text(encoding="utf-8"))
+        records[str(record["question_id"])] = record
+    return records
+
+
+def review_reasons(record: Mapping[str, Any]) -> list[str]:
+    """Why one classification wants a human look.
+
+    Three reasons, and they are not the same kind of thing. A level mismatch
+    tests the paper-taxonomy hypothesis. ``OTHER`` says the answer space is
+    incomplete. A *new* bucket -- one AgentV4 does not implement -- is the only
+    kind of row that can create work for AgentV5, so every one of those is worth
+    reading even when nothing looks wrong with it.
+    """
+
+    parsed = record["parsed"]
+    reasons: list[str] = []
+    level = LEVEL_OF_PAPER_TASK.get(parsed["paper_task"])
+    if level is not None and level != record.get("hypothesis_level"):
+        reasons.append(f"level mismatch: {record.get('hypothesis_level')} -> {level}")
+    if parsed["paper_task"] == OTHER_BUCKET:
+        reasons.append("paper_task is OTHER")
+    if parsed["bucket"] == OTHER_BUCKET:
+        reasons.append("bucket is OTHER")
+    elif parsed["bucket"] not in V4_BUCKETS:
+        reasons.append(f"candidate bucket not implemented in AgentV4: {parsed['bucket']}")
+    return reasons
+
+
+def review(args: argparse.Namespace) -> int:
+    entries = {str(e["question_id"]): e for e in _load_manifest_entries(args.results_dir)}
+    classify_dir = _classify_dir(args.results_dir)
+    classifications = load_classifications(classify_dir)
+    if not classifications:
+        raise SystemExit(f"no classifications found in {classify_dir} -- run `classify` first")
+
+    queue: list[dict[str, Any]] = []
+    for qid, record in sorted(classifications.items()):
+        reasons = review_reasons(record)
+        if not reasons:
+            continue
+        entry = entries.get(qid, {})
+        parsed = record["parsed"]
+        queue.append(
+            {
+                "question_id": qid,
+                "task": record.get("task"),
+                "family": record.get("family"),
+                "video_key": entry.get("video_key"),
+                "question": entry.get("question"),
+                "options": entry.get("options"),
+                "hypothesis_level": record.get("hypothesis_level"),
+                "llm_paper_task": parsed["paper_task"],
+                "llm_paper_rationale": parsed["paper_rationale"],
+                "llm_bucket": parsed["bucket"],
+                "llm_bucket_rationale": parsed["bucket_rationale"],
+                "review_reasons": reasons,
+                "human_verdict": None,
+                "human_notes": "",
+            }
+        )
+
+    queue.sort(key=lambda item: (item["task"] or "", item["llm_bucket"], item["question_id"]))
+    payload = {
+        "generated_at": _utc_now(),
+        "total_classified": len(classifications),
+        "total_queued": len(queue),
+        "queued_by_reason": _count_reasons(queue),
+        "queue": queue,
+    }
+    out_path = classify_dir / "review_queue.json"
+    _write_atomic(out_path, payload)
+    print(f"{len(classifications)} classified, {len(queue)} queued for review -> {out_path}")
+    for reason, count in payload["queued_by_reason"].items():
+        print(f"  {count:4d}  {reason}")
+    return 0
+
+
+def _count_reasons(queue: Sequence[Mapping[str, Any]]) -> dict[str, int]:
+    counts: dict[str, int] = {}
+    for item in queue:
+        for reason in item["review_reasons"]:
+            key = reason.split(":")[0]
+            counts[key] = counts.get(key, 0) + 1
+    return dict(sorted(counts.items(), key=lambda kv: -kv[1]))
+
+
+def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--results-dir", type=Path, default=DEFAULT_RESULTS_DIR)
+    sub = parser.add_subparsers(dest="command", required=True)
+
+    p_classify = sub.add_parser(
+        "classify", help="blind-classify the sample on both taxonomy axes"
+    )
+    p_classify.add_argument("--model", default=os.environ.get("TAXONOMY_MODEL", DEFAULT_MODEL))
+    p_classify.add_argument(
+        "--limit", type=int, default=None, help="classify only the first N questions (smoke test)"
+    )
+    p_classify.add_argument(
+        "--only", nargs="*", default=None, help="classify only these question_ids"
+    )
+    p_classify.add_argument("--concurrency", type=int, default=DEFAULT_CONCURRENCY)
+    p_classify.add_argument(
+        "--force", action="store_true", help="reclassify even if already written"
+    )
+    p_classify.set_defaults(func=classify)
+
+    p_review = sub.add_parser("review", help="build the review queue (no network)")
+    p_review.set_defaults(func=review)
+
+    return parser.parse_args(argv)
+
+
+def main(argv: Sequence[str] | None = None) -> None:
+    args = parse_args(argv)
+    raise SystemExit(args.func(args))
+
+
+if __name__ == "__main__":
+    main()
