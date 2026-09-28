@@ -13,6 +13,11 @@ venv/
 /.cache/
 /logs/
 
+# Regenerable DynBench run output (reports in this directory remain trackable)
+/dyn_dataset_exploration/logs/*.json
+/dyn_dataset_exploration/logs/*.json.tmp
+/dyn_dataset_exploration/logs/classify/
+
 # Editor state
 *.swp
 
