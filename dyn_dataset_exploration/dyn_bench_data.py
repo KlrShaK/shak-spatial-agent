@@ -846,3 +846,185 @@ def build_taxonomy_manifest(
         ),
         "questions": entries,
     }
+
+
+# --------------------------------------------------------------------------- #
+# Paper taxonomy (axis A) -- names verbatim from arXiv 2603.12746
+# --------------------------------------------------------------------------- #
+
+PAPER_LEVELS: dict[str, tuple[str, ...]] = {
+    "Dynamic Inter-Object Perception": (
+        "Act. & Obj. Desc.",
+        "Move. & Temp. Dyn.",
+        "Spatial Rel. & Change",
+    ),
+    "Dynamic Object-Scene Tracking": (
+        "Mov. Patterns & Traj.",
+        "Spatial Rel. & Comp.",
+        "Scene Focus & Dyn.",
+    ),
+    "Dynamic Camera-Object Reasoning": (
+        "Cam. Motion & Orient.",
+        "Cam-Obj. Interaction",
+        "Temp. & Visual Change",
+    ),
+}
+PAPER_TASKS: tuple[str, ...] = tuple(
+    name for names in PAPER_LEVELS.values() for name in names
+)
+LEVEL_OF_PAPER_TASK: dict[str, str] = {
+    name: level for level, names in PAPER_LEVELS.items() for name in names
+}
+# Hypothesis, not fact: the paper names three levels and ships three coarse task
+# labels, in the same order. Confirming or breaking this mapping is one of the
+# two things the LLM pass is for.
+TASK_TO_LEVEL: dict[str, str] = {
+    "qa": "Dynamic Inter-Object Perception",
+    "sceneqa": "Dynamic Object-Scene Tracking",
+    "cameraqa": "Dynamic Camera-Object Reasoning",
+}
+
+
+# --------------------------------------------------------------------------- #
+# IO helpers (same contract as dsi_bench_data's)
+# --------------------------------------------------------------------------- #
+
+def _utc_now() -> str:
+    return datetime.now(timezone.utc).isoformat()
+
+
+def file_sha256(path: Path) -> str:
+    digest = hashlib.sha256()
+    with open(path, "rb") as handle:
+        for chunk in iter(lambda: handle.read(1 << 20), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def write_manifest(payload: Mapping[str, Any], path: Path) -> Path:
+    """Write JSON atomically: a SLURM kill mid-write must not leave half a file."""
+
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temporary = path.with_suffix(path.suffix + ".tmp")
+    temporary.write_text(json.dumps(payload, indent=2, allow_nan=False) + "\n", encoding="utf-8")
+    os.replace(temporary, path)
+    return path
+
+
+def read_manifest(path: Path) -> dict[str, Any]:
+    return json.loads(Path(path).read_text(encoding="utf-8"))
+
+
+# --------------------------------------------------------------------------- #
+# CLI
+# --------------------------------------------------------------------------- #
+
+def _cmd_index(args: argparse.Namespace) -> int:
+    payload = build_index(args.dyn_root)
+    out_path = write_manifest(payload, Path(args.results_dir) / "index.json")
+    counts = payload["counts"]
+    print(f"{counts['clips']} clips, {counts['unresolved']} unresolved -> {out_path}")
+    for clip in payload["unresolved"][:10]:
+        print(f"  {clip['video_key']}: missing {', '.join(clip['missing'])}")
+    return 0
+
+
+def _cmd_stats(args: argparse.Namespace) -> int:
+    parquet = qa_parquet(args.dyn_root)
+    rows = load_rows(parquet)
+    payload = build_stats(rows, answer_normalisations(parquet))
+    out_path = write_manifest(payload, Path(args.results_dir) / "stats.json")
+    print(f"{payload['total_rows']} rows -> {out_path}")
+    for task, info in payload["per_task"].items():
+        print(
+            f"  {task}: {info['rows']} rows, {info['distinct_questions']} distinct questions, "
+            f"answers {info['answer_histogram']}"
+        )
+    print("  families:")
+    for name, count in payload["family_totals"].items():
+        print(f"    {count:5d}  {name}")
+    print(f"  normalised on load: {payload['normalisation']}")
+    if payload["data_issues"]:
+        print(f"  {len(payload['data_issues'])} data issues (see stats.json)")
+    return 0
+
+
+def _cmd_templates(args: argparse.Namespace) -> int:
+    rows = load_rows(qa_parquet(args.dyn_root))
+    per_task: dict[str, Any] = {}
+    for task in TASKS:
+        subset = [row for row in rows if row.task == task]
+        templates = distinct_question_templates(subset)
+        top = list(templates.items())[:25]
+        per_task[task] = {
+            "rows": len(subset),
+            "distinct_templates": len(templates),
+            "top25_coverage": sum(info["count"] for _, info in top),
+            "top25": {template: info["count"] for template, info in top},
+        }
+    payload = {
+        "purpose": "exhaustive template scan over every VQA row (no LLM, no sampling)",
+        "generated_at": _utc_now(),
+        "total_rows": len(rows),
+        "distinct_templates": len(distinct_question_templates(rows)),
+        "per_task": per_task,
+        "finding": (
+            "the DSI-Bench template method transfers only to cameraqa; qa and sceneqa are "
+            "free-form generated text and do not collapse, which is why the taxonomy pass "
+            "has to do open coding rather than template matching"
+        ),
+    }
+    out_path = write_manifest(payload, Path(args.results_dir) / "templates.json")
+    print(f"{len(rows)} rows -> {payload['distinct_templates']} distinct templates ({out_path})")
+    for task, info in per_task.items():
+        pct = 100.0 * info["top25_coverage"] / info["rows"]
+        print(
+            f"  {task}: {info['rows']} rows -> {info['distinct_templates']} templates, "
+            f"top-25 cover {info['top25_coverage']} ({pct:.0f}%)"
+        )
+    return 0
+
+
+def _cmd_sample(args: argparse.Namespace) -> int:
+    manifest = build_taxonomy_manifest(dyn_root=args.dyn_root, seed=args.seed)
+    out_path = write_manifest(manifest, Path(args.results_dir) / "manifest.json")
+    print(f"wrote {manifest['sampling']['total_selected']} questions to {out_path}")
+    print(f"  distinct videos: {manifest['counts']['distinct_videos']}")
+    for task, count in manifest["counts"]["per_task"].items():
+        print(f"  {task}: {count}")
+    print("  families:")
+    for name, count in manifest["counts"]["per_family"].items():
+        print(f"    {count:4d}  {name}")
+    return 0
+
+
+def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--dyn-root", type=Path, default=DEFAULT_DYN_ROOT)
+    parser.add_argument("--results-dir", type=Path, default=DEFAULT_RESULTS_DIR)
+    sub = parser.add_subparsers(dest="command", required=True)
+
+    p_index = sub.add_parser("index", help="resolve every clip to its media on disk")
+    p_index.set_defaults(func=_cmd_index)
+
+    p_stats = sub.add_parser("stats", help="descriptive statistics over all 7000 rows")
+    p_stats.set_defaults(func=_cmd_stats)
+
+    p_templates = sub.add_parser("templates", help="exhaustive question-template scan")
+    p_templates.set_defaults(func=_cmd_templates)
+
+    p_sample = sub.add_parser("sample", help="draw the family-stratified 600-question sample")
+    p_sample.add_argument("--seed", type=int, default=DEFAULT_SEED)
+    p_sample.set_defaults(func=_cmd_sample)
+
+    return parser.parse_args(argv)
+
+
+def main(argv: Sequence[str] | None = None) -> None:
+    args = parse_args(argv)
+    raise SystemExit(args.func(args))
+
+
+if __name__ == "__main__":
+    main()
