@@ -237,3 +237,220 @@ def format_question_prompt(entry: Mapping[str, Any]) -> str:
     for letter in sorted(options):
         lines.append(f"{letter}: {options[letter]}")
     return "\n".join(lines)
+
+
+# --------------------------------------------------------------------------- #
+# Question families -- a sampling stratum, not the taxonomy
+# --------------------------------------------------------------------------- #
+
+@dataclass(frozen=True)
+class Family:
+    """One regex-defined question family.
+
+    ``question`` and ``options`` are both optional; when both are given, both
+    must match. The options pattern exists for the two families that are only
+    identifiable from the answer choices -- a question asking "how fast" looks
+    ordinal until you see that every option is in m/s.
+    """
+
+    name: str
+    description: str
+    question: re.Pattern[str] | None = None
+    options: re.Pattern[str] | None = None
+
+    def matches(self, question_text: str, options_text: str) -> bool:
+        if self.question is not None and not self.question.search(question_text):
+            return False
+        if self.options is not None and not self.options.search(options_text):
+            return False
+        return self.question is not None or self.options is not None
+
+
+def _rx(pattern: str) -> re.Pattern[str]:
+    return re.compile(pattern, re.IGNORECASE)
+
+
+# Ordered most-specific first: the first match wins as the primary family, so a
+# question that asks for a distance *in metres* at a *named second* is filed
+# under metric_distance, where its hardest requirement is.
+FAMILIES: tuple[Family, ...] = (
+    Family(
+        "metric_speed",
+        "absolute speed, answered in physical units",
+        options=_rx(r"\bm\s*/\s*s\b|\bmeters? per second\b|\bkm\s*/\s*h\b|\bmph\b"),
+    ),
+    Family(
+        "metric_distance",
+        "absolute distance, answered in physical units",
+        options=_rx(r"\b\d+(\.\d+)?\s*(m|meters?|metres?|cm|centimet\w+|feet|ft)\b"),
+    ),
+    Family("instance_count", "how many distinct instances", question=_rx(r"\bhow many\b")),
+    Family(
+        "event_order",
+        "which of two named events happens first",
+        question=_rx(r"\b(happens?|comes?|occurs?|occurred)\s+first\b|\bfirst[:,]|\bwhich event\b"),
+    ),
+    Family(
+        "timestamped",
+        "state at or between named timestamps",
+        question=_rx(r"\b\d+(\.\d+)?\s*(s|secs?|seconds?)\b"),
+    ),
+    # Before camera_zoom on purpose: "does the object appear larger or smaller
+    # (considering combined effects of zoom and physical motion)" names zoom only
+    # as the confound. The quantity asked for is projected size.
+    Family(
+        "apparent_size",
+        "projected size in the image plane",
+        question=_rx(
+            r"apparent size|appear\w*\s+(larger|smaller|bigger)|larger or smaller"
+            r"|visually appear|occupy|\bsize\b.{0,25}\bframe\b"
+        ),
+    ),
+    Family("camera_zoom", "whether focal length changed", question=_rx(r"\bzoom")),
+    Family(
+        "camera_shake",
+        "high-frequency camera jitter",
+        question=_rx(r"\bshak\w*|\bjitter|\bstabili\w*|\bwobbl"),
+    ),
+    Family(
+        "camera_rhythm",
+        "camera speed profile over time",
+        question=_rx(r"movement speed|movement rhythm|\brhythm\b|speed .{0,20}camera|camera.{0,30}\bspeed\b"),
+    ),
+    Family(
+        "shooting_angle",
+        "camera elevation or bearing relative to the subject",
+        question=_rx(r"shooting angle|camera angle|\b(high|low)[- ]angle|eye[- ]?level|which side of the"),
+    ),
+    Family(
+        "subject_orientation",
+        "which way a scene object faces, and how that changes",
+        question=_rx(r"\borientation\b|\bfacing\b|\bfaces?\s+(toward|away|the)|which (way|direction).{0,20}(face|point)|\bheading\b"),
+    ),
+    Family(
+        "visibility",
+        "whether and where the subject is present in the image frame",
+        question=_rx(
+            r"\b(in|out of|leaves?|left|enters?|entered|exits?)\s+the\s+frame\b"
+            r"|still (visible|in frame)|remains? visible|(which|what) (area|part|region|portion) of the frame"
+        ),
+    ),
+    Family(
+        "scene_revisit",
+        "whether start and end show the same place",
+        question=_rx(r"\b(scene|background|environment|location)\b.{0,40}\bsame\b|same (scene|background|place|location|environment)|returns? to the (same|start)"),
+    ),
+    Family(
+        "camera_subject_distance",
+        "range between camera and subject, ordinally",
+        question=_rx(r"distance between the camera|camera.{0,30}\bdistance\b|\bdistance\b.{0,30}camera"),
+    ),
+    # Broad on purpose: Dyn-Bench phrases this a dozen ways ("primary trajectory
+    # movement of the camera", "the camera's net orbital motion", "does the
+    # camera remain fixed"). The three narrower camera families above claim their
+    # own questions first, so this one only sweeps up what is left.
+    Family(
+        "camera_trajectory",
+        "where the camera went, in its own frame",
+        question=_rx(
+            r"\bcamera\b.{0,40}\b(trajectory|movement|motion|moves?|moved|pans?|tilts?|dollies|orbit\w*|rotat\w*|travel\w*|remain\w*|fixed|static|still)\b"
+            r"|\b(trajectory|movement|motion|path|pan|tilt|dolly|orbit\w*)\b.{0,40}\bcamera\b"
+        ),
+    ),
+    Family(
+        "motion_continuity",
+        "whether the subject moves at all, and how continuously",
+        question=_rx(
+            r"continuous\w*|intermittent\w*|only (once )?briefly|remains? stationary"
+            r"|stationary or move|interrupted by pause|\bpauses?\b"
+        ),
+    ),
+    Family(
+        "object_object_relation",
+        "one scene object's position relative to another",
+        question=_rx(
+            r"relative to the|with respect to|in relation to|spatial relationship"
+            r"|between the .{2,40} and the |closer to (each other|one another)"
+            r"|(farther|further) apart|closer together"
+        ),
+    ),
+    Family(
+        "subject_trajectory",
+        "where a scene object went",
+        question=_rx(r"(position|movement|direction|trajectory|path|motion)\b.{0,40}(change|shift|evolve)|how does the .{2,40} (move|travel|go)\b|direction of the"),
+    ),
+    Family(
+        "activity_semantic",
+        "what is happening, described rather than measured",
+        question=_rx(r"best describes|main activity|what is happening|what happens to the|composition|posture|appearance|expression|focus|impression|atmosphere"),
+    ),
+)
+FAMILY_NAMES: tuple[str, ...] = (*(f.name for f in FAMILIES), "unfamilied")
+FAMILY_DESCRIPTIONS: dict[str, str] = {
+    **{f.name: f.description for f in FAMILIES},
+    "unfamilied": "matched no family regex",
+}
+
+
+def family_of(question: str, options: Mapping[str, str]) -> str:
+    """The primary family for one question -- first match in ``FAMILIES`` order."""
+
+    options_text = " ".join(options[letter] for letter in sorted(options))
+    for family in FAMILIES:
+        if family.matches(question, options_text):
+            return family.name
+    return "unfamilied"
+
+
+def all_families_of(question: str, options: Mapping[str, str]) -> list[str]:
+    """Every family a question matches, not just the primary one.
+
+    Reported alongside the primary label because the overlap is itself a finding:
+    a question that is simultaneously ``timestamped`` and ``metric_distance``
+    needs both a time axis and a metric scale, and the size of that intersection
+    is what decides whether AgentV5 can ship them separately.
+    """
+
+    options_text = " ".join(options[letter] for letter in sorted(options))
+    matched = [f.name for f in FAMILIES if f.matches(question, options_text)]
+    return matched or ["unfamilied"]
+
+
+# --------------------------------------------------------------------------- #
+# Template scan
+# --------------------------------------------------------------------------- #
+
+_POSSESSIVE = re.compile(r"\bthe\s+[a-z][a-z '_-]{0,30}?'s\b", re.IGNORECASE)
+_NUMBER = re.compile(r"\d+(\.\d+)?")
+
+
+def normalize_template(question: str) -> str:
+    """Collapse a question to a template skeleton.
+
+    Weaker than DSI-Bench's noun-list substitution on purpose: Dyn-Bench names
+    far too many subjects for a fixed list, so this only folds the three things
+    that are reliably incidental -- numbers, possessive subjects, and
+    case/punctuation. Anything that still fails to collapse is genuinely
+    distinct phrasing, which is the point of running it.
+    """
+
+    text = question.replace("‘", "'").replace("’", "'")
+    text = _POSSESSIVE.sub("the SUBJ's", text)
+    text = _NUMBER.sub("N", text)
+    text = re.sub(r"[^A-Za-z' ]", " ", text).lower()
+    return " ".join(text.split())
+
+
+def distinct_question_templates(rows: Sequence[DynRow]) -> dict[str, dict[str, Any]]:
+    """Every distinct template in ``rows``, with counts and a task breakdown."""
+
+    counts: Counter[str] = Counter()
+    by_task: dict[str, Counter[str]] = {}
+    for row in rows:
+        template = normalize_template(row.question)
+        counts[template] += 1
+        by_task.setdefault(template, Counter())[row.task] += 1
+    return {
+        template: {"count": count, "by_task": dict(sorted(by_task[template].items()))}
+        for template, count in counts.most_common()
+    }
