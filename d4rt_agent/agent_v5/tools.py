@@ -404,6 +404,9 @@ def tool_camera_motion(ws: Workspace, args: Mapping[str, Any]) -> ToolResult:
     disp = (cam["trans_smooth"][hi] - cam["trans_smooth"][lo]) / scene.scale
     words = render.named_axes(disp, TUNING["cam_dir_floor_scales"], TUNING["cam_dir_dominance"])
     label = f"dominant motion '{v['motion']}'" + (f" {v['direction']}" if v.get("direction") else "")
+    if v["motion"] == "static":
+        label += (" -- no rotation or translation reached the thresholds fitted on this benchmark, so this camera "
+                  "counts as FIXED; the small values in the table are estimation noise")
     if v.get("orbit"):
         label += " (orbit: lateral translation while turning back toward the centre; cw = clockwise seen from above)"
     lines = [
@@ -1106,7 +1109,7 @@ TOOLS: dict[str, Callable[[Workspace, Mapping[str, Any]], ToolResult]] = {
 _WINDOW = "optional: [start_s, end_s], two numbers in seconds; omit it to use the question's own time span"
 TOOL_SPECS: dict[str, dict[str, Any]] = {
     "ground": {"description": "Find an entity again with a different phrase, or prompting the segmenter at a time "
-                              "where it is clearly visible.",
+                              "where it is clearly visible. Short phrases (the plain noun) find more instances.",
                "arguments": {"entity": "entity id", "phrase": "at most 5 words", "at_s": "optional seconds"},
                "required": ["entity"]},
     "select": {"description": "Choose which of the found instances is the intended entity (see `ground` / `show`).",

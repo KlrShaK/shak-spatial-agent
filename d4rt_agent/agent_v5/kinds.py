@@ -26,7 +26,8 @@ from d4rt_agent.agent_v5.program import (
 COMMON_TOOLS = ("ground", "select", "show", "switch_kind", "done_measuring")
 
 FAMILIES: dict[str, str] = {
-    "camera": "Only the camera itself: how it moved, turned, zoomed or shook, or whether the view returns to the start.",
+    "camera": "Only the camera itself: how it moved, turned, zoomed or shook, or whether the background at the end "
+              "is the same place as at the start (same / slight shift / different scene).",
     "subject_motion": "How one entity moves: its direction of travel, whether and how it moves, its speed, or its turning in its own frame.",
     "subject_vs_camera": "One entity relative to the camera: their distance, the camera's height or viewing side, "
                          "whether/where it is in the frame, how large it looks.",
@@ -90,7 +91,8 @@ KINDS: tuple[KindSpec, ...] = (
              (), ("camera_profile", "camera_motion")),
     KindSpec("camera_zoom", "camera", "Whether the focal length changed (zoom), as opposed to the camera moving "
              "forward or backward.", (), ("camera_zoom", "camera_motion")),
-    KindSpec("scene_revisit", "camera", "Whether the last view shows the same place as the first.", (),
+    KindSpec("scene_revisit", "camera", "Whether the background in the last frames is the same place as in the first "
+             "(same, slightly shifted, or a different scene).", (),
              ("scene_revisit", "camera_motion")),
     # subject_motion
     KindSpec("subject_direction", "subject_motion", "Which way one entity's position moved through the scene "
