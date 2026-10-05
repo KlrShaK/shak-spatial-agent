@@ -72,7 +72,7 @@ Scenes are cached per backbone under `<results>/cache/clips/<slug>/<backbone>/`.
 ## Running (GPU, from the repo or worktree root)
 
 ```bash
-BACKBONE=point4d sbatch scripts/run_agent_v5_smoke.slurm             # one question per group; peak memory
+BACKBONE=point4d sbatch scripts/run_agent_v5_smoke.slurm             # 25 questions over all groups; peak memory
 BACKBONE=point4d ./scripts/run_agent_v5_race.sh --limit 200           # A100 + Blackwell race, resumable
 BACKBONE=d4rt    ./scripts/run_agent_v5_race.sh --shard 0/4           # shards: same RUN_DIR, disjoint clips
 BENCH=dsi        ./scripts/run_agent_v5_race.sh --split std --random-sample 200

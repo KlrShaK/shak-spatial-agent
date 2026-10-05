@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Agent v5 smoke test: one question per question group of the eval split, with one backbone, on
+# Agent v5 smoke test: SMOKE_N questions (default 25; one per question group of the eval split, the
+# rest from the largest groups), with one backbone, on
 # an A100 80GB. Checks that Qwen3-VL, SAM3, the backbone (and DA3-Nested for Point4D) and OAV2 load
 # together in one process, and records peak GPU memory in every answer file.
 #
@@ -20,6 +21,6 @@
 REPO_ROOT="${SLURM_SUBMIT_DIR:-$(cd "$(dirname "$0")/.." && pwd)}"
 export BACKBONE="${BACKBONE:-point4d}"
 export RUN_DIR="${RUN_DIR:-d4rt_agent/results/agent_v5_smoke_${BACKBONE}}"
-export EXTRA_ARGS="--one-per-group ${EXTRA_ARGS:-}"
+export EXTRA_ARGS="--smoke ${SMOKE_N:-25} ${EXTRA_ARGS:-}"
 unset ATTEMPT_ID
 source "$REPO_ROOT/scripts/agent_v5_body.sh"

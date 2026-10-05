@@ -46,8 +46,9 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     # selection and budgets
     p.add_argument("--only", nargs="*", default=None, help="question ids")
     p.add_argument("--limit", type=int, default=None)
-    p.add_argument("--one-per-group", action="store_true",
-                   help="smoke test: the first question of every question group (catalog branch / DSI category)")
+    p.add_argument("--smoke", type=int, default=None, metavar="N",
+                   help="smoke test: N questions, one per question group (catalog branch / DSI category) first, "
+                        "the rest from the largest groups in proportion; drawn with a fixed seed")
     p.add_argument("--shard", default="0/1", help="i/n: this process takes every n-th clip")
     p.add_argument("--force", action="store_true")
     p.add_argument("--max-steps", type=int, default=16)
@@ -99,17 +100,38 @@ def select(entries: list[dict[str, Any]], args: argparse.Namespace) -> list[dict
     if args.only:
         wanted = set(args.only)
         entries = [e for e in entries if e["id"] in wanted]
-    if args.one_per_group:
-        firsts: dict[str, dict[str, Any]] = {}
-        for e in sorted(entries, key=lambda e: e["id"]):
-            firsts.setdefault(str(e.get("group")), e)
-        entries = list(firsts.values())
+    if args.smoke:
+        entries = smoke_sample(entries, args.smoke)
     key = (lambda e: e.get("video_path") or f"{e['dataset']}/{e['video']}")  # noqa: E731
     clips = sorted({key(e) for e in entries})
     index, count = (int(v) for v in args.shard.split("/"))
     mine = set(clips[index::count])
     entries = sorted((e for e in entries if key(e) in mine), key=lambda e: (key(e), e["id"]))  # a clip's questions together
     return entries[: args.limit] if args.limit is not None else entries
+
+
+def smoke_sample(entries: list[dict[str, Any]], n: int, seed: int = 0) -> list[dict[str, Any]]:
+    """``n`` questions: one per group, then the remaining slots to groups by size (largest remainder)."""
+
+    import random
+
+    rng = random.Random(seed)
+    groups: dict[str, list[dict[str, Any]]] = {}
+    for e in sorted(entries, key=lambda e: e["id"]):
+        groups.setdefault(str(e.get("group")), []).append(e)
+    for members in groups.values():
+        rng.shuffle(members)
+    quota = {g: 1 for g in groups}
+    extra = n - len(groups)
+    if extra > 0:
+        total = sum(len(m) - 1 for m in groups.values())
+        share = {g: extra * (len(m) - 1) / max(total, 1) for g, m in groups.items()}
+        for g in groups:
+            quota[g] += int(share[g])
+        for g in sorted(groups, key=lambda g: -(share[g] - int(share[g])))[: n - sum(quota.values())]:
+            quota[g] += 1
+    picked = [e for g, members in sorted(groups.items()) for e in members[: quota[g]]]
+    return picked[:n]
 
 
 def open_clip(entry: Mapping[str, Any], args: argparse.Namespace, cache: Path) -> Any:
