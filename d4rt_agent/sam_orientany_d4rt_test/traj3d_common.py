@@ -30,7 +30,8 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 # refer to byte-identical video files.
 DSI_VIDEO_ROOT = Path("/cluster/work/igp_psr/spanwar/datasets/DSI-Bench/videos/std")
 
-THIRD_PARTY = REPO_ROOT / "third-party-tools"
+# Overridable because a git worktree of the repo has empty submodule directories.
+THIRD_PARTY = Path(os.environ.get("SHAK_THIRD_PARTY", str(REPO_ROOT / "third-party-tools")))
 SAM3_DIR = THIRD_PARTY / "sam3"
 ORIENT_DIR = THIRD_PARTY / "Orient-Anything-V2"
 
