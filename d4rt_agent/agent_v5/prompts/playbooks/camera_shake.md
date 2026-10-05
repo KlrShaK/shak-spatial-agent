@@ -1,0 +1,2 @@
+- Call `camera_profile` and read the shake line: rotation jitter in degrees after removing the smooth path.
+- Low frame rates hide handheld shake; check the frames for wobble when the reading is borderline.

@@ -1,0 +1,2 @@
+- Call `camera_zoom`: a zoom changes the focal length; a dolly moves the camera forward/backward without changing it.
+- Both make things look bigger. If the focal ratio stays near x1.0 while forward movement is marked *, it is a dolly, not a zoom.

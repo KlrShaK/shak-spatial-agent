@@ -1,0 +1,3 @@
+- Call `event_onset` for ev1 and for ev2, then compare their start times yourself (earlier = first).
+- An event with no geometric signal ('other') or not found: judge its timing from the frames.
+- `camera_motion` and `visibility` give the underlying tables if an onset looks wrong.

@@ -1,0 +1,2 @@
+- Call `camera_profile`; read speed per span in time order (still -> burst, steady, slowing to a stop, speeding up).
+- `camera_motion` tells you which motion it is, if the options also name one.

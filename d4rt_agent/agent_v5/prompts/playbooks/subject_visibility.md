@@ -1,0 +1,3 @@
+- Call `visibility`: when the subject is visible, cut off by the border, how big, and where in the picture.
+- For "at the end" ask about the last part of the clip with `window`; for "where most of the time" read the 'where' column.
+- The segmenter can miss an entity on a few frames; trust a clear pattern, not one span.

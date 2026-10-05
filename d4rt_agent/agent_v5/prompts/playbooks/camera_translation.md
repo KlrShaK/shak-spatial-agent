@@ -1,0 +1,3 @@
+- Call `camera_motion` over the asked time span; read the translation columns (right, up, forward).
+- The camera's own axes are reliable here (unlike an object's forward/backward): use all three.
+- Ignore rotation unless the question is about turning.

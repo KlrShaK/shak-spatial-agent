@@ -1,0 +1,3 @@
+- Call `entity_track` with frame 'own': movement relative to where the subject faces (forward = its front).
+- Call `orientation` for how it turns: 'turned deg' + = to its right.
+- If the facing could not be resolved, fall back to frame 'scene' and the frames.

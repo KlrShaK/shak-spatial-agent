@@ -1,0 +1,3 @@
+- Call `distance` with a = the subject and b = 'cam'.
+- Read the per-span 'reading' column in time order: closer, farther, still. Closer then farther is a reversal.
+- A ratio near x1.0 with nothing beyond the threshold means the distance stays about the same.

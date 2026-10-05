@@ -1,0 +1,3 @@
+- Call `motion_profile`: speed per span against a 'moving' threshold, and the number of motion runs.
+- Continuous = one long run; intermittent = several runs with pauses; none = never above the threshold.
+- Camera motion is removed: a still object filmed by a moving camera is still.
