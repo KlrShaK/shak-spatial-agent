@@ -20,7 +20,7 @@ from d4rt_agent.agent_v5.orchestrator import PROMPTS, AgentV5
 from d4rt_agent.agent_v5.program import Entity, QueryProgram
 from d4rt_agent.agent_v5.sampling import interior_cells
 from d4rt_agent.agent_v5.scene import lift_instances
-from d4rt_agent.agent_v5.tools import TOOL_SPECS, TOOLS, Workspace
+from d4rt_agent.agent_v5.tools import TOOL_SPECS, TOOLS, ToolError, Workspace
 
 # --------------------------------------------------------------------------- #
 # fixtures
@@ -170,6 +170,17 @@ def test_u_shaped_path_reads_in_time_order():
     assert "backward" in line.split("[largest]")[0].rsplit("->", 1)[-1], "the backward part is the largest"
     system = (PROMPTS / "system.md").read_text()
     assert "Chronological rule" in system
+
+
+def test_window_argument_accepts_the_forms_the_model_writes():
+    ws, _ = make_workspace([], kind="camera_translation")
+    for given in ([3.0, 6.0], "[3.0, 6.0]", "3, 6", "3s-6s"):
+        w = ws.window({"window": given})
+        assert (w.kind, w.t0, w.t1) == ("interval", 3.0, 6.0), given
+    assert ws.window({"window": None}) is ws.program.window
+    assert ws.window({}) is ws.program.window
+    with pytest.raises(ToolError):
+        ws.window({"window": "the middle"})
 
 
 def test_chronological_merges_repeats():

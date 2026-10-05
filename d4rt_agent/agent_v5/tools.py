@@ -15,6 +15,7 @@ phrase the agent named, and says what SAM3 found.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+import re
 from typing import Any, Callable, Mapping, Sequence
 
 import numpy as np
@@ -214,11 +215,15 @@ class Workspace:
 
         if args.get("at_s") is not None:
             return Window("instant", float(args["at_s"]))
-        if args.get("window") is not None:
+        if args.get("window") not in (None, "", []):
             w = args["window"]
-            if not (isinstance(w, (list, tuple)) and len(w) == 2):
-                raise ToolError("`window` must be [start_s, end_s]")
-            a, b = float(w[0]), float(w[1])
+            # The model often writes the list as a string ("[3.0, 6.0]", "3-6 s"): read the numbers.
+            values = [float(v) for v in re.findall(r"\d+(?:\.\d+)?", w)] if isinstance(w, str) else list(w) \
+                if isinstance(w, (list, tuple)) else []
+            if len(values) != 2:
+                raise ToolError("`window` must be two times in seconds, e.g. [3.0, 6.0]; or leave it out to use "
+                                "the question's own time span")
+            a, b = float(values[0]), float(values[1])
             return Window("interval", min(a, b), max(a, b))
         return self.program.window
 
@@ -1098,7 +1103,7 @@ TOOLS: dict[str, Callable[[Workspace, Mapping[str, Any]], ToolResult]] = {
     "show": tool_show,
 }
 
-_WINDOW = "optional [start_s, end_s]; omit for the question's own time span"
+_WINDOW = "optional: [start_s, end_s], two numbers in seconds; omit it to use the question's own time span"
 TOOL_SPECS: dict[str, dict[str, Any]] = {
     "ground": {"description": "Find an entity again with a different phrase, or prompting the segmenter at a time "
                               "where it is clearly visible.",
