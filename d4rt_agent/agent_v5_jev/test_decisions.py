@@ -75,3 +75,15 @@ def test_send_pending_reports_failures(tmp_path):
     sent, failed = D.send_pending(tmp_path, poster=boom)
     assert sent == 0 and "HTTP 403" in failed[0]
     assert len(list((tmp_path / "pending").glob("*.json"))) == 1
+
+
+def test_same_request_from_many_threads(tmp_path):
+    from concurrent.futures import ThreadPoolExecutor
+
+    def poster(body):
+        return _fake_response(body["questions"])
+
+    with ThreadPoolExecutor(max_workers=16) as pool:
+        results = list(pool.map(lambda _: D.decide("same text", QS, tmp_path, poster=poster), range(64)))
+    assert all(r["kind"]["choice"] == "A" for r in results)
+    assert not list((tmp_path / "responses").glob("*.tmp*"))

@@ -11,8 +11,10 @@ Requests carry only text built by the caller. This module never sees a catalog r
 from __future__ import annotations
 
 import hashlib
+import itertools
 import json
 import os
+import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
@@ -23,6 +25,7 @@ import requests
 DEFAULT_MODEL = "gpt-6-luna"
 DEFAULT_URL = "https://api.openai.com/v1/decisions"
 RETRY_STATUS = (429, 500, 502, 503, 504)
+_TMP_COUNTER = itertools.count()
 
 
 class NeedRequest(RuntimeError):
@@ -58,7 +61,7 @@ def request_key(body: Mapping[str, Any]) -> str:
 
 def _write_json(path: Path, data: Any) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    tmp = path.with_suffix(path.suffix + f".tmp{os.getpid()}")
+    tmp = path.with_suffix(path.suffix + f".tmp{os.getpid()}.{threading.get_ident()}.{next(_TMP_COUNTER)}")
     tmp.write_text(json.dumps(data, ensure_ascii=False))
     tmp.replace(path)
 
