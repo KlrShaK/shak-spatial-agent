@@ -46,10 +46,14 @@ from pathlib import Path
 from huggingface_hub import snapshot_download
 
 snapshot = Path(snapshot_download(repo_id="$MODEL", local_files_only=True))
+import json
+
 index = snapshot / "model.safetensors.index.json"
-shards = sorted(snapshot.glob("model-*-of-*.safetensors"))
-assert index.is_file(), index
-assert len(shards) == 4, shards
-assert all(shard.stat().st_size > 1_000_000_000 for shard in shards), shards
+if index.is_file():
+    names = sorted(set(json.loads(index.read_text())["weight_map"].values()))
+else:
+    names = ["model.safetensors"]   # small models ship a single file and no index
+shards = [snapshot / name for name in names]
+assert all(shard.is_file() and shard.stat().st_size > 100_000_000 for shard in shards), shards
 print(f"Offline snapshot preflight passed: {snapshot} ({len(shards)} weight shards).")
 PY
