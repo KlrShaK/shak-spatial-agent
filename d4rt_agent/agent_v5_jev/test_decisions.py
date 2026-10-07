@@ -2,7 +2,7 @@ import json
 
 import pytest
 
-from dyn_dataset_exploration.jev_flow import decisions as D
+from d4rt_agent.agent_v5_jev import decisions as D
 
 
 def _fake_response(questions, pick="A"):
