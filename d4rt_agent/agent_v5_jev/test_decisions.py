@@ -87,3 +87,22 @@ def test_same_request_from_many_threads(tmp_path):
         results = list(pool.map(lambda _: D.decide("same text", QS, tmp_path, poster=poster), range(64)))
     assert all(r["kind"]["choice"] == "A" for r in results)
     assert not list((tmp_path / "responses").glob("*.tmp*"))
+
+
+def test_refusal_is_retried_and_never_cached(tmp_path):
+    calls = []
+
+    def flaky(body):
+        calls.append(1)
+        if len(calls) == 1:
+            return {"answers": [{"type": "refusal", "name": "kind"}], "usage": {"input_tokens": 1}}
+        return _fake_response(body["questions"])
+
+    assert D.decide("t", QS, tmp_path, poster=flaky)["kind"]["choice"] == "A" and len(calls) == 2
+
+    def always(body):
+        return {"answers": [{"type": "refusal", "name": "kind"}], "usage": {"input_tokens": 1}}
+
+    with pytest.raises(D.Refused):
+        D.decide("other", QS, tmp_path, poster=always)
+    assert len(list((tmp_path / "responses").glob("*.json"))) == 1

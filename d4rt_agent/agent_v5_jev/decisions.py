@@ -26,6 +26,7 @@ DEFAULT_MODEL = "gpt-6-luna"
 DEFAULT_URL = "https://api.openai.com/v1/decisions"
 RETRY_STATUS = (429, 500, 502, 503, 504)
 _TMP_COUNTER = itertools.count()
+REFUSAL_RETRIES = 2
 
 
 class NeedRequest(RuntimeError):
@@ -124,10 +125,18 @@ def decide(text: str, questions: Sequence[Mapping[str, Any]], cache: Path, *,
     if mode == "collect":
         _write_json(cache / "pending" / f"{key}.json", body)
         raise NeedRequest(key)
-    response = poster(body)
-    _write_json(hit, response)
-    _log_usage(cache, key, response)
-    return parse_answers(response, questions)
+    for attempt in range(REFUSAL_RETRIES + 1):
+        response = poster(body)
+        _log_usage(cache, key, response)
+        try:
+            parsed = parse_answers(response, questions)
+        except Refused:
+            if attempt == REFUSAL_RETRIES:
+                raise                       # not cached: a refusal is not an answer
+            continue
+        _write_json(hit, response)
+        return parsed
+    raise AssertionError("unreachable")
 
 
 def _log_usage(cache: Path, key: str, response: Mapping[str, Any]) -> None:

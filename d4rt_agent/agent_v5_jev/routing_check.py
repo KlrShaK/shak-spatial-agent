@@ -49,7 +49,10 @@ def main(argv: Sequence[str] | None = None) -> None:
     cache = args.out / "decisions"
 
     def one(q: dict[str, Any]) -> dict[str, Any]:
-        family, kind = route(q["question"], cache)
+        try:
+            family, kind = route(q["question"], cache)
+        except decisions.Refused:
+            family = kind = "refused"
         return {"qid": q["qid"], "rule_kind": q.get("rule_kind"), "branch": q.get("branch"), "luna_family": family,
                 "luna_kind": kind, "v5_kind": v5.get(q["qid"])}
 
