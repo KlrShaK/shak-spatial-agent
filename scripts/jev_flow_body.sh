@@ -58,6 +58,15 @@ if [[ "$STAGE" == "run" && "$API_MODE" != "cached" && "${USE_PROXY:-1}" == "1" ]
   echo "https_proxy=${https_proxy:-unset}"
 fi
 
+if [[ "${PROBE_API:-0}" == "1" ]]; then   # can this node reach the Decisions API, directly or through the ETH proxy?
+  body='{"model":"gpt-6-luna","input":"A person walks left to right while the camera stays still.","questions":[{"type":"choice","name":"cam","instructions":"Does the camera move?","choices":[{"value":"A","description":"stationary"},{"value":"B","description":"moves"}]}]}'
+  probe() { curl -s --max-time 40 -o /dev/null -w "HTTP %{http_code}\n" https://api.openai.com/v1/decisions \
+              -H "Authorization: Bearer ${OPENAI_API_KEY:-none}" -H "Content-Type: application/json" -d "$body" || echo "no connection"; }
+  echo "API probe, direct:    $(probe)"
+  ( source /etc/profile.d/modules.sh 2>/dev/null || true; module load eth_proxy
+    echo "API probe, via proxy: $(probe)" )
+fi
+
 echo "STAGE=$STAGE RUN_DIR=$RUN_DIR BACKBONE=$BACKBONE API_MODE=$API_MODE"
 echo "EXTRA_ARGS=$EXTRA_ARGS CODE_SHA=$CODE_SHA"
 nvidia-smi --query-gpu=name,memory.total,memory.free --format=csv
