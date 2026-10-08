@@ -109,3 +109,17 @@ def test_candidate_calls_describe_their_arguments():
     calls = _candidate_calls(ws, "subject_direction", ["entity_track"], set())
     assert len(calls) == 4 and all("e1 = dog" in c.describe() for c in calls)
     assert _candidate_calls(ws, "subject_direction", ["entity_track"], {calls[0].key})[0].key != calls[0].key
+
+
+def test_event_window_is_chosen_from_the_clips_own_frame_times():
+    decide = Scripted({"family": "subject_motion", "kind": "subject_direction", "subject": "dog",
+                       "start": "0.00", "end": ["2.33", "2.50"], "tool": ["entity_track(entity=e1, frame=scene)",
+                                                                     "done_measuring"], "answer": "A"})
+    task = {**TASK, "question": "From the start until the frame where the dog reaches the fence, which way does the dog move?",
+            "clip": FakeClip()}
+    out = _agent(decide, [("dog", u_path)]).solve(task)
+    w = out["program"]["window"]
+    assert w["kind"] == "interval" and w["t0"] == 0.0 and w["t1"] > 0.0, out.get("error")
+    end_q = next(q for _, qs in decide.requests for q in qs if q["name"] == "end")
+    assert all(float(c["value"]) > 0.0 for c in end_q["choices"])           # only times after the start
+    assert any(h.startswith("window:") for h in out["history"])

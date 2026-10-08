@@ -134,19 +134,28 @@ class JevAgent:
                             window=window)
 
     def _event_window(self, run: "_Run", window: Window) -> Window:
-        spans = run.caption.get("spans") or []
-        if not spans:
+        """A window bounded by an event ("until the frame where the gate is fully open"): the model
+        picks its start and end from a preset grid, the clip's own sampled frame times, so the
+        answer is always a valid time and never parsed out of free text. The end is offered only
+        among times after the start."""
+
+        clip = run.task["clip"]
+        if not clip.fps:
             return Window("whole")
-        choices = [("whole", "the whole video")] + [(f"{a:g}-{b:g}", f"from {a:g} s to {b:g} s")
-                                                    for a, b in spans[:9]]
-        pick = self._ask(run, "window", self._context(run), [choice_question(
-            "window", f"Which span of the video does the question refer to ('{window.event}')?",
-            choices)])["window"]["choice"]
-        run.history.append(f"window: {pick}")
-        if pick == "whole":
-            return Window("whole")
-        a, b = (float(v) for v in pick.split("-"))
-        return Window("interval", a, b, text=window.event)
+        times = [(f, f / clip.fps) for f in clip.answer_frames]
+        grid = [(f"{t:.2f}", f"frame {f}, at {t:.2f} s") for f, t in times]
+        event = window.event
+        context = self._context(run, f"\n(The question's time span is bounded by this event: '{event}'. "
+                                     "Use the description of the video to say when it happens.)")
+        start = self._ask(run, "window_start", context, [choice_question(
+            "start", f"At which of these times does the span the question asks about begin? (the start of the "
+                     f"video if it begins at the start, otherwise the time of: '{event}')", grid)])["start"]["choice"]
+        later = [g for g in grid if float(g[0]) > float(start)]
+        end = (self._ask(run, "window_end", context, [choice_question(
+            "end", f"At which of these times does that span end? (the time of: '{event}')", later)])["end"]["choice"]
+               if later else grid[-1][0])
+        run.history.append(f"window: {start}-{end} s")
+        return Window("interval", float(start), float(end), text=event)
 
     # -- phase 2 ----------------------------------------------------------------------
 
