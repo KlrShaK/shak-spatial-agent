@@ -32,6 +32,11 @@ VARIANTS: dict[str, dict[str, Any]] = {
     "f16_small_short": dict(frames=16, side=256, prompts=["caption_short.md"], rp=1.0, tokens=400),
     "f8_short_rp": dict(frames=8, side=448, prompts=["caption_short.md"], rp=1.15, tokens=400),
     "f8_two_step": dict(frames=8, side=448, prompts=["caption_entities.md", "caption_timeline.md"], rp=1.0, tokens=250),
+    # round 2: build on the two-step that worked
+    "two_rp_f8": dict(frames=8, side=448, prompts=["caption_entities.md", "caption_timeline.md"], rp=1.15, tokens=250),
+    "two_rp_f4": dict(frames=4, side=448, prompts=["caption_entities.md", "caption_timeline.md"], rp=1.15, tokens=250),
+    "two_rp_f16": dict(frames=16, side=448, prompts=["caption_entities.md", "caption_timeline.md"], rp=1.15, tokens=250),
+    "two_rp_f16_small": dict(frames=16, side=256, prompts=["caption_entities.md", "caption_timeline.md"], rp=1.15, tokens=250),
 }
 
 

@@ -24,3 +24,8 @@ def test_spans():
 def test_missing_entities_header_gives_nothing():
     assert C.parse_entities("- 0-1 s: a dog walks") == []
     assert C.parse_entities("") == []
+
+
+def test_single_timestamps_become_spans():
+    text = "Timeline:\n- 0.00 s: a dog stands\n- 0.50 s: it runs\n- 1.00 s: it stops\n"
+    assert C.timeline_spans(text) == [(0.0, 0.5), (0.5, 1.0)]

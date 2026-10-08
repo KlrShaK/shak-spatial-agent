@@ -61,14 +61,20 @@ def parse_entities(text: str) -> list[dict[str, Any]]:
 
 
 def timeline_spans(text: str) -> list[tuple[float, float]]:
-    """The ``<start>-<end> s`` spans of the Timeline lines (candidate time windows)."""
+    """Time spans of the Timeline lines (candidate event windows).
+
+    ``- 0.5-1.5 s: ...`` gives (0.5, 1.5). A small model often writes one timestamp per line
+    (``- 0.5 s: ...``); then each line runs to the next one's time."""
 
     spans = []
     for m in re.finditer(r"^\s*[-*]\s*(\d+(?:\.\d+)?)\s*-\s*(\d+(?:\.\d+)?)\s*s", text, re.M):
         a, b = float(m.group(1)), float(m.group(2))
         if b > a:
             spans.append((a, b))
-    return spans
+    if spans:
+        return spans
+    times = [float(m.group(1)) for m in re.finditer(r"^\s*[-*]\s*(\d+(?:\.\d+)?)\s*s\s*:", text, re.M)]
+    return [(a, b) for a, b in zip(times, times[1:]) if b > a]
 
 
 def caption_path(captions_dir: Path, slug: str) -> Path:
