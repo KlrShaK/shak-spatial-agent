@@ -7,6 +7,7 @@
 #   BACKBONE     point4d (default) | d4rt
 #   SEED_CACHE   a finished AgentV5 run's cache dir whose scenes and groundings are linked in (read-only)
 #   API_MODE     live (default) | collect | cached   (run stage)
+#   ATTEMPT_ID   set by run_jev_flow_race.sh: the first of the racing jobs to start does the work
 #   EXTRA_ARGS   passed to the runner (e.g. --smoke 25, --limit 40, --shard 0/4)
 #
 # The caption stage is offline (local weights). The run stage calls the OpenAI Decisions API, so it
@@ -38,6 +39,10 @@ CAPTION_CACHE="$HF_HOME/hub/models--Qwen--Qwen3-VL-2B-Instruct/snapshots"
 cd "$REPO_ROOT"
 RUN_DIR="${RUN_DIR:?RUN_DIR must be set by the submitter}"
 EXTRA_ARGS="${EXTRA_ARGS:-}"
+
+if [[ -n "${ATTEMPT_ID:-}" ]]; then   # raced submission: the first job to start claims the attempt and cancels the other
+  source "$REPO_ROOT/scripts/race_claim.sh"
+fi
 
 mkdir -p "$LOCAL_DEPS"
 cp -a "$DEPS_DIR/." "$LOCAL_DEPS/"
