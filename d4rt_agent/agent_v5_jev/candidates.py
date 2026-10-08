@@ -76,10 +76,27 @@ def question_phrases(question: str) -> list[str]:
             if run:
                 found.extend(phrase_ladder(" ".join(run)))
                 found.extend(" ".join(run[:n]) for n in (1, 2) if n < len(run))   # "snowboarder jumps" -> "snowboarder"
+                if len(run) >= 3:
+                    found.append(" ".join(run[:-1]))        # "blue box truck passes" -> "blue box truck"
             i = max(j, i + 1)
         else:
             i += 1
     return _unique(found)
+
+
+# a bare adjective is never an entity ("blue" from "blue box truck"), and a generic word cannot be segmented
+_ADJECTIVES = set("""
+red blue green yellow black white gray grey brown orange pink purple golden silver dark light bright
+large larger small smaller big little tall short long left right front back top bottom first second third last
+other another same different two three four five main primary
+""".split())
+_GENERIC = {"object", "objects", "subject", "subjects", "thing", "things", "main object", "main subject",
+            "main character", "main person", "primary object", "primary subject"}
+
+
+def _is_entity_like(phrase: str) -> bool:
+    words = phrase.lower().split()
+    return bool(words) and phrase.lower() not in _GENERIC and not all(w in _ADJECTIVES for w in words)
 
 
 def _trim(run: list[str]) -> list[str]:
@@ -123,6 +140,8 @@ def entity_candidates(slot: Slot, question: str, caption_entities: Sequence[str]
     for phrase in pool:
         phrase = " ".join(phrase.split())
         if not phrase or is_camera(phrase):
+            continue
+        if not _is_entity_like(phrase):
             continue
         try:
             value = validate_slot(slot, phrase, question)

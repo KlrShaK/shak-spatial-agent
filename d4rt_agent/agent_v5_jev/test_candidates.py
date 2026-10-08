@@ -48,3 +48,11 @@ def test_caption_entities_must_use_the_questions_nouns_when_named():
 def test_candidates_are_unique_and_capped():
     cands = C.entity_candidates(SUBJECT, "Where is the dog relative to the dogs near the dog on the dog?")
     assert len(cands) == len(set(cands)) <= C.MAX_CANDIDATES
+
+
+def test_generic_and_adjective_only_phrases_are_never_offered():
+    q = "How does the distance between the camera and the main object change as the blue box truck passes?"
+    cands = C.entity_candidates(MAIN, q, caption_entities=["man in blue jacket"])
+    assert "man in blue jacket" in cands
+    assert "main object" not in cands and "blue" not in cands and "object" not in cands
+    assert "blue box truck" in C.entity_candidates(SUBJECT, q) and "blue" not in C.entity_candidates(SUBJECT, q)

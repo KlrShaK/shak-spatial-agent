@@ -251,11 +251,29 @@ class JevAgent:
         history = "\n".join(run.history)
         full = self._context(run, f"\n## Measurements\n{dossier}", f"\n## How the analysis went\n{history}",
                              "\n" + guidance)
-        answer = self._ask(run, "answer", full, question)["answer"]
+        bare_text = self._context(run, "\n" + guidance)
+        try:
+            answer = self._ask(run, "answer", full, question)["answer"]
+        except Refused:
+            # The measurements can contradict every option (a 'still' camera against options that all name a
+            # motion). A benchmark question needs a best guess, so ask again for the closest option.
+            run.notes.append("answer refused; asked again for the closest option")
+            run.forced = True
+            try:
+                answer = self._ask(run, "answer_forced", full + "\n\n" + FORCE_TEXT, question)["answer"]
+            except Refused:
+                run.notes.append("forced answer refused; used the caption-only answer")
+                answer = self._ask(run, "answer_caption_only", bare_text + "\n\n" + FORCE_TEXT, question)["answer"]
         run.letter, run.answer = answer["choice"], answer
         # ablation: the same question without the measurements, to separate what the caption alone gives
-        bare = self._ask(run, "answer_caption_only", self._context(run, "\n" + guidance), question)["answer"]
-        run.caption_only = bare
+        try:
+            run.caption_only = self._ask(run, "answer_caption_only", bare_text, question)["answer"]
+        except Refused:
+            run.caption_only = None
+
+
+FORCE_TEXT = ("The measurements are noisy and may not match any option exactly. Choose the option that is closest "
+              "to the measurements and the description, even if none is exact.")
 
 
 class _Run:
@@ -277,6 +295,7 @@ class _Run:
         self.answer: dict[str, Any] | None = None
         self.caption_only: dict[str, Any] | None = None
         self.error: str | None = None
+        self.forced = False
         self.timing: dict[str, float] = {"api_s": 0.0, "api_calls": 0, "tool_s": 0.0}   # tool_s includes scene load and SAM3
 
     def solution(self, backbone: str) -> dict[str, Any]:
@@ -295,7 +314,7 @@ class _Run:
                       for n, a, r in self.results],
             "measuring_steps": len(self.results), "kind_switches": 0, "notes": self.notes,
             "peak_tokens": 0, "trims": [],
-            "history": self.history, "trace": self.trace,
+            "forced_answer": self.forced, "history": self.history, "trace": self.trace,
             "timing": {k: round(v, 2) for k, v in self.timing.items()},
             "answer_probs": None if self.answer is None else self.answer["probs"],
             "answer_confidence": None if self.answer is None else self.answer["confidence"],

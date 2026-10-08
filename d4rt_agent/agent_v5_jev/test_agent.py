@@ -155,3 +155,39 @@ def test_timing_is_recorded():
     decide = Scripted({"family": "semantic", "answer": "B"})
     out = _agent(decide, []).solve({**TASK, "clip": FakeClip()})
     assert out["timing"]["api_calls"] == 3 and out["timing"]["api_s"] >= 0 and out["timing"]["tool_s"] == 0
+
+
+def test_refused_answer_is_retried_as_a_forced_choice():
+    from d4rt_agent.agent_v5_jev.decisions import Refused
+
+    inner = Scripted({"family": "semantic", "answer": "C"})
+    state = {"answers": 0}
+
+    def decide(text, questions):
+        if any(q["name"] == "answer" for q in questions):
+            state["answers"] += 1
+            if state["answers"] == 1:
+                raise Refused("answer")
+        return inner(text, questions)
+
+    out = _agent(decide, []).solve({**TASK, "clip": FakeClip()})
+    assert out["status"] == "answered" and out["letter"] == "C" and out["forced_answer"] is True, out.get("error")
+    assert any("refused" in n for n in out["notes"])
+    assert any("closest" in text for text, _ in inner.requests)
+
+
+def test_a_refused_ablation_does_not_kill_the_question():
+    from d4rt_agent.agent_v5_jev.decisions import Refused
+
+    inner = Scripted({"family": "semantic", "answer": "B"})
+    n = {"k": 0}
+
+    def decide(text, questions):
+        if any(q["name"] == "answer" for q in questions):
+            n["k"] += 1
+            if n["k"] == 2:
+                raise Refused("ablation")
+        return inner(text, questions)
+
+    out = _agent(decide, []).solve({**TASK, "clip": FakeClip()})
+    assert out["letter"] == "B" and out["caption_only_letter"] is None and out["status"] == "answered"
