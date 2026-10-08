@@ -104,7 +104,7 @@ def timeline_spans(text: str) -> list[tuple[float, float]]:
     (``- 0.5 s: ...``); then each line runs to the next one's time."""
 
     spans = []
-    for m in re.finditer(r"^\s*[-*]\s*(\d+(?:\.\d+)?)\s*-\s*(\d+(?:\.\d+)?)\s*s", text, re.M):
+    for m in re.finditer(r"^\s*[-*]?\s*(\d+(?:\.\d+)?)\s*(?:-|\u2013|to)\s*(\d+(?:\.\d+)?)\s*s", text, re.M):
         a, b = float(m.group(1)), float(m.group(2))
         if b > a:
             spans.append((a, b))
@@ -119,7 +119,12 @@ def caption_path(captions_dir: Path, slug: str) -> Path:
 
 
 def load_caption(captions_dir: Path, slug: str) -> dict[str, Any]:
-    return json.loads(caption_path(captions_dir, slug).read_text())
+    """The stored caption; entities and spans are re-read from its text, so a parser fix applies to
+    captions written earlier."""
+
+    record = json.loads(caption_path(captions_dir, slug).read_text())
+    record["entities"], record["spans"] = parse_entities(record["text"]), timeline_spans(record["text"])
+    return record
 
 
 def write_caption(captions_dir: Path, slug: str, text: str, model: str) -> dict[str, Any]:

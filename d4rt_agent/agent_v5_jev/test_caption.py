@@ -50,3 +50,17 @@ def test_caption_clip_assembles_the_two_steps():
     text = C.caption_clip(None, Clip(), gen=fake)
     assert calls == [(8, 250, 1.15), (8, 250, 1.15)]
     assert [e["name"] for e in C.parse_entities(text)] == ["dog"] and C.timeline_spans(text) == [(0.0, 2.0)]
+
+
+def test_span_formats_the_small_model_writes():
+    text = "Timeline:\n-0.00 to 0.33 s: a\n-0.33 to 0.70 s: b\n- 1.0 - 2.0 s: c\n"
+    assert C.timeline_spans(text) == [(0.0, 0.33), (0.33, 0.7), (1.0, 2.0)]
+
+
+def test_load_caption_reparses_the_text(tmp_path):
+    import json
+
+    (tmp_path / "x.json").write_text(json.dumps({"slug": "x", "text": "Entities:\n- dog | first seen 0 s | last seen 1 s | runs\n\nTimeline:\n-0 to 1 s: runs",
+                                                  "entities": [], "spans": []}))
+    rec = C.load_caption(tmp_path, "x")
+    assert [e["name"] for e in rec["entities"]] == ["dog"] and rec["spans"] == [(0.0, 1.0)]
