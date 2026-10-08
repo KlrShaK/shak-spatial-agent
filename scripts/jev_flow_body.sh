@@ -8,6 +8,8 @@
 #   SEED_CACHE   a finished AgentV5 run's cache dir whose scenes and groundings are linked in (read-only)
 #   API_MODE     live (default) | collect | cached   (run stage)
 #   ATTEMPT_ID   set by run_jev_flow_race.sh: the first of the racing jobs to start does the work
+#   NPROC, SHARD_START, SHARDS_TOTAL   (run stage) NPROC shard processes in this job, taking shards
+#                SHARD_START.. of a SHARDS_TOTAL-way split of the clips
 #   EXTRA_ARGS   passed to the runner (e.g. --smoke 25, --limit 40, --shard 0/4)
 #
 # The caption stage is offline (local weights). The run stage calls the OpenAI Decisions API, so it
@@ -84,9 +86,27 @@ run_caption() {
     --caption-model "$CAPTION_MODEL" "${SEED[@]}" $EXTRA_ARGS
 }
 run_agent() {
-  # shellcheck disable=SC2086
-  "$D4RT_PYTHON" -m d4rt_agent.agent_v5_jev.run --backbone "$BACKBONE" --results-dir "$RUN_DIR" \
-    --api-mode "$API_MODE" "${SEED[@]}" $EXTRA_ARGS
+  if [[ "${NPROC:-1}" -le 1 ]]; then
+    # shellcheck disable=SC2086
+    "$D4RT_PYTHON" -m d4rt_agent.agent_v5_jev.run --backbone "$BACKBONE" --results-dir "$RUN_DIR" \
+      --api-mode "$API_MODE" "${SEED[@]}" $EXTRA_ARGS
+    return
+  fi
+  # NPROC shard processes side by side on this GPU (a cold process peaks near 37 GB; a Blackwell has 96 GB).
+  # Job k of a SHARDS_TOTAL-way split takes shards SHARD_START .. SHARD_START+NPROC-1. They write disjoint
+  # clips into the same RUN_DIR, each with its own log.
+  local pids=() fail=0
+  mkdir -p "$RUN_DIR/shard_logs"
+  for ((k = 0; k < NPROC; k++)); do
+    local i=$((SHARD_START + k))
+    # shellcheck disable=SC2086
+    "$D4RT_PYTHON" -m d4rt_agent.agent_v5_jev.run --backbone "$BACKBONE" --results-dir "$RUN_DIR" \
+      --api-mode "$API_MODE" "${SEED[@]}" --shard "$i/$SHARDS_TOTAL" $EXTRA_ARGS \
+      > "$RUN_DIR/shard_logs/shard_${i}_of_${SHARDS_TOTAL}.log" 2>&1 &
+    pids+=($!)
+  done
+  for pid in "${pids[@]}"; do wait "$pid" || fail=1; done
+  return $fail
 }
 case "$STAGE" in
   caption_exp)
