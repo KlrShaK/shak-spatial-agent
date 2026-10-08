@@ -115,6 +115,12 @@ def decide(text: str, questions: Sequence[Mapping[str, Any]], cache: Path, *,
            mode: str = "live", model: str = DEFAULT_MODEL, poster=post) -> dict[str, dict]:
     """Answer `questions` about `text`; cached by request. mode: live | collect | cached."""
 
+    forced = {q["name"]: {"choice": q["choices"][0]["value"], "probs": {q["choices"][0]["value"]: 1.0},
+                          "confidence": 1.0, "forced": True}
+              for q in questions if len(q["choices"]) == 1}      # the API needs at least two choices
+    if forced:
+        asked = [q for q in questions if q["name"] not in forced]
+        return {**forced, **(decide(text, asked, cache, mode=mode, model=model, poster=poster) if asked else {})}
     body = request_body(text, questions, model)
     key = request_key(body)
     hit = cache / "responses" / f"{key}.json"

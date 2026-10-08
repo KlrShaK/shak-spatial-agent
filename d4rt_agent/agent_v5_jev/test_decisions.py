@@ -106,3 +106,18 @@ def test_refusal_is_retried_and_never_cached(tmp_path):
     with pytest.raises(D.Refused):
         D.decide("other", QS, tmp_path, poster=always)
     assert len(list((tmp_path / "responses").glob("*.json"))) == 1
+
+
+def test_single_choice_questions_are_answered_locally(tmp_path):
+    sent = []
+
+    def poster(body):
+        sent.append(body)
+        return _fake_response(body["questions"], "B")
+
+    one = D.choice_question("only", "x", [("A", "the only way")])
+    out = D.decide("t", [one], tmp_path, poster=poster)
+    assert out["only"]["choice"] == "A" and out["only"]["forced"] and not sent
+    mixed = D.decide("t", [one] + QS, tmp_path, poster=poster)
+    assert mixed["only"]["choice"] == "A" and mixed["kind"]["choice"] == "B"
+    assert [q["name"] for q in sent[0]["questions"]] == ["kind"]
