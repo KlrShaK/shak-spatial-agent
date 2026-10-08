@@ -22,6 +22,17 @@ KINDS = (("whole", "the whole video, or no particular time"),
 Ask = Callable[[str, list[dict]], dict[str, dict]]
 
 
+GRID_POINTS = 32
+
+
+def window_frames(length: int, n: int = GRID_POINTS) -> list[int]:
+    """``n`` frame indices spread evenly over a clip of ``length`` frames, the first and last included."""
+
+    if length <= n:
+        return list(range(length))
+    return sorted({round(i * (length - 1) / (n - 1)) for i in range(n)})
+
+
 def frame_grid(frames: Sequence[int], fps: float) -> list[tuple[str, str]]:
     """[(value, description)] for the clip's sampled frames: the value is the time in seconds. The
     first, middle and last times say what they are, so "at the start" and "by the end" have a time to pick."""

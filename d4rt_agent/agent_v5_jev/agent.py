@@ -22,7 +22,7 @@ from d4rt_agent.agent_v5.program import QueryProgram, Window, window_from_questi
 from d4rt_agent.agent_v5.tools import TOOL_SPECS, TOOLS, ToolError, ToolResult, Workspace
 from d4rt_agent.agent_v5_jev.candidates import entity_candidates
 from d4rt_agent.agent_v5_jev.decisions import Refused, choice_question
-from d4rt_agent.agent_v5_jev.windows import TIME_HINT, choose_window, frame_grid, snap_to_explicit
+from d4rt_agent.agent_v5_jev.windows import TIME_HINT, choose_window, frame_grid, snap_to_explicit, window_frames
 
 V5_PROMPTS = Path(__file__).resolve().parents[1] / "agent_v5" / "prompts"
 PROMPTS = Path(__file__).resolve().parent / "prompts"
@@ -145,7 +145,7 @@ class JevAgent:
         start, middle, end) from the clip's frame grid; a time the question states explicitly replaces
         the nearest grid time. A refusal keeps the regex window."""
 
-        grid = frame_grid(clip.answer_frames, clip.fps)
+        grid = frame_grid(window_frames(clip.length), clip.fps)
         clue = f"(Event bounding the span, if any: '{regex_window.event}'.) " if regex_window.event else ""
         context = self._context(run)
         try:
@@ -171,7 +171,7 @@ class JevAgent:
         context = self._context(run)
         try:
             kind, t0, t1 = choose_window(
-                lambda step, qs: self._ask(run, step, context, qs), frame_grid(clip.answer_frames, clip.fps),
+                lambda step, qs: self._ask(run, step, context, qs), frame_grid(window_frames(clip.length), clip.fps),
                 f"(The span is bounded by this event: '{window.event}'. Use the description of the video to say when it happens.)")
         except Refused:                      # the model could not place it: fall back to the whole clip
             run.notes.append(f"window refused for event '{window.event}'; using the whole video")

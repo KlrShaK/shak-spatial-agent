@@ -139,3 +139,13 @@ def test_regex_mode_does_not_ask_about_the_window():
     decide = Scripted({"family": "semantic", "answer": "B"})
     _agent(decide, []).solve({**TASK, "clip": FakeClip()})
     assert not any(q["name"] in ("start", "end", "at") for _, qs in decide.requests for q in qs)
+
+
+def test_window_grid_has_32_points_with_both_ends():
+    from d4rt_agent.agent_v5_jev.windows import frame_grid, window_frames
+
+    frames = window_frames(400)
+    assert len(frames) == 32 and frames[0] == 0 and frames[-1] == 399
+    grid = frame_grid(frames, 30.0)
+    assert grid[0][1].endswith("the start of the video") and grid[-1][1].endswith("the end of the video")
+    assert window_frames(10) == list(range(10))

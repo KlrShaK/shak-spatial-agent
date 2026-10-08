@@ -19,7 +19,7 @@ from typing import Any, Sequence
 
 from d4rt_agent.agent_v5.program import window_from_question
 from d4rt_agent.agent_v5_jev import decisions
-from d4rt_agent.agent_v5_jev.windows import TIME_HINT, choose_window, frame_grid, snap_to_explicit
+from d4rt_agent.agent_v5_jev.windows import TIME_HINT, choose_window, frame_grid, snap_to_explicit, window_frames
 
 CATALOG = Path("/cluster/work/igp_psr/spanwar/shak-spatial-agent/dyn_dataset_exploration/outputs/"
                "decomposition_eval/catalog.json")
@@ -51,13 +51,14 @@ def main(argv: Sequence[str] | None = None) -> None:
         if rx[0] != "whole" or HINT.search(q["question"]):
             clip = json.loads((SEED / "clips" / video_slug(q["dataset"], q["video"]) / "clip.json").read_text())
             if clip.get("fps_gf"):
-                todo.append((q, rx, frame_grid(clip["sampled16"], clip["fps_gf"])))
+                todo.append((q, rx, frame_grid(window_frames(clip["gf"]["length"]), clip["fps_gf"])))
 
     def one(item: tuple) -> dict[str, Any]:
         q, rx, grid = item
         ask = lambda step, qs: decisions.decide(f"## Question\n{q['question']}", qs, cache)  # noqa: E731
         try:
             kind, t0, t1 = choose_window(ask, grid, "(Read the time span from the question text.)")
+            t0, t1 = snap_to_explicit(t0, q["question"], grid), snap_to_explicit(t1, q["question"], grid)
         except decisions.Refused:
             kind, t0, t1 = "refused", None, None
         return {"qid": q["qid"], "question": q["question"], "regex": rx, "model": (kind, t0, t1)}
