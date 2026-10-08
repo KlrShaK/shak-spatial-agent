@@ -36,19 +36,22 @@ _TIME = re.compile(r"(\d+(?:\.\d+)?)\s*s?")
 
 
 def parse_entities(text: str) -> list[dict[str, Any]]:
-    """Entities from the caption's ``Entities:`` list; tolerant of a missing time or behaviour."""
+    """Entities from the caption's ``Entities:`` list (it ends at the ``Timeline:`` header or the
+    end); tolerant of a missing time or behaviour."""
 
-    match = re.search(r"entities\s*:\s*\n?(.*)", text, re.I | re.S)
+    match = re.search(r"entities\s*:\s*\n?(.*?)(?=^\s*\W*timeline\s*:|\Z)", text, re.I | re.S | re.M)
     if not match:
         return []
     out: list[dict[str, Any]] = []
+    seen: set[str] = set()
     for line in match.group(1).splitlines():
         m = _ENTITY.match(line)
         if not m:
             continue
         name = re.sub(r"[`*_]", "", m.group("name")).strip().strip(".")
-        if not name or len(name.split()) > 6:
+        if not name or len(name.split()) > 6 or name.lower() in seen:
             continue
+        seen.add(name.lower())
         parts = [p.strip() for p in (m.group("rest") or "").split("|")]
         times = [float(_TIME.search(p).group(1)) if _TIME.search(p) else None for p in parts[:2]]
         times += [None] * (2 - len(times))
