@@ -1,15 +1,14 @@
 #!/usr/bin/env bash
-# Jev-flow (caption + Decisions-driven AgentV5 phases) on one GPU with 32 GB (the caption model is 2B; the agent loads no Qwen). One job at a time; see jev_flow_body.sh.
+# Jev-flow (caption + Decisions-driven AgentV5 phases) on one RTX 4090 (24 GB): the caption model is 2B and the agent loads no Qwen.
+# The run stage's peak memory is not measured yet; if it needs more, override with e.g. --gpus=1 --gres=gpumem:32G. One job at a time; see jev_flow_body.sh.
 #
-#   STAGE=caption RUN_DIR=d4rt_agent/results/jev_pilot EXTRA_ARGS="--smoke 25" sbatch --time=00:30:00 scripts/run_jev_flow_a100.slurm
-#   STAGE=run     RUN_DIR=d4rt_agent/results/jev_pilot SEED_CACHE=<V5 run>/cache EXTRA_ARGS="--smoke 25" sbatch scripts/run_jev_flow_a100.slurm
+#   STAGE=caption RUN_DIR=d4rt_agent/results/jev_pilot EXTRA_ARGS="--smoke 25" sbatch --time=00:30:00 scripts/run_jev_flow.slurm
+#   STAGE=run     RUN_DIR=d4rt_agent/results/jev_pilot SEED_CACHE=<V5 run>/cache EXTRA_ARGS="--smoke 25" sbatch scripts/run_jev_flow.slurm
 #
 # Submit from the worktree root (it uses SLURM_SUBMIT_DIR).
 
 #SBATCH --job-name=jev-flow-a100
-#SBATCH --gpus=1
-#SBATCH --gres=gpumem:32G
-#SBATCH --constraint="EPYC_7413|EPYC_9354|XeonGold_6240R"
+#SBATCH --gpus=rtx_4090:1
 #SBATCH --cpus-per-task=4
 #SBATCH --mem-per-cpu=12G
 #SBATCH --tmp=16G

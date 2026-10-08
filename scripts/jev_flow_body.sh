@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Shared body for the jev-flow launcher (run_jev_flow_a100.slurm).
+# Shared body for the jev-flow launcher (run_jev_flow.slurm).
 #
 # Environment expected from the submitter:
 #   STAGE        caption | run   -- caption: Qwen3-VL-2B describes each clip once; run: the Decisions-driven agent
