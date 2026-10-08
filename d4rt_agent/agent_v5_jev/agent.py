@@ -12,6 +12,7 @@ chose is recorded in ``trace`` with its probabilities, so a wrong answer can be 
 
 from __future__ import annotations
 
+import time
 import traceback
 from pathlib import Path
 from typing import Any, Callable, Mapping, Sequence
@@ -64,7 +65,10 @@ class JevAgent:
     # -- calls ------------------------------------------------------------------------
 
     def _ask(self, run: "_Run", step: str, text: str, questions: list[dict]) -> dict[str, dict]:
+        started = time.time()
         answers = self.decide(text, questions)
+        run.timing["api_s"] += time.time() - started
+        run.timing["api_calls"] += 1
         for name, answer in answers.items():
             run.trace.append({"step": step, "question": name, "choice": answer["choice"],
                               "confidence": answer["confidence"], "probs": answer["probs"]})
@@ -218,6 +222,7 @@ class JevAgent:
         return self._context(run, "\n" + "\n".join(lines))
 
     def _run_tool(self, run: "_Run", ws: Workspace, call: "_Call") -> None:
+        started = time.time()
         try:
             result = TOOLS[call.tool](ws, call.args)
         except ToolError as error:
@@ -226,6 +231,7 @@ class JevAgent:
             result = ToolResult(f"## {call.tool}\nThe tool failed ({type(error).__name__}: {error}). Treat this "
                                 "measurement as unavailable.", f"{call.tool}: failed",
                                 data={"error": traceback.format_exc()})
+        run.timing["tool_s"] += time.time() - started
         run.results.append((call.tool, call.args, result))
         run.trace[-1]["tool_summary"] = result.summary
 
@@ -271,6 +277,7 @@ class _Run:
         self.answer: dict[str, Any] | None = None
         self.caption_only: dict[str, Any] | None = None
         self.error: str | None = None
+        self.timing: dict[str, float] = {"api_s": 0.0, "api_calls": 0, "tool_s": 0.0}   # tool_s includes scene load and SAM3
 
     def solution(self, backbone: str) -> dict[str, Any]:
         from d4rt_agent.agent_v5.orchestrator import _jsonable
@@ -289,6 +296,7 @@ class _Run:
             "measuring_steps": len(self.results), "kind_switches": 0, "notes": self.notes,
             "peak_tokens": 0, "trims": [],
             "history": self.history, "trace": self.trace,
+            "timing": {k: round(v, 2) for k, v in self.timing.items()},
             "answer_probs": None if self.answer is None else self.answer["probs"],
             "answer_confidence": None if self.answer is None else self.answer["confidence"],
             "caption_only_letter": None if self.caption_only is None else self.caption_only["choice"],

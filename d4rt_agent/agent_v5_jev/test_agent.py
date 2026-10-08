@@ -149,3 +149,9 @@ def test_window_grid_has_32_points_with_both_ends():
     grid = frame_grid(frames, 30.0)
     assert grid[0][1].endswith("the start of the video") and grid[-1][1].endswith("the end of the video")
     assert window_frames(10) == list(range(10))
+
+
+def test_timing_is_recorded():
+    decide = Scripted({"family": "semantic", "answer": "B"})
+    out = _agent(decide, []).solve({**TASK, "clip": FakeClip()})
+    assert out["timing"]["api_calls"] == 3 and out["timing"]["api_s"] >= 0 and out["timing"]["tool_s"] == 0
