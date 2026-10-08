@@ -38,7 +38,7 @@ Decide = Callable[[str, Sequence[Mapping[str, Any]]], dict[str, dict]]
 
 class JevAgent:
     def __init__(self, *, decide: Decide, workspace_factory: Callable[[Any, QueryProgram], Workspace],
-                 captions: Callable[[str], Mapping[str, Any]], backbone: str, max_tool_steps: int = 6,
+                 captions: Callable[[str], Mapping[str, Any]], backbone: str, max_tool_steps: int = 8,
                  window_mode: str = "regex") -> None:
         self.decide = decide
         self.workspace_factory = workspace_factory
@@ -110,6 +110,7 @@ class JevAgent:
         questions: list[dict] = []
         for slot in slots:
             choices = _slot_choices(slot, run.question, run.caption)
+            run.pool += [c[0] for c in choices if c[0] not in run.pool and c[0] != "camera" and slot.type != "choice"]
             if not choices:
                 run.decomposition_ok = False
                 run.notes.append(f"no candidate for slot {slot.name}")
@@ -193,7 +194,7 @@ class JevAgent:
         done: set[str] = set()
         for _ in range(self.max_tool_steps):
             menu = [t for t in kinds_module.tools_for(run.kind) if t not in NOT_OFFERED]
-            calls = _candidate_calls(ws, run.kind, menu, done)
+            calls = _candidate_calls(ws, run.kind, menu, done) + _ground_calls(ws, run, done)
             if not calls:
                 return
             questions = [choice_question("tool", "Which measurement is most useful next?",
@@ -207,6 +208,24 @@ class JevAgent:
             done.add(call.key)
             run.history.append(f"measure: {call.key}")
             self._run_tool(run, ws, call)
+            if call.tool == "ground":
+                if run.results[-1][2].data.get("instances", 0) > 0:
+                    done -= run.failed_calls        # the entity is found now: the failed measurements may be retried
+            else:
+                self._flag_failure(run, call)
+
+    def _flag_failure(self, run: "_Run", call: "_Call") -> None:
+        """A tool that could not find or see an entity makes ``ground`` retries on offer for it."""
+
+        text = run.results[-1][2].summary.lower() + " " + run.results[-1][2].text.lower()
+        if not any(w in text for w in ("segmenter found no", "found nothing", "not both visible", "no usable track",
+                                       "has no usable")):
+            return
+        run.failed_calls.add(call.key)
+        for key in ("entity", "a", "b"):
+            eid = call.args.get(key)
+            if eid and eid != "cam":
+                run.flagged.add(str(eid).split("[")[0])
 
     def _measure_text(self, run: "_Run") -> str:
         playbook = V5_PROMPTS / "playbooks" / f"{run.kind}.md"
@@ -296,6 +315,9 @@ class _Run:
         self.caption_only: dict[str, Any] | None = None
         self.error: str | None = None
         self.forced = False
+        self.pool: list[str] = []                      # every phrase offered for any entity slot
+        self.flagged: set[str] = set()                 # entities a tool could not find / see
+        self.failed_calls: set[str] = set()
         self.timing: dict[str, float] = {"api_s": 0.0, "api_calls": 0, "tool_s": 0.0}   # tool_s includes scene load and SAM3
 
     def solution(self, backbone: str) -> dict[str, Any]:
@@ -345,6 +367,35 @@ def _slot_choices(slot: Slot, question: str, caption: Mapping[str, Any]) -> list
 def _window_text(w: Window) -> str:
     return {"whole": "the whole video", "instant": f"the moment {w.t0} s",
             "interval": f"{w.t0} s to {w.t1} s"}.get(w.kind, f"{w.phase or w.kind}")
+
+
+def _ground_calls(ws: Workspace, run: "_Run", done: set[str]) -> list["_Call"]:
+    """``ground`` retries for entities a tool could not find: another candidate phrase, or the same phrase
+    prompted at the time the caption says the entity first appears."""
+
+    calls: list[_Call] = []
+    for eid in sorted(run.flagged):
+        entity = ws.program.entity(eid)
+        if entity is None or not entity.phrase:
+            continue
+        current = entity.phrase.lower()
+        for phrase in [p for p in run.pool if p.lower() != current][:3]:
+            calls.append(_Call("ground", {"entity": eid, "phrase": phrase},
+                               f"look for {eid} again as '{phrase}' (it was '{entity.phrase}')"))
+        first = _first_seen(run.caption, entity.phrase)
+        if first is not None and first > 0.2:
+            calls.append(_Call("ground", {"entity": eid, "phrase": entity.phrase, "at_s": round(first, 2)},
+                               f"look for {eid} ('{entity.phrase}') starting from {first:.2f} s, when the description "
+                               "says it first appears"))
+    return [c for c in calls if c.key not in done]
+
+
+def _first_seen(caption: Mapping[str, Any], phrase: str) -> float | None:
+    words = {w for w in phrase.lower().split() if len(w) > 2}
+    for e in caption.get("entities", []):
+        if e.get("first_s") is not None and words & {w for w in e["name"].lower().split() if len(w) > 2}:
+            return float(e["first_s"])
+    return None
 
 
 def _entity_args(ws: Workspace) -> list[str]:

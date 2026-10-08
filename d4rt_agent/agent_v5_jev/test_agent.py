@@ -191,3 +191,24 @@ def test_a_refused_ablation_does_not_kill_the_question():
 
     out = _agent(decide, []).solve({**TASK, "clip": FakeClip()})
     assert out["letter"] == "B" and out["caption_only_letter"] is None and out["status"] == "answered"
+
+
+def test_a_missed_entity_can_be_found_again_with_another_phrase():
+    decide = Scripted({"family": "subject_motion", "kind": "subject_direction", "subject": "dog",
+                       "tool": ["entity_track(entity=e1, frame=scene)", "ground(entity=e1, phrase=hound)",
+                                "entity_track(entity=e1, frame=scene)", "done_measuring"], "answer": "A"})
+    scene, groundings = synthetic.build_scene(40, 6.0, entities=[("hound", u_path)])
+
+    def factory(clip, program):
+        return Workspace(clip, program, scene_fn=lambda c: scene,
+                         ground_fn=lambda c, p, f: groundings.get(p) or _empty(c))
+
+    agent = JevAgent(decide=decide, workspace_factory=factory, backbone="test", window_mode="regex",
+                     captions=lambda slug: {**CAPTION, "entities": [{"name": "hound", "first_s": 0.0, "last_s": 6.0,
+                                                                     "behaviour": "walks"}]})
+    task = {**TASK, "question": "Between 0s and 6s, which way does the dog or hound move?", "clip": FakeClip()}
+    out = agent.solve(task)
+    tools = [(t["tool"], t["summary"]) for t in out["tools"]]
+    assert [t for t, _ in tools] == ["entity_track", "ground", "entity_track"], (tools, out.get("error"))
+    assert "unavailable" in tools[0][1] and "unavailable" not in tools[2][1]
+    assert out["letter"] == "A"

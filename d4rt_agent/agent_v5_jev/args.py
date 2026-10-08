@@ -19,7 +19,7 @@ def parse(argv: Sequence[str] | None = None) -> argparse.Namespace:
     mine.add_argument("--api-mode", choices=["live", "collect", "cached"], default="live")
     mine.add_argument("--seed-cache", type=Path, default=None,
                       help="a finished V5 run's cache dir: its scenes and groundings are linked in, never written")
-    mine.add_argument("--max-tool-steps", type=int, default=6)
+    mine.add_argument("--max-tool-steps", type=int, default=8)
     mine.add_argument("--window-mode", choices=["regex", "hybrid"], default="regex",
                       help="regex: AgentV5's reading of the question; hybrid: the model reads the span structure from the frame grid")
     ns, rest = mine.parse_known_args(argv)
