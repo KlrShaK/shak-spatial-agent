@@ -14,10 +14,14 @@ from d4rt_agent.agent_v5.program import timestamps
 
 from d4rt_agent.agent_v5_jev.decisions import choice_question
 
-KINDS = (("whole", "the whole video, or no particular time"),
-         ("instant", "one moment (for example 'at 2 s', 'at the start', 'at the end', 'in the first frame')"),
-         ("interval", "a stretch from one time to another (for example 'between 1 s and 3 s', "
-                      "'from the start to the middle', 'until the frame where ...')"))
+KINDS = (("whole", "the whole video, or no particular time. Also when the question compares the start with the end "
+                   "of the video (for example 'is the scene the same at the start and the end', 'from the beginning "
+                   "to the end')"),
+         ("instant", "ONE moment only (for example 'at 2 s', 'at the start of the video', 'at the end of the video', "
+                     "'is X still in the frame at the end'). Never when two moments are compared"),
+         ("interval", "a stretch from one time to another, with both ends named or implied (for example 'between "
+                      "1 s and 3 s', 'from the start to the middle', 'between the moment X enters and when it exits', "
+                      "'until the frame where ...')"))
 
 Ask = Callable[[str, list[dict]], dict[str, dict]]
 
