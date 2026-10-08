@@ -19,9 +19,7 @@ from collections import defaultdict
 from pathlib import Path
 from typing import Any, Sequence
 
-import numpy as np
-
-from d4rt_agent.agent_v5_jev.caption import PROMPTS, parse_entities, timeline_spans
+from d4rt_agent.agent_v5_jev.caption import generate, messages, parse_entities, pick_frames, timeline_spans
 
 # name: frames, long side, prompt(s), repetition penalty, max new tokens
 VARIANTS: dict[str, dict[str, Any]] = {
@@ -38,35 +36,6 @@ VARIANTS: dict[str, dict[str, Any]] = {
     "two_rp_f16": dict(frames=16, side=448, prompts=["caption_entities.md", "caption_timeline.md"], rp=1.15, tokens=250),
     "two_rp_f16_small": dict(frames=16, side=256, prompts=["caption_entities.md", "caption_timeline.md"], rp=1.15, tokens=250),
 }
-
-
-def pick_frames(clip: Any, n: int) -> list[int]:
-    frames = clip.answer_frames
-    idx = np.unique(np.round(np.linspace(0, len(frames) - 1, n)).astype(int))
-    return [frames[i] for i in idx]
-
-
-def messages(clip: Any, indices: Sequence[int], side: int, prompt: str) -> list[dict[str, Any]]:
-    content: list[dict[str, Any]] = []
-    for index in indices:
-        content.append({"type": "text", "text": clip.label(index) + ":"})
-        content.append({"type": "image", "image": clip.pil(index, side)})
-    content.append({"type": "text", "text": (PROMPTS / prompt).read_text(encoding="utf-8")})
-    return [{"role": "user", "content": content}]
-
-
-def generate(qwen: Any, msgs: list[dict[str, Any]], max_new_tokens: int, rp: float) -> tuple[str, int, int]:
-    """OfflineQwen.generate with a repetition penalty and token counts: (text, input tokens, output tokens)."""
-
-    qwen.torch.manual_seed(qwen.seed)
-    inputs = qwen.processor.apply_chat_template(msgs, tokenize=True, add_generation_prompt=True, return_dict=True,
-                                                return_tensors="pt").to(qwen.model.device)
-    with qwen.torch.inference_mode():
-        out = qwen.model.generate(**inputs, max_new_tokens=max_new_tokens, do_sample=False, num_beams=1,
-                                  repetition_penalty=rp)
-    new = out[:, inputs.input_ids.shape[1]:]
-    text = qwen.processor.batch_decode(new, skip_special_tokens=True, clean_up_tokenization_spaces=False)[0].strip()
-    return text, int(inputs.input_ids.shape[1]), int(new.shape[1])
 
 
 def run(args: Any) -> None:

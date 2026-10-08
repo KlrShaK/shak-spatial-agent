@@ -24,7 +24,7 @@ POINT4D_REPO="${POINT4D_REPO:-/cluster/work/igp_psr/spanwar/Point4D}"
 STAGE="${STAGE:?STAGE must be caption or run}"
 BACKBONE="${BACKBONE:-point4d}"
 API_MODE="${API_MODE:-live}"
-case "$STAGE" in caption|run|caption_exp) ;; *) echo "STAGE must be caption, run or caption_exp, got '$STAGE'" >&2; exit 2;; esac
+case "$STAGE" in caption|run|caption_exp|caption_run) ;; *) echo "STAGE must be caption, run, caption_exp or caption_run, got '$STAGE'" >&2; exit 2;; esac
 case "$BACKBONE" in point4d|d4rt) ;; *) echo "BACKBONE must be point4d or d4rt, got '$BACKBONE'" >&2; exit 2;; esac
 
 pick() { if [[ -e "$1" ]]; then echo "$1"; else echo "$2"; fi; }
@@ -57,7 +57,7 @@ export PYTHONPATH="$LOCAL_DEPS:$REPO_ROOT:$POINT4D_REPO${PYTHONPATH:+:$PYTHONPAT
 export NVIDIA_TF32_OVERRIDE=1
 export CODE_SHA="$(git rev-parse HEAD 2>/dev/null || echo unknown)"
 
-if [[ "$STAGE" == "run" && "$API_MODE" != "cached" && "${USE_PROXY:-1}" == "1" ]]; then
+if [[ "$STAGE" == *run* && "$STAGE" != "caption_exp" && "$API_MODE" != "cached" && "${USE_PROXY:-1}" == "1" ]]; then
   source /etc/profile.d/modules.sh 2>/dev/null || true
   module load eth_proxy
   echo "https_proxy=${https_proxy:-unset}"
@@ -78,17 +78,23 @@ nvidia-smi --query-gpu=name,memory.total,memory.free --format=csv
 
 SEED=()
 [[ -n "${SEED_CACHE:-}" ]] && SEED=(--seed-cache "$SEED_CACHE")
-if [[ "$STAGE" == "caption_exp" ]]; then
-  # shellcheck disable=SC2086
-  "$D4RT_PYTHON" -m d4rt_agent.agent_v5_jev.caption_experiment run --backbone "$BACKBONE" --results-dir "$RUN_DIR" \
-    --caption-model "$CAPTION_MODEL" "${SEED[@]}" $EXTRA_ARGS
-elif [[ "$STAGE" == "caption" ]]; then
+run_caption() {
   # shellcheck disable=SC2086
   "$D4RT_PYTHON" -m d4rt_agent.agent_v5_jev.caption --backbone "$BACKBONE" --results-dir "$RUN_DIR" \
     --caption-model "$CAPTION_MODEL" "${SEED[@]}" $EXTRA_ARGS
-else
+}
+run_agent() {
   # shellcheck disable=SC2086
   "$D4RT_PYTHON" -m d4rt_agent.agent_v5_jev.run --backbone "$BACKBONE" --results-dir "$RUN_DIR" \
     --api-mode "$API_MODE" "${SEED[@]}" $EXTRA_ARGS
-fi
+}
+case "$STAGE" in
+  caption_exp)
+    # shellcheck disable=SC2086
+    "$D4RT_PYTHON" -m d4rt_agent.agent_v5_jev.caption_experiment run --backbone "$BACKBONE" --results-dir "$RUN_DIR" \
+      --caption-model "$CAPTION_MODEL" "${SEED[@]}" $EXTRA_ARGS ;;
+  caption) run_caption ;;
+  run) run_agent ;;
+  caption_run) run_caption && run_agent ;;
+esac
 echo "jev-flow $STAGE finished: $RUN_DIR"

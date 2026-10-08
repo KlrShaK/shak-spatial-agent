@@ -29,3 +29,24 @@ def test_missing_entities_header_gives_nothing():
 def test_single_timestamps_become_spans():
     text = "Timeline:\n- 0.00 s: a dog stands\n- 0.50 s: it runs\n- 1.00 s: it stops\n"
     assert C.timeline_spans(text) == [(0.0, 0.5), (0.5, 1.0)]
+
+
+class _Clip:
+    answer_frames = list(range(16))
+    slug = "x"
+
+
+def test_caption_clip_assembles_the_two_steps():
+    calls = []
+
+    def fake(qwen, msgs, tokens, rp):
+        calls.append((len([p for p in msgs[0]["content"] if p["type"] == "image"]), tokens, rp))
+        return ("- dog | first seen 0 s | last seen 2 s | runs" if len(calls) == 1 else "- 0-2 s: the dog runs"), 1, 1
+
+    class Clip(_Clip):
+        def label(self, i): return f"Frame {i}"
+        def pil(self, i, side): return object()
+
+    text = C.caption_clip(None, Clip(), gen=fake)
+    assert calls == [(8, 250, 1.15), (8, 250, 1.15)]
+    assert [e["name"] for e in C.parse_entities(text)] == ["dog"] and C.timeline_spans(text) == [(0.0, 2.0)]

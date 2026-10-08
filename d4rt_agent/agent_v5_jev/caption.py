@@ -18,17 +18,54 @@ from pathlib import Path
 from typing import Any, Sequence
 
 PROMPTS = Path(__file__).resolve().parent / "prompts"
-CAPTION_LONG_SIDE = 448
-CAPTION_TOKENS = 700
+# The recipe chosen from the caption experiment (caption_experiment.py, 12 clips): one small question per
+# generation (entities, then timeline), 8 frames, repetition penalty. The single long prompt the 2B model
+# could not follow (no section headers, endless repeated lines) is gone.
+FRAMES = 8
+LONG_SIDE = 448
+REPETITION_PENALTY = 1.15
+STEP_TOKENS = 250
+STEP_PROMPTS = ("caption_entities.md", "caption_timeline.md")
 
 
-def caption_messages(clip: Any) -> list[dict[str, Any]]:
+def pick_frames(clip: Any, n: int) -> list[int]:
+    import numpy as np
+
+    frames = clip.answer_frames
+    idx = np.unique(np.round(np.linspace(0, len(frames) - 1, n)).astype(int))
+    return [frames[i] for i in idx]
+
+
+def messages(clip: Any, indices: Sequence[int], side: int, prompt: str) -> list[dict[str, Any]]:
     content: list[dict[str, Any]] = []
-    for index in clip.answer_frames:
+    for index in indices:
         content.append({"type": "text", "text": clip.label(index) + ":"})
-        content.append({"type": "image", "image": clip.pil(index, CAPTION_LONG_SIDE)})
-    content.append({"type": "text", "text": (PROMPTS / "caption.md").read_text(encoding="utf-8")})
+        content.append({"type": "image", "image": clip.pil(index, side)})
+    content.append({"type": "text", "text": (PROMPTS / prompt).read_text(encoding="utf-8")})
     return [{"role": "user", "content": content}]
+
+
+def generate(qwen: Any, msgs: list[dict[str, Any]], max_new_tokens: int, rp: float) -> tuple[str, int, int]:
+    """OfflineQwen.generate with a repetition penalty and token counts: (text, input tokens, output tokens)."""
+
+    qwen.torch.manual_seed(qwen.seed)
+    inputs = qwen.processor.apply_chat_template(msgs, tokenize=True, add_generation_prompt=True, return_dict=True,
+                                                return_tensors="pt").to(qwen.model.device)
+    with qwen.torch.inference_mode():
+        out = qwen.model.generate(**inputs, max_new_tokens=max_new_tokens, do_sample=False, num_beams=1,
+                                  repetition_penalty=rp)
+    new = out[:, inputs.input_ids.shape[1]:]
+    text = qwen.processor.batch_decode(new, skip_special_tokens=True, clean_up_tokenization_spaces=False)[0].strip()
+    return text, int(inputs.input_ids.shape[1]), int(new.shape[1])
+
+
+def caption_clip(qwen: Any, clip: Any, gen=generate) -> str:
+    """The caption text of one clip: ``Entities:`` list, then ``Timeline:``."""
+
+    indices = pick_frames(clip, FRAMES)
+    entities, timeline = (gen(qwen, messages(clip, indices, LONG_SIDE, p), STEP_TOKENS, REPETITION_PENALTY)[0]
+                          for p in STEP_PROMPTS)
+    return f"Entities:\n{entities}\n\nTimeline:\n{timeline}"
 
 
 _ENTITY = re.compile(r"^\s*[-*]\s*(?P<name>[^|]+?)\s*(?:\|(?P<rest>.*))?$")
@@ -114,12 +151,12 @@ def main(argv: Sequence[str] | None = None) -> None:
         return
     from d4rt_agent.simple_v2 import OfflineQwen
 
-    qwen = OfflineQwen(args.caption_model, max_new_tokens=CAPTION_TOKENS, seed=42)
+    qwen = OfflineQwen(args.caption_model, max_new_tokens=STEP_TOKENS, seed=42)
     for n, entry in enumerate(todo, 1):
         started = time.time()
         try:
             clip = open_clip(entry, args, cache)
-            text = qwen.generate(caption_messages(clip), max_new_tokens=CAPTION_TOKENS)
+            text = caption_clip(qwen, clip)
             record = write_caption(args.captions_dir, clip.slug, text, str(args.caption_model))
             note = f"{len(record['entities'])} entities, {len(record['spans'])} spans"
         except Exception as error:                      # noqa: BLE001 -- recorded, the run goes on
