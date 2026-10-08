@@ -54,7 +54,7 @@ def run(args: Any) -> int:
     write_json(args.results_dir / "run_config.json", {
         "arm": "jev-flow", "bench": args.bench, "backbone": args.backbone, "decisions_model": decisions.DEFAULT_MODEL,
         "caption_model": str(args.caption_model), "api_mode": args.api_mode, "seed_cache": str(args.seed_cache),
-        "catalog": str(args.catalog), "max_tool_steps": args.max_tool_steps, "shard": args.shard,
+        "catalog": str(args.catalog), "max_tool_steps": args.max_tool_steps, "window_mode": args.window_mode, "shard": args.shard,
         "questions": len(entries), "pending": len(pending), "code_sha": os.environ.get("CODE_SHA"),
         "slurm_job_id": os.environ.get("SLURM_JOB_ID")})
     print(f"{len(entries)} questions, {len(pending)} pending (jev-flow, backbone {args.backbone}, "
@@ -69,7 +69,7 @@ def run(args: Any) -> int:
     agent = JevAgent(
         decide=lambda text, questions: decisions.decide(text, questions, args.decisions_cache, mode=args.api_mode),
         workspace_factory=workspace, captions=lambda slug: load_caption(args.captions_dir, slug),
-        backbone=args.backbone, max_tool_steps=args.max_tool_steps)
+        backbone=args.backbone, max_tool_steps=args.max_tool_steps, window_mode=args.window_mode)
     tally: Counter[str] = Counter()
     for n, entry in enumerate(pending, 1):
         started = time.time()

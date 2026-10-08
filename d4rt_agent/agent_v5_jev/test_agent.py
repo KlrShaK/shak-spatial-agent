@@ -123,3 +123,19 @@ def test_event_window_is_chosen_from_the_clips_own_frame_times():
     end_q = next(q for _, qs in decide.requests for q in qs if q["name"] == "end")
     assert all(float(c["value"]) > 0.0 for c in end_q["choices"])           # only times after the start
     assert any(h.startswith("window: interval") for h in out["history"])
+
+
+def test_hybrid_window_keeps_explicit_seconds_and_reads_anchors():
+    decide = Scripted({"family": "subject_motion", "kind": ["interval", "subject_direction"], "subject": "dog",
+                       "start": "0.00", "end": ["2.33", "2.50"], "tool": ["entity_track(entity=e1, frame=scene)",
+                                                                     "done_measuring"], "answer": "A"})
+    task = {**TASK, "question": "Between the start and the 2.2 s mark, which way does the dog move?", "clip": FakeClip()}
+    out = _agent(decide, [("dog", u_path)], window_mode="hybrid").solve(task)
+    w = out["program"]["window"]
+    assert w["kind"] == "interval" and w["t0"] == 0.0 and w["t1"] == 2.2, out.get("error")   # 2.33 snapped to the stated 2.2
+
+
+def test_regex_mode_does_not_ask_about_the_window():
+    decide = Scripted({"family": "semantic", "answer": "B"})
+    _agent(decide, []).solve({**TASK, "clip": FakeClip()})
+    assert not any(q["name"] in ("start", "end", "at") for _, qs in decide.requests for q in qs)

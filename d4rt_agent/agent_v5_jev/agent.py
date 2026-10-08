@@ -21,8 +21,8 @@ from d4rt_agent.agent_v5.kinds import FAMILIES, KIND_BY_NAME, Slot
 from d4rt_agent.agent_v5.program import QueryProgram, Window, window_from_question
 from d4rt_agent.agent_v5.tools import TOOL_SPECS, TOOLS, ToolError, ToolResult, Workspace
 from d4rt_agent.agent_v5_jev.candidates import entity_candidates
-from d4rt_agent.agent_v5_jev.decisions import choice_question
-from d4rt_agent.agent_v5_jev.windows import choose_window, frame_grid
+from d4rt_agent.agent_v5_jev.decisions import Refused, choice_question
+from d4rt_agent.agent_v5_jev.windows import TIME_HINT, choose_window, frame_grid, snap_to_explicit
 
 V5_PROMPTS = Path(__file__).resolve().parents[1] / "agent_v5" / "prompts"
 PROMPTS = Path(__file__).resolve().parent / "prompts"
@@ -37,12 +37,14 @@ Decide = Callable[[str, Sequence[Mapping[str, Any]]], dict[str, dict]]
 
 class JevAgent:
     def __init__(self, *, decide: Decide, workspace_factory: Callable[[Any, QueryProgram], Workspace],
-                 captions: Callable[[str], Mapping[str, Any]], backbone: str, max_tool_steps: int = 6) -> None:
+                 captions: Callable[[str], Mapping[str, Any]], backbone: str, max_tool_steps: int = 6,
+                 window_mode: str = "regex") -> None:
         self.decide = decide
         self.workspace_factory = workspace_factory
         self.captions = captions
         self.backbone = backbone
         self.max_tool_steps = int(max_tool_steps)
+        self.window_mode = window_mode          # regex: V5's reading of the question | hybrid: see _hybrid_window
 
     # -- one question ---------------------------------------------------------------
 
@@ -127,12 +129,37 @@ class JevAgent:
         spec = KIND_BY_NAME[run.kind]
         entities, events = kinds_module.entities_from_slots(run.kind, run.slots, run.question)
         window = window_from_question(run.question)
-        if window.kind == "event" and spec.route == "measure":
+        clip = run.task["clip"]
+        if (self.window_mode == "hybrid" and spec.route == "measure" and clip.fps
+                and (window.kind != "whole" or TIME_HINT.search(run.question))):
+            window = self._hybrid_window(run, window, clip)
+        elif window.kind == "event" and spec.route == "measure":
             window = self._event_window(run, window)
         elif window.kind == "event":
             window = Window("whole")
         return QueryProgram(str(run.task["id"]), run.kind, spec.route, "", entities=entities, events=events,
                             window=window)
+
+    def _hybrid_window(self, run: "_Run", regex_window: Window, clip: Any) -> Window:
+        """The model reads the structure of the span (whole / one moment / a stretch, and the anchors
+        start, middle, end) from the clip's frame grid; a time the question states explicitly replaces
+        the nearest grid time. A refusal keeps the regex window."""
+
+        grid = frame_grid(clip.answer_frames, clip.fps)
+        clue = f"(Event bounding the span, if any: '{regex_window.event}'.) " if regex_window.event else ""
+        context = self._context(run)
+        try:
+            kind, t0, t1 = choose_window(lambda step, qs: self._ask(run, step, context, qs), grid, clue)
+        except Refused:
+            run.notes.append("window refused; kept the regex window")
+            return regex_window
+        t0, t1 = snap_to_explicit(t0, run.question, grid), snap_to_explicit(t1, run.question, grid)
+        run.history.append(f"window: {kind} {t0}-{t1}")
+        if kind == "whole":
+            return Window("whole")
+        if kind == "interval" and t0 is not None and t1 is not None and t1 <= t0:
+            return regex_window
+        return Window(kind, t0, t1, text=run.question)
 
     def _event_window(self, run: "_Run", window: Window) -> Window:
         """A window bounded by an event ("until the frame where the gate is fully open"), chosen
@@ -142,9 +169,13 @@ class JevAgent:
         if not clip.fps:
             return Window("whole")
         context = self._context(run)
-        kind, t0, t1 = choose_window(
-            lambda step, qs: self._ask(run, step, context, qs), frame_grid(clip.answer_frames, clip.fps),
-            f"(The span is bounded by this event: '{window.event}'. Use the description of the video to say when it happens.)")
+        try:
+            kind, t0, t1 = choose_window(
+                lambda step, qs: self._ask(run, step, context, qs), frame_grid(clip.answer_frames, clip.fps),
+                f"(The span is bounded by this event: '{window.event}'. Use the description of the video to say when it happens.)")
+        except Refused:                      # the model could not place it: fall back to the whole clip
+            run.notes.append(f"window refused for event '{window.event}'; using the whole video")
+            return Window("whole")
         run.history.append(f"window: {kind} {t0}-{t1}")
         if kind == "whole":
             return Window("whole")
