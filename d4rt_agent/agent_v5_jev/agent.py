@@ -27,6 +27,7 @@ from d4rt_agent.agent_v5_jev.windows import TIME_HINT, choose_window, frame_grid
 
 V5_PROMPTS = Path(__file__).resolve().parents[1] / "agent_v5" / "prompts"
 PROMPTS = Path(__file__).resolve().parent / "prompts"
+MAX_REGROUNDS = 2          # ground retries per entity: they rarely recover a measurement (pilot: 4 of 18)
 NOT_OFFERED = {"ground", "select", "show", "switch_kind"}
 DONE = "done_measuring"
 FRAME_CHOICES = (("scene", "first camera's axes, camera motion removed (default)"),
@@ -209,6 +210,8 @@ class JevAgent:
             run.history.append(f"measure: {call.key}")
             self._run_tool(run, ws, call)
             if call.tool == "ground":
+                eid = str(call.args["entity"]).split("[")[0]
+                run.regrounds[eid] = run.regrounds.get(eid, 0) + 1
                 if run.results[-1][2].data.get("instances", 0) > 0:
                     done -= run.failed_calls        # the entity is found now: the failed measurements may be retried
             else:
@@ -315,6 +318,7 @@ class _Run:
         self.caption_only: dict[str, Any] | None = None
         self.error: str | None = None
         self.forced = False
+        self.regrounds: dict[str, int] = {}              # ground retries used per entity
         self.pool: list[str] = []                      # every phrase offered for any entity slot
         self.flagged: set[str] = set()                 # entities a tool could not find / see
         self.failed_calls: set[str] = set()
@@ -375,6 +379,8 @@ def _ground_calls(ws: Workspace, run: "_Run", done: set[str]) -> list["_Call"]:
 
     calls: list[_Call] = []
     for eid in sorted(run.flagged):
+        if run.regrounds.get(eid, 0) >= MAX_REGROUNDS:
+            continue
         entity = ws.program.entity(eid)
         if entity is None or not entity.phrase:
             continue

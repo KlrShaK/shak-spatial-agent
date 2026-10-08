@@ -212,3 +212,19 @@ def test_a_missed_entity_can_be_found_again_with_another_phrase():
     assert [t for t, _ in tools] == ["entity_track", "ground", "entity_track"], (tools, out.get("error"))
     assert "unavailable" in tools[0][1] and "unavailable" not in tools[2][1]
     assert out["letter"] == "A"
+
+
+def test_ground_retries_are_capped_per_entity():
+    from d4rt_agent.agent_v5_jev.agent import MAX_REGROUNDS, _Run, _ground_calls
+
+    scene, groundings = synthetic.build_scene(40, 6.0, entities=[("dog", u_path)])
+    from d4rt_agent.agent_v5.program import Entity, QueryProgram
+
+    program = QueryProgram("q", "subject_direction", "measure", "",
+                           entities=[Entity("cam", "camera"), Entity("e1", "object", "dogg", role="subject")])
+    ws = Workspace(FakeClip(), program, scene_fn=lambda c: scene, ground_fn=lambda c, p, f: groundings[p])
+    run = _Run({"id": "q", "question": "q?", "options": {}}, CAPTION)
+    run.flagged.add("e1"); run.pool = ["dog", "hound"]
+    assert _ground_calls(ws, run, set())
+    run.regrounds["e1"] = MAX_REGROUNDS
+    assert _ground_calls(ws, run, set()) == []
