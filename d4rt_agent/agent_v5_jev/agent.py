@@ -22,6 +22,7 @@ from d4rt_agent.agent_v5.program import QueryProgram, Window, window_from_questi
 from d4rt_agent.agent_v5.tools import TOOL_SPECS, TOOLS, ToolError, ToolResult, Workspace
 from d4rt_agent.agent_v5_jev.candidates import entity_candidates
 from d4rt_agent.agent_v5_jev.decisions import choice_question
+from d4rt_agent.agent_v5_jev.windows import choose_window, frame_grid
 
 V5_PROMPTS = Path(__file__).resolve().parents[1] / "agent_v5" / "prompts"
 PROMPTS = Path(__file__).resolve().parent / "prompts"
@@ -134,28 +135,20 @@ class JevAgent:
                             window=window)
 
     def _event_window(self, run: "_Run", window: Window) -> Window:
-        """A window bounded by an event ("until the frame where the gate is fully open"): the model
-        picks its start and end from a preset grid, the clip's own sampled frame times, so the
-        answer is always a valid time and never parsed out of free text. The end is offered only
-        among times after the start."""
+        """A window bounded by an event ("until the frame where the gate is fully open"), chosen
+        from the clip's own frame times (``windows.choose_window``)."""
 
         clip = run.task["clip"]
         if not clip.fps:
             return Window("whole")
-        times = [(f, f / clip.fps) for f in clip.answer_frames]
-        grid = [(f"{t:.2f}", f"frame {f}, at {t:.2f} s") for f, t in times]
-        event = window.event
-        context = self._context(run, f"\n(The question's time span is bounded by this event: '{event}'. "
-                                     "Use the description of the video to say when it happens.)")
-        start = self._ask(run, "window_start", context, [choice_question(
-            "start", f"At which of these times does the span the question asks about begin? (the start of the "
-                     f"video if it begins at the start, otherwise the time of: '{event}')", grid)])["start"]["choice"]
-        later = [g for g in grid if float(g[0]) > float(start)]
-        end = (self._ask(run, "window_end", context, [choice_question(
-            "end", f"At which of these times does that span end? (the time of: '{event}')", later)])["end"]["choice"]
-               if later else grid[-1][0])
-        run.history.append(f"window: {start}-{end} s")
-        return Window("interval", float(start), float(end), text=event)
+        context = self._context(run)
+        kind, t0, t1 = choose_window(
+            lambda step, qs: self._ask(run, step, context, qs), frame_grid(clip.answer_frames, clip.fps),
+            f"(The span is bounded by this event: '{window.event}'. Use the description of the video to say when it happens.)")
+        run.history.append(f"window: {kind} {t0}-{t1}")
+        if kind == "whole":
+            return Window("whole")
+        return Window(kind, t0, t1, text=window.event)
 
     # -- phase 2 ----------------------------------------------------------------------
 
