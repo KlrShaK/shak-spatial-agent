@@ -89,6 +89,10 @@ def run(args: Any) -> int:
             except decisions.NeedRequest:
                 tally["waiting"] += 1
                 continue
+            except FileNotFoundError as error:                  # no caption yet: no answer file, a rerun fills it in
+                tally["no_caption"] += 1
+                print(f"[{n}/{len(pending)}] {entry['id']}: skipped, {error}", flush=True)
+                continue
         solution["reference"] = {"answer": entry["answer"], "options": entry["options"], "task": entry.get("task"),
                                  "group": entry.get("group"), "dataset": entry.get("dataset")}
         solution["correct"] = solution.get("letter") == entry["answer"]
