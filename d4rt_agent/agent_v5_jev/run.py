@@ -51,7 +51,8 @@ def run(args: Any) -> int:
     cache = args.cache_dir or (args.results_dir / "cache")
     answers = args.results_dir / "answers"
     pending = [e for e in entries if args.force or not (answers / f"{e['id']}.json").exists()]
-    write_json(args.results_dir / "run_config.json", {
+    tag = "" if args.shard == "0/1" else "_shard_" + args.shard.replace("/", "_of_")   # shard processes share RUN_DIR
+    write_json(args.results_dir / f"run_config{tag}.json", {
         "arm": "jev-flow", "bench": args.bench, "backbone": args.backbone, "decisions_model": decisions.DEFAULT_MODEL,
         "caption_model": str(args.caption_model), "api_mode": args.api_mode, "seed_cache": str(args.seed_cache),
         "catalog": str(args.catalog), "max_tool_steps": args.max_tool_steps, "window_mode": args.window_mode, "shard": args.shard,
