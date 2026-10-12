@@ -10,4 +10,4 @@ Now measure. Available actions (one per turn):
 {schemas}
 
 You have at most {steps} measuring turns. Call `done_measuring` as soon as the measurements are
-enough to decide; you will then see the frames again and the answer options.
+enough to decide. A bounded evidence review follows, then you will see the answer frames again.

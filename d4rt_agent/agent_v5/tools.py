@@ -40,6 +40,10 @@ class ToolError(ValueError):
     """The arguments cannot be executed as given; the model is told why and may retry."""
 
 
+def _entity_base(eid: str) -> str:
+    return re.split(r"[\[#]", eid, maxsplit=1)[0]
+
+
 @dataclass
 class ToolResult:
     text: str
@@ -69,7 +73,9 @@ class Workspace:
         self.used_phrase: dict[str, str] = {}             # entity id -> the prompt that found it
         self.selected: dict[str, list[int]] = {}          # entity id -> instance indices chosen by the agent
         self._tracks: dict[str, list[EntityTrack]] = {}
-        self._facing: dict[str, list[dict[str, Any]]] = {}
+        self._facing: dict[tuple[str, int, tuple[int, ...]], list[dict[str, Any]]] = {}
+        self.revisions: dict[str, int] = {}
+        self.accessed_entities: set[str] = set()
         self.counter = 0
 
     # -- scene -------------------------------------------------------------------
@@ -86,7 +92,7 @@ class Workspace:
     # -- entities ----------------------------------------------------------------
 
     def entity(self, eid: str) -> Entity:
-        base = eid.split("[")[0]
+        base = _entity_base(eid)
         entity = self.program.entity(base)
         if entity is None or entity.kind == "camera":
             raise ToolError(f"unknown entity {eid!r}; use one of {self.entity_choices(include_camera=False)}")
@@ -102,6 +108,7 @@ class Workspace:
         """The entity's grounding, made on first use with its phrase (then the simpler rungs of
         ``phrase_ladder`` if SAM3 finds nothing)."""
 
+        self.accessed_entities.add(base)
         if base not in self.groundings:
             entity = self.entity(base)
             if not entity.phrase:
@@ -126,9 +133,16 @@ class Workspace:
             found.used_phrase = self.used_phrase[base] if self.used_phrase[base] != phrase else None
             found.phrase = phrase
         self.groundings[base] = found
-        self._tracks.pop(base, None)
-        self._facing = {k: v for k, v in self._facing.items() if k.split("[")[0] != base}
+        self.invalidate(base)
         return found
+
+    def invalidate(self, base: str) -> None:
+        """A new grounding or instance selection supersedes all dependent measurements."""
+
+        self.accessed_entities.add(base)
+        self.revisions[base] = self.revisions.get(base, 0) + 1
+        self._tracks.pop(base, None)
+        self._facing = {k: v for k, v in self._facing.items() if _entity_base(k[0]) != base}
 
     def reground(self, base: str, phrase: str, prompt_frame: int) -> Grounding:
         entity = self.entity(base)
@@ -137,6 +151,7 @@ class Workspace:
         return self._ground(base, phrase, prompt_frame)
 
     def tracks_of(self, base: str) -> list[EntityTrack]:
+        self.accessed_entities.add(base)
         if base in self._tracks:
             return self._tracks[base]
         entity = self.entity(base)
@@ -165,6 +180,8 @@ class Workspace:
 
         if eid in ("cam", "camera"):
             return "camera"
+        if "#" in eid:
+            return next((track for track in self.tracks_of(_entity_base(eid)) if track.id == eid), None)
         if "[" in eid:
             base, k = eid[:-1].split("[")
             lst = self.tracks_of(base)
@@ -177,12 +194,12 @@ class Workspace:
         for eid in eids:
             if eid in ("cam", "camera"):
                 continue
-            base = eid.split("[")[0]
+            base = _entity_base(eid)
             out[base] = self.tracks_of(base)
         return out
 
     def masks_at(self, eid: str) -> Callable[[int], np.ndarray | None]:
-        base = eid.split("[")[0]
+        base = _entity_base(eid)
         g = self.grounding(base)
         track = self.track(eid)
         instances = track.instances if isinstance(track, EntityTrack) else []
@@ -202,7 +219,9 @@ class Workspace:
     def facing(self, eid: str, positions: Sequence[int]) -> list[dict[str, Any]]:
         if self._orient_fn is None:
             raise ToolError("orientation is not available in this run")
-        key = f"{eid}@{','.join(map(str, positions))}"
+        base = _entity_base(eid)
+        self.grounding(base)
+        key = (eid, self.revisions[base], tuple(int(p) for p in positions))
         if key not in self._facing:
             self._facing[key] = orientation.facing_rows(self._orient_fn(), self.clip, self.scene(),
                                                         self.masks_at(eid), positions)
@@ -241,7 +260,7 @@ class Workspace:
 def _who(ws: Workspace, eid: str) -> str:
     if eid in ("cam", "camera"):
         return "the camera"
-    entity = ws.program.entity(eid.split("[")[0])
+    entity = ws.program.entity(_entity_base(eid))
     label = entity.phrase if entity and entity.phrase else eid
     if "[" in eid:
         label += f" #{int(eid.split('[')[1][:-1]) + 1}"
@@ -266,7 +285,7 @@ def _unavailable(title: str, reason: str) -> ToolResult:
 def _not_found(ws: Workspace, eid: str, title: str) -> ToolResult | None:
     track = ws.track(eid)
     if track is None:
-        base = eid.split("[")[0]
+        base = _entity_base(eid)
         g = ws.groundings.get(base)
         if g is None or g.count == 0:
             return _unavailable(title, f"the segmenter found no {ws.entity(base).phrase!r}; "
@@ -337,7 +356,7 @@ def _region_name(cx: float, cy: float) -> str:
 
 
 def tool_ground(ws: Workspace, args: Mapping[str, Any]) -> ToolResult:
-    base = str(args["entity"]).split("[")[0]
+    base = _entity_base(str(args["entity"]))
     ws.entity(base)
     phrase = str(args.get("phrase") or ws.entity(base).phrase or "").strip()
     if not phrase:
@@ -355,7 +374,7 @@ def tool_ground(ws: Workspace, args: Mapping[str, Any]) -> ToolResult:
 
 
 def tool_select(ws: Workspace, args: Mapping[str, Any]) -> ToolResult:
-    base = str(args["entity"]).split("[")[0]
+    base = _entity_base(str(args["entity"]))
     entity = ws.entity(base)
     g = ws.grounding(base)
     ks = [int(k) for k in args["instances"]]
@@ -365,7 +384,7 @@ def tool_select(ws: Workspace, args: Mapping[str, Any]) -> ToolResult:
     if entity.kind == "group" and len(ks) != (entity.count or 2):
         raise ToolError(f"{base} is a pair: select exactly {entity.count or 2} instances, one per member")
     ws.selected[base] = ks
-    ws._tracks.pop(base, None)                     # noqa: SLF001 -- re-lift with the selection
+    ws.invalidate(base)
     return ToolResult(render.block(f"select {base}", [grounding_text(ws, base)]), f"select {base} {ks}",
                       data={"entity": base, "instances": ks})
 
@@ -398,15 +417,16 @@ def tool_camera_motion(ws: Workspace, args: Mapping[str, Any]) -> ToolResult:
                      render.signed(droll, rot_noise), render.signed(d[0], trans_floor),
                      render.signed(-d[1], trans_floor), render.signed(d[2], trans_floor)])
         spans.append((render.time_label(t, a), render.time_label(t, b),
-                      _camera_primitive(dpan, dtilt, d, rot_noise, trans_floor),
+                      _camera_primitive(dpan, dtilt, droll, d, rot_noise, trans_floor),
                       max(abs(dpan) / 10.0, float(np.linalg.norm(d)) / 0.1)))
     v = r.value
     disp = (cam["trans_smooth"][hi] - cam["trans_smooth"][lo]) / scene.scale
     words = render.named_axes(disp, TUNING["cam_dir_floor_scales"], TUNING["cam_dir_dominance"])
     label = f"dominant motion '{v['motion']}'" + (f" {v['direction']}" if v.get("direction") else "")
     if v["motion"] == "static":
-        label += (" -- no rotation or translation reached the thresholds fitted on this benchmark, so this camera "
-                  "counts as FIXED; the small values in the table are estimation noise")
+        label += " -- no resolved rotation or translation excursion exceeds the stated coarse thresholds in this window"
+    elif v["motion"] == "non_static":
+        label += " -- an excursion exceeds the threshold despite small net change; read the ordered spans"
     if v.get("orbit"):
         label += " (orbit: lateral translation while turning back toward the centre; cw = clockwise seen from above)"
     lines = [
@@ -418,20 +438,26 @@ def tool_camera_motion(ws: Workspace, args: Mapping[str, Any]) -> ToolResult:
         f"Over the window: peak pan {v['pan_deg']:+.1f} deg, peak tilt {v['tilt_deg']:+.1f} deg, net translation "
         f"right {disp[0]:+.3f}, up {-disp[1]:+.3f}, forward {disp[2]:+.3f} (net direction: {render.primitive(words)}).",
         "In time order: " + render.chronological(spans),
+        f"Peak translation excursion from the window start (right, down, forward): "
+        f"{np.round(v['peak_translation_over_scale'], 3).tolist()} scene scales; roll excursion {v['roll_deg']:.1f} deg.",
         _label(label + f". Thresholds: a pan/tilt counts from {TUNING['cam_pan_deg']:.0f}/{TUNING['cam_tilt_deg']:.0f} "
-               f"deg, a translation from {TUNING['cam_trans_scales']:.2f} scene scales."),
+               f"deg, a translation from {TUNING['cam_trans_scales']:.2f} scene scales. "
+               "Roll uses the tilt threshold provisionally; it has not been separately calibrated."),
         render.reliability(r.confidence, _common_notes(r)),
     ]
     return ToolResult(render.block(title, lines), f"camera_motion: {label}; peak pan {v['pan_deg']:+.0f} deg, "
                       f"net move {render.primitive(words)}", data=r.to_dict())
 
 
-def _camera_primitive(dpan: float, dtilt: float, d: np.ndarray, rot_floor: float, trans_floor: float) -> str:
+def _camera_primitive(dpan: float, dtilt: float, droll: float, d: np.ndarray,
+                      rot_floor: float, trans_floor: float) -> str:
     parts = []
     if abs(dpan) >= max(rot_floor, 2.0):
         parts.append("pan " + ("right" if dpan > 0 else "left"))
     if abs(dtilt) >= max(rot_floor, 2.0):
         parts.append("tilt " + ("up" if dtilt > 0 else "down"))
+    if abs(droll) >= max(rot_floor, 2.0):
+        parts.append("roll " + ("clockwise" if droll > 0 else "counterclockwise"))
     named = render.named_axes(d, trans_floor, TUNING["cam_dir_dominance"])
     if any(named.values()):
         parts.append("move " + render.primitive(named))
@@ -462,7 +488,9 @@ def tool_camera_profile(ws: Workspace, args: Mapping[str, Any]) -> ToolResult:
     jitter = measure.measure_camera_jitter(scene, window, m)
     if not rhythm.available and not jitter.available:
         return _unavailable(title, rhythm.reason or jitter.reason)
-    lines = []
+    presence = measure.measure_camera_motion(scene, window, m)
+    lines = [f"Motion presence over the window: {presence.value['motion']}; judged from excursions including roll, "
+             "separately from the tempo and jitter below."] if presence.available else []
     if rhythm.available:
         lo, hi = rhythm.window
         cam = measure.camera_state(scene)
@@ -470,7 +498,7 @@ def tool_camera_profile(ws: Workspace, args: Mapping[str, Any]) -> ToolResult:
         fps = effective_fps(scene)
         rows = []
         for a, b in render.segment_bounds(lo, hi):
-            dt = max((b - a) / fps, 1e-6)
+            dt = max(float(t[b] - t[a]) if t is not None else (b - a) / fps, 1e-6)
             trans = float(np.linalg.norm(cam["trans_smooth"][b] - cam["trans_smooth"][a])) / scene.scale / dt
             rot = float(np.hypot(cam["pan_smooth"][b] - cam["pan_smooth"][a],
                                  cam["tilt_smooth"][b] - cam["tilt_smooth"][a])) / dt
@@ -593,6 +621,8 @@ def tool_entity_track(ws: Workspace, args: Mapping[str, Any]) -> ToolResult:
     track = ws.track(eid)
     scene = ws.scene()
     lo, hi, note = ws.span(ws.window(args))
+    if frame == "image":
+        return _image_track(ws, eid, track, lo, hi, note)
     idx = _first_present(track, lo, hi)
     if len(idx) < 2:
         return _unavailable(title, "the entity has a 3D position on fewer than 2 frames of the window")
@@ -609,14 +639,10 @@ def tool_entity_track(ws: Workspace, args: Mapping[str, Any]) -> ToolResult:
             return scene.to_level(track.smooth[p1] - track.smooth[p0]) / scene.scale
         if frame == "camera":
             return (scene.to_camera(track.smooth[p1], p1) - scene.to_camera(track.smooth[p0], p0)) / scene.scale
-        if frame == "image":
-            z = (scene.to_camera(track.smooth[p1], p1) - scene.to_camera(track.smooth[p0], p0))[2] / scene.scale
-            c0, c1 = track.centroid[p0], track.centroid[p1]
-            return np.array([c1[0] - c0[0], c1[1] - c0[1], z])
         return ((track.smooth[p1] - track.smooth[p0]) @ basis) / scene.scale
 
     floor = max(TUNING["move_floor_scales"], 3 * track.noise / scene.scale)
-    floor_xy = TUNING["image_move_floor"] if frame == "image" else floor
+    floor_xy = floor
     t = scene.t_s
     rows, spans = [], []
     for a, b in render.segment_bounds(int(idx[0]), int(idx[-1])):
@@ -625,18 +651,16 @@ def tool_entity_track(ws: Workspace, args: Mapping[str, Any]) -> ToolResult:
             rows.append([render.span_label(t, a, b), "-", "-", "-", "-", "not visible"])
             continue
         d = comp(int(inside[0]), int(inside[-1]))
-        words = render.named_axes(np.array([d[0], d[1], d[2]]), min(floor_xy, floor), TUNING["axis_dominance"]) \
-            if frame != "image" else _image_words(d, floor_xy, floor)
+        words = render.named_axes(d, floor, TUNING["axis_dominance"])
         prim = render.primitive(words)
         size = float(np.linalg.norm(d))
         rows.append([render.span_label(t, int(inside[0]), int(inside[-1])), render.signed(d[0], floor_xy),
                      render.signed(-d[1], floor_xy), render.signed(d[2], floor), f"{size:.3f}", prim])
         spans.append((render.time_label(t, int(inside[0])), render.time_label(t, int(inside[-1])), prim, size))
     net = comp(int(idx[0]), int(idx[-1]))
-    net_words = render.named_axes(net, floor, TUNING["axis_dominance"]) if frame != "image" \
-        else _image_words(net, floor_xy, floor)
+    net_words = render.named_axes(net, floor, TUNING["axis_dominance"])
     path_len = sum(s[3] for s in spans)
-    xy_unit = "image fraction" if frame == "image" else "scene scales"
+    xy_unit = "scene scales"
     lines = [
         f"{_who(ws, eid)}, positions {FRAME_TEXT[frame]}",
         f"Columns: right (+) / left (-), up (+) / down (-) in {xy_unit}; forward (+) / backward (-) in scene scales. "
@@ -646,7 +670,7 @@ def tool_entity_track(ws: Workspace, args: Mapping[str, Any]) -> ToolResult:
         f"Net from first to last visible frame: right {net[0]:+.3f}, up {-net[1]:+.3f}, forward {net[2]:+.3f} "
         f"(net direction: {render.primitive(net_words)}); summed path {path_len:.3f}.",
         "In time order: " + render.chronological(spans),
-        _label(f"net '{render.primitive(net_words)}'; describe the motion in the order above, not by the largest part"),
+        _label(f"net '{render.primitive(net_words)}'; use the ordered spans when the question asks for a sequence"),
         render.reliability("high" if track.confident[idx].mean() > 0.6 else "medium",
                            ([f"window: {note}"] if note != "whole clip" else [])
                            + ([f"visible only {render.span_label(t, int(idx[0]), int(idx[-1]))} of the window"]
@@ -659,10 +683,88 @@ def tool_entity_track(ws: Workspace, args: Mapping[str, Any]) -> ToolResult:
                             "rows": rows, "noise_floor": floor})
 
 
-def _image_words(d: np.ndarray, floor_xy: float, floor_z: float) -> dict[str, str | None]:
-    words = render.named_axes(np.array([d[0], d[1], 0.0]), floor_xy, TUNING["axis_dominance"])
-    words["z"] = ("forward" if d[2] > 0 else "backward") if abs(d[2]) >= floor_z else None
-    return words
+def _image_track(ws: Workspace, eid: str, track: EntityTrack, lo: int, hi: int, note: str) -> ToolResult:
+    """Mask-centroid motion has its own validity and units; depth is not part of this norm."""
+
+    title = f"entity_track {eid} (image frame)"
+    idx = np.flatnonzero(track.present & np.isfinite(track.centroid).all(1))
+    idx = idx[(idx >= lo) & (idx <= hi)]
+    if len(idx) < 2:
+        return _unavailable(title, "fewer than 2 valid image centroids in the requested window")
+    floor = TUNING["image_move_floor"]
+    t = ws.scene().t_s
+    rows, spans = [], []
+    for a, b in render.segment_bounds(int(idx[0]), int(idx[-1])):
+        inside = idx[(idx >= a) & (idx <= b)]
+        if len(inside) < 2:
+            continue
+        a, b = int(inside[0]), int(inside[-1])
+        dx, dy = track.centroid[b] - track.centroid[a]
+        size = float(np.hypot(dx, dy))
+        word = render.primitive(render.named_axes([dx, dy, 0], floor, TUNING["axis_dominance"]))
+        rows.append([render.span_label(t, a, b), render.signed(dx, floor), render.signed(-dy, floor), size, word])
+        spans.append((render.time_label(t, a), render.time_label(t, b), word, size))
+    net = track.centroid[idx[-1]] - track.centroid[idx[0]]
+    lines = [f"{_who(ws, eid)} in image coordinates: origin top-left, x right, y down; units are image fractions.",
+             "This is projected 2D motion; no depth or camera-motion compensation is included.",
+             f"Change columns right/up use * above the {floor:.3f} image-fraction threshold; window: {note}.",
+             render.table(["time", "right", "up", "moved", "direction"], rows),
+             f"Net image motion: right {net[0]:+.3f}, up {-net[1]:+.3f}.",
+             "In time order: " + render.chronological(spans),
+             f"Valid image centroids: {len(idx)}/{hi - lo + 1} sampled frames; visibility gaps remain unobserved."]
+    return ToolResult(render.block(title, lines), f"entity_track {eid} (image): " + render.chronological(spans)[:160],
+                      data={"entity": eid, "frame": "image", "units": "image_fraction", "net": net.tolist(),
+                            "rows": rows, "series_used": "mask_centroids", "valid_frames": idx.tolist()})
+
+
+def tool_relative_position(ws: Workspace, args: Mapping[str, Any]) -> ToolResult:
+    a, b, frame = str(args["a"]), str(args["b"]), str(args["frame"])
+    if frame not in ("scene", "camera", "image"):
+        raise ToolError("frame must be scene (initial camera levelled), camera (current axes), or image; "
+                        "subject-body axes are not supported by this tool")
+    if a == b or a in ("cam", "camera") or b in ("cam", "camera"):
+        raise ToolError("relative_position requires two distinct entity handles")
+    title = f"relative_position {a} relative to {b} ({frame})"
+    for eid in (a, b):
+        ws.entity(eid)
+        missing = _not_found(ws, eid, title)
+        if missing:
+            return missing
+    ta, tb = ws.track(a), ws.track(b)
+    scene = ws.scene()
+    lo, hi, note = ws.span(ws.window(args))
+    if frame == "image":
+        values = ta.centroid - tb.centroid
+        units, axes = "image_fraction", "right, down (image axes)"
+    else:
+        delta = ta.smooth - tb.smooth
+        values = (scene.to_level(delta) if frame == "scene" else
+                  np.einsum("ti,tij->tj", delta, scene.cam_R)) / scene.scale
+        units = "scene_scale"
+        axes = "right, down, forward along the initial levelled camera" if frame == "scene" else \
+            "right, down, away along the current camera's optical axis"
+    valid = ta.present & tb.present & np.isfinite(values).all(1)
+    idx = np.flatnonzero(valid)
+    idx = idx[(idx >= lo) & (idx <= hi)]
+    if len(idx) == 0:
+        return _unavailable(title, "no jointly observed positions in the requested frame and window")
+    samples = idx[np.unique(np.linspace(0, len(idx) - 1, min(8, len(idx))).astype(int))]
+    rows = [[render.time_label(scene.t_s, int(i)), float(values[i, 0]), float(-values[i, 1])]
+            + ([float(values[i, 2])] if frame != "image" else []) for i in samples]
+    headers = ["time", "right offset", "up offset"] + (["depth offset"] if frame != "image" else [])
+    change = values[idx[-1]] - values[idx[0]]
+    lines = [f"Signed position of {_who(ws, a)} minus {_who(ws, b)}; units: {units}; axes: {axes}.",
+             "Positive right/up offsets mean the first entity is right/above the reference at that time.",
+             "Depth describes camera axes, not the reference entity's facing; do not equate it with body-relative ahead.",
+             render.table(headers, rows),
+             f"Change in relative coordinates from first to last joint observation ({axes}): {np.round(change, 3).tolist()}.",
+             f"Window: {note}; jointly observed on {len(idx)}/{hi - lo + 1} sampled frames.",
+             "These are estimated positions of the selected instances. A pair does not establish whole-group arrangement."]
+    summary = f"relative_position {a}-{b} ({frame}, {units}): start {np.round(values[idx[0]], 3).tolist()} " \
+        f"-> end {np.round(values[idx[-1]], 3).tolist()}"
+    return ToolResult(render.block(title, lines), summary,
+                      data={"a": a, "b": b, "frame": frame, "units": units, "axes": axes,
+                            "frames": idx.tolist(), "positions": values[idx].tolist(), "net_change": change.tolist()})
 
 
 def tool_distance(ws: Workspace, args: Mapping[str, Any]) -> ToolResult:
@@ -677,7 +779,7 @@ def tool_distance(ws: Workspace, args: Mapping[str, Any]) -> ToolResult:
                 return missing
     scene = ws.scene()
     window = ws.window(args)
-    at = args.get("at_s") is not None
+    at = window.kind == "instant"
     m = Measurement(_measure_id(ws), "range", [a, "cam" if b == "camera" else b], "value_at" if at else "trend",
                     window=window, metric=at)
     r = measure.measure_range(scene, ws.program, m, ws.tracks_map(a, b))
@@ -1078,7 +1180,7 @@ def tool_show(ws: Workspace, args: Mapping[str, Any]) -> ToolResult:
     from d4rt_agent.agent_v5 import viz
 
     target = str(args.get("target") or "entities")
-    if target not in ("entities", "camera") and target.split("[")[0] not in [e.id for e in ws.program.entities]:
+    if target not in ("entities", "camera") and _entity_base(target) not in [e.id for e in ws.program.entities]:
         raise ToolError(f"`target` must be 'entities', 'camera' or an entity id ({ws.entity_choices(False)})")
     image, caption = viz.render(ws, target)
     return ToolResult(render.block(f"show {target}", [caption]), f"show {target} (image shown)", images=[image],
@@ -1093,6 +1195,7 @@ TOOLS: dict[str, Callable[[Workspace, Mapping[str, Any]], ToolResult]] = {
     "camera_zoom": tool_camera_zoom,
     "scene_revisit": tool_scene_revisit,
     "entity_track": tool_entity_track,
+    "relative_position": tool_relative_position,
     "distance": tool_distance,
     "region_relation": tool_region_relation,
     "elevation": tool_elevation,
@@ -1135,6 +1238,12 @@ TOOL_SPECS: dict[str, dict[str, Any]] = {
                  "arguments": {"a": "entity id", "b": "entity id or 'cam' (default)", "window": _WINDOW,
                                "at_s": "optional: one moment, in seconds"},
                  "required": ["a"]},
+    "relative_position": {"description": "Signed position of entity a relative to b over time; use for left/right "
+                                          "or above/below, which scalar distance cannot distinguish.",
+                          "arguments": {"a": "entity id", "b": "reference entity id",
+                                        "frame": "scene (levelled initial camera), camera (current camera), or image; "
+                                                 "body-relative facing is unsupported",
+                                        "window": _WINDOW}, "required": ["a", "b", "frame"]},
     "region_relation": {"description": "An entity's distance to the nearest surface of a landmark region over time.",
                         "arguments": {"entity": "entity id", "landmark": "landmark id (default l1)", "window": _WINDOW},
                         "required": ["entity"]},

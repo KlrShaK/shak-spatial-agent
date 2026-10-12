@@ -2,4 +2,5 @@
 - Pan = the camera turns left/right in place; truck = it slides left/right; dolly = it moves forward/backward;
   tilt/pedestal = up/down by turning/by moving. An orbit is sideways movement while turning back toward the centre.
 - Read the per-span table in time order. A pan that goes right and comes back is still a pan right first.
-- Small turns below the noise floor are not motion; a camera with nothing marked * is static.
+- Use ordered spans for sequence questions and the full interval for the primary motion. Check total
+  excursion and roll before concluding static: small per-span changes can accumulate over the interval.

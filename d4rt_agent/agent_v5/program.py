@@ -143,7 +143,9 @@ _PHASE_WORDS = (
     (re.compile(r"\b(start|beginning)( of the video)? to the middle\b"), "start_to_middle"),
     (re.compile(r"\bat the end of the video\b"), "end"),
 )
-_FROM_START = re.compile(r"\bfrom (the )?(start|beginning|first frame)\b")
+_FROM_START = re.compile(r"\b(?:from|between) (the )?(start|beginning|first frame)\b|"
+                         r"\b(?:during|over|for|within|in) (?:the )?first \d+(?:\.\d+)?\s*(?:s|secs?|seconds?)\b")
+_DURATION = re.compile(r"\b(?:over|for|during) (?:the )?\d+(?:\.\d+)?\s*(?:s|secs?|seconds?)\b")
 _EVENT_ANCHOR = re.compile(r"\b(?:the )?(?:frame|moment|point|time) (?:where|when) (?P<event>[^,?]+)")
 
 
@@ -167,7 +169,11 @@ def window_from_question(question: str) -> Window:
     if len(times) == 1:
         if _FROM_START.search(lowered):
             return Window("interval", 0.0, times[0], text=question)
+        if _DURATION.search(lowered):
+            return Window("event", event="Locate the requested duration and its start: " + question, text=question)
         return Window("instant", times[0], None, text=question)
+    if re.search(r"\bbetween (?:the )?(?:moment|time|frame)\b", lowered):
+        return Window("event", event=question, text=question)
     anchor = _EVENT_ANCHOR.search(lowered)
     if anchor:
         return Window("event", event=anchor.group("event").strip(), text=question)

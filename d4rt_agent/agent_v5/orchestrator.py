@@ -8,11 +8,11 @@ Phase 2 (model-driven): the kind's playbook and tool menu are revealed; the mode
 per turn, may switch kind once, and ends with ``done_measuring``. Measurement never decides the
 answer: tools return numbers, noise floors and descriptive labels only.
 
-Phase 3: the benchmark's frames, every tool result in full, and -- for the first time -- the
-answer options; the model reasons and gives one letter.
+Options are revealed after family selection, before kind and slot decisions. One evidence-review
+turn can resume measuring or reroute through the small family/kind menus within the same budget.
 
-The whole exchange is one conversation kept under a token budget (``context.Conversation``), and
-everything is recorded in the trace so a wrong answer can be diagnosed afterwards.
+Phase 3 uses a fresh context with the benchmark's frames and current evidence. Every decision and
+historical measurement remains in the trace for diagnosis.
 """
 
 from __future__ import annotations
@@ -56,6 +56,8 @@ def _utc_now() -> str:
 class State:
     family: str | None = None
     kind: str | None = None
+    initial_kind: str | None = None
+    review_decision: str | None = None
     slots: dict[str, str] = field(default_factory=dict)
     program: QueryProgram | None = None
     workspace: Workspace | None = None
@@ -136,9 +138,11 @@ class AgentV5:
         state = State()
         try:
             self._decompose(task, clip, conv, trace, state)
+            state.initial_kind = state.kind
             spec = KIND_BY_NAME[state.kind]
             if spec.route == "measure":
                 self._measure(task, conv, trace, state)
+            self._review(task, clip, conv, trace, state)
             letter, args = self._answer(task, clip, conv, trace, state)
             return self._solution(task, state, conv, trace, letter, args)
         except Exception:                                   # noqa: BLE001 -- keep what was decided
@@ -158,6 +162,8 @@ class AgentV5:
         try:
             _, _, state.family = self._decide(conv, trace, ["choose_family"], "family",
                                               lambda n, a: _member(a["family"], FAMILIES, "family"), DECISION_TOKENS)
+            conv.add("user", "Candidate answers (use their distinctions to choose measurements; do not answer yet):\n"
+                     + _options(task), kind="step")
             if state.family == "semantic":
                 state.kind = "semantic"
             else:
@@ -170,11 +176,12 @@ class AgentV5:
                     _, _, state.kind = self._decide(
                         conv, trace, ["choose_kind"], "kind",
                         lambda n, a: _member(a["kind"], {k.name for k in options}, "kind"), DECISION_TOKENS)
-            self._fill_slots(question, conv, trace, state, KIND_BY_NAME[state.kind].slots)
+            self._fill_slots(_slot_source(task), conv, trace, state, KIND_BY_NAME[state.kind].slots)
         except Exhausted as error:
             state.decomposition_ok = False
             state.notes.append(str(error))
             state.kind = state.kind if state.kind and not KIND_BY_NAME[state.kind].slots else "semantic"
+        state.family = KIND_BY_NAME[state.kind].family
         state.program = self._program(task, clip, conv, trace, state)
 
     def _fill_slots(self, question: str, conv: Conversation, trace: list[dict[str, Any]], state: State,
@@ -224,7 +231,8 @@ class AgentV5:
     # -- phase 2 ----------------------------------------------------------------------
 
     def _measure(self, task: Mapping[str, Any], conv: Conversation, trace: list[dict[str, Any]], state: State) -> None:
-        state.workspace = self.workspace_factory(task["clip"], state.program)
+        if state.workspace is None:
+            state.workspace = self.workspace_factory(task["clip"], state.program)
         conv.add("user", self._measure_intro(state), kind="step")
         while state.measuring_steps < self.max_steps:
             allowed = list(kinds_module.tools_for(state.kind))
@@ -257,36 +265,98 @@ class AgentV5:
                   "interval": f"{w.t0} s to {w.t1} s"}.get(w.kind, f"{w.phase or w.kind}")
         playbook_path = PROMPTS / "playbooks" / f"{spec.name}.md"
         playbook = playbook_path.read_text() if playbook_path.exists() else "- Use the tools that measure the quantity."
+        allowed = [name for name in kinds_module.tools_for(spec.name)
+                   if name != "switch_kind" or state.kind_switches == 0]
         return prompt("measure.md", kind=spec.name, description=spec.description, entities=entities, events=events,
-                      window=window, playbook=playbook.strip(), steps=self.max_steps,
-                      schemas=schemas_text(kinds_module.tools_for(spec.name)))
+                      window=window, playbook=playbook.strip(), steps=self.max_steps - state.measuring_steps,
+                      schemas=schemas_text(allowed))
 
     def _switch(self, task: Mapping[str, Any], conv: Conversation, trace: list[dict[str, Any]], state: State,
                 kind: str) -> None:
-        if kind not in KIND_BY_NAME or kind == state.kind:
-            conv.add("user", f"`{kind}` is not a different kind from the list; continue measuring.", kind="reject")
+        if kind not in KIND_BY_NAME or kind == state.kind or KIND_BY_NAME[kind].family != state.family:
+            conv.add("user", f"Choose a different kind from the current family {state.family}; "
+                     "cross-family rerouting is available at evidence review.", kind="reject")
             return
         state.kind_switches += 1
         state.notes.append(f"switched kind {state.kind} -> {kind}")
         state.kind = kind
+        state.slots = {}
         try:
-            self._fill_slots(str(task["question"]), conv, trace, state, KIND_BY_NAME[kind].slots)
+            self._fill_slots(_slot_source(task), conv, trace, state, KIND_BY_NAME[kind].slots)
         except Exhausted as error:
             state.notes.append(str(error))
-        entities, events = kinds_module.entities_from_slots(kind, state.slots, str(task["question"]))
-        known = {e.id for e in state.program.entities}
-        state.program.entities += [e for e in entities if e.id not in known]
-        state.program.events = events or state.program.events
-        state.program.kind = kind
-        state.program.route = KIND_BY_NAME[kind].route
+            state.kind = "semantic"
+            state.family = "semantic"
+        self._supersede_results(state)
+        state.program = self._program(task, task["clip"], conv, trace, state)
+        state.workspace = self.workspace_factory(task["clip"], state.program)
         if state.program.route == "vlm_only":
             state.measuring_steps = self.max_steps          # nothing to measure: go to the answer
             return
         conv.add("user", self._measure_intro(state), kind="step")
 
+    def _review(self, task: Mapping[str, Any], clip: Clip, conv: Conversation, trace: list[dict[str, Any]],
+                state: State) -> None:
+        """One bounded repair opportunity; measurements retain their kind-specific access gate."""
+
+        if state.measuring_steps >= self.max_steps:
+            return
+        current = self._current_results(state)
+        conv.add("user", prompt("review.md", kind=state.kind,
+                                evidence="\n".join(r.summary for _, _, r in current) or "No measurements.",
+                                remaining=self.max_steps - state.measuring_steps - 1,
+                                reroute="available" if state.kind_switches == 0 else "already used",
+                                schemas=schemas_text(["review_evidence"])), kind="step")
+
+        def check(name: str, args: dict[str, Any]) -> str:
+            decision = _member(args["decision"], ("answer", "measure", "reroute"), "decision")
+            if decision != "answer" and not str(args.get("missing") or "").strip():
+                raise ActionRejected("name the missing evidence in `missing`")
+            if decision != "answer" and state.measuring_steps >= self.max_steps:
+                raise ActionRejected("no measurement turns remain; answer with the available evidence")
+            if decision == "measure" and KIND_BY_NAME[state.kind].route == "vlm_only":
+                raise ActionRejected("this kind has no measurement tools; use reroute or answer")
+            if decision == "reroute" and state.kind_switches:
+                raise ActionRejected("the kind has already been changed; use measure or answer")
+            return decision
+
+        state.measuring_steps += 1
+        try:
+            _, args, state.review_decision = self._decide(conv, trace, ["review_evidence"], "review",
+                                                         check, DECISION_TOKENS)
+        except Exhausted as error:
+            state.notes.append(str(error))
+            return
+        if state.review_decision == "answer":
+            return
+        state.notes.append("evidence review: " + str(args["missing"]))
+        if state.review_decision == "reroute":
+            state.kind_switches += 1
+            self._supersede_results(state)
+            state.family, state.kind, state.slots, state.workspace = None, None, {}, None
+            conv.add("user", "Repair the decomposition for the missing evidence. Choose the family again, "
+                     "then one kind from that family's menu. Previous entity bindings are superseded.", kind="step")
+            self._decompose(task, clip, conv, trace, state)
+        if KIND_BY_NAME[state.kind].route == "measure" and state.measuring_steps < self.max_steps:
+            self._measure(task, conv, trace, state)
+
+    @staticmethod
+    def _supersede_results(state: State) -> None:
+        for _, _, result in state.results:
+            result.data["superseded"] = True
+
+    @staticmethod
+    def _current_results(state: State) -> list[tuple[str, dict[str, Any], ToolResult]]:
+        revisions = state.workspace.revisions if state.workspace else {}
+        return [(name, call, result) for name, call, result in state.results
+                if not result.data.get("superseded")
+                and all(revisions.get(eid) == revision
+                        for eid, revision in result.data.get("entity_revisions", {}).items())]
+
     def _run_tool(self, conv: Conversation, trace: list[dict[str, Any]], state: State, name: str,
                   args: dict[str, Any]) -> None:
         call = {k: v for k, v in args.items() if k != "justification"}
+        state.workspace.accessed_entities.clear()
         try:
             result = TOOLS[name](state.workspace, call)
         except ToolError as error:
@@ -297,6 +367,9 @@ class AgentV5:
         except Exception as error:                              # noqa: BLE001 -- a broken tool is evidence too
             result = ToolResult(f"## {name}\nThe tool failed ({type(error).__name__}: {error}). Treat this "
                                 "measurement as unavailable.", f"{name}: failed", data={"error": traceback.format_exc()})
+        result.data["entity_revisions"] = {eid: state.workspace.revisions[eid]
+                                            for eid in state.workspace.accessed_entities
+                                            if eid in state.workspace.revisions}
         state.results.append((name, call, result))
         kind = "show" if result.images else "tool"
         conv.add("user", result.text + "\n\nNext: one more tool, or `done_measuring`.", images=result.images,
@@ -309,18 +382,18 @@ class AgentV5:
                 state: State) -> tuple[str | None, dict[str, Any] | None]:
         options: Mapping[str, str] = task["options"]
         letters = sorted(options)
-        if state.results:
-            dossier = "\n\n".join(r.text for _, _, r in state.results)
+        current = self._current_results(state)
+        # Preserve the trace, not earlier model conclusions or obsolete measurement text.
+        conv.turns = conv.turns[:1]
+        if current:
+            for _, _, result in current:
+                conv.add("user", result.text, kind="tool", summary=result.summary)
+            dossier = "Current measurements are listed above. Historical attempts and superseded bindings are excluded."
         elif KIND_BY_NAME[state.kind].route == "vlm_only":
             dossier = "(No measurement: this question is decided by what the frames show.)"
         else:
             dossier = "(No measurement could be made; decide from the frames.)"
         frames = [(clip.label(i) + ":", clip.pil(i, QWEN_LONG_SIDE)) for i in clip.answer_frames]
-        # the keyframes of the opening turn are superseded by the full frame set
-        for turn in conv.turns:
-            if turn.kind == "opening":
-                turn.images = []
-                turn.text = "[the first keyframes were shown here]\n" + turn.text
         conv.add("user", prompt("answer.md", n_frames=len(frames), dossier=dossier, question=task["question"],
                                 options="\n".join(f"{k}. {options[k]}" for k in letters)),
                  images=frames, kind="answer")
@@ -346,6 +419,8 @@ class AgentV5:
             "limitations": None if args is None else args.get("limitations"),
             "family": state.family,
             "kind": state.kind,
+            "initial_kind": state.initial_kind,
+            "review_decision": state.review_decision,
             "slots": dict(state.slots),
             "decomposition_ok": state.decomposition_ok,
             "program": None if program is None else program.to_dict(),
@@ -366,6 +441,14 @@ def _member(value: Any, allowed: Any, what: str) -> str:
     if text not in allowed:
         raise ActionRejected(f"`{what}` must be one of {sorted(allowed)}")
     return text
+
+
+def _options(task: Mapping[str, Any]) -> str:
+    return "\n".join(f"{key}. {value}" for key, value in sorted(task["options"].items()))
+
+
+def _slot_source(task: Mapping[str, Any]) -> str:
+    return str(task["question"]) + "\nCandidate descriptions:\n" + _options(task)
 
 
 def _jsonable(x: Any) -> Any:

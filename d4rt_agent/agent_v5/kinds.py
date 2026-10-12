@@ -31,7 +31,8 @@ FAMILIES: dict[str, str] = {
     "subject_motion": "How one entity moves: its direction of travel, whether and how it moves, its speed, or its turning in its own frame.",
     "subject_vs_camera": "One entity relative to the camera: their distance, the camera's height or viewing side, "
                          "whether/where it is in the frame, how large it looks.",
-    "two_entities": "The relation between two entities, or an entity and a landmark/region: closer, farther, distance in metres.",
+    "two_entities": "The relation between two entities, or an entity and a landmark/region: distance, left/right, "
+                    "above/below, or relative position over time.",
     "count": "How many of something there are.",
     "events": "Which of two named events happens first (camera actions or things an entity does).",
     "semantic": "What is happening or what something is: decided by appearance, not by geometry.",
@@ -115,8 +116,9 @@ KINDS: tuple[KindSpec, ...] = (
     KindSpec("apparent_size", "subject_vs_camera", "How large an entity appears in the image over time.",
              (_MAIN_SUBJECT,), ("apparent_size", "distance")),
     # two_entities
-    KindSpec("pair_relation", "two_entities", "Whether the distance between two entities, neither of them the "
-             "camera, grows, shrinks, or holds.", (_FIRST, _SECOND), ("distance",)),
+    KindSpec("pair_relation", "two_entities", "The separation or signed relative position of two entities: "
+             "closer/farther, left/right, above/below, and how these change.",
+             (_FIRST, _SECOND), ("distance", "relative_position")),
     KindSpec("metric_distance", "two_entities", "The distance in metres between two entities (or an entity and the "
              "camera) at a moment.", (_FIRST, _SECOND), ("distance",)),
     KindSpec("landmark_relation", "two_entities", "How one entity's position changes relative to a static landmark "

@@ -344,6 +344,17 @@ def measure_camera_motion(scene: Scene, window: Window | None, m: Measurement) -
             orbit = {"lateral": right, "pan": pan_ext}
         elif len(order) > 1 and active[order[1]] >= T["cam_complex_ratio"] * active[order[0]]:
             motion, direction = "complex", None
+    roll = cam["roll_smooth"][lo:hi + 1] - cam["roll_smooth"][lo]
+    peak_translation = np.nanmax(np.abs(trans), axis=0) / scale
+    roll_ext = extreme(roll)
+    excursion_motion = (np.nanmax(np.abs(pan)) >= T["cam_pan_deg"]
+                        or np.nanmax(np.abs(tilt)) >= T["cam_tilt_deg"]
+                        or abs(roll_ext) >= T["cam_tilt_deg"]
+                        or (reliable and np.max(peak_translation) >= T["cam_trans_scales"]))
+    # Keep the calibrated dominant/net reduction, but never equate a return to the start with no motion.
+    if motion == "static" and excursion_motion:
+        motion = "roll" if abs(roll_ext) >= T["cam_tilt_deg"] else "non_static"
+        direction = ("clockwise" if roll_ext > 0 else "counterclockwise") if motion == "roll" else None
     value = {
         "motion": motion, "direction": direction,
         "pan_deg": pan_ext, "tilt_deg": tilt_ext,
@@ -353,6 +364,8 @@ def measure_camera_motion(scene: Scene, window: Window | None, m: Measurement) -
         "strength": {k: round(v, 3) for k, v in strengths.items()},
         "signed": {k: float(v) for k, v in signed.items()},
         "orbit": orbit,
+        "motion_detected": bool(active or excursion_motion),
+        "peak_translation_over_scale": peak_translation.tolist(),
     }
     confidence = "high"
     notes = []

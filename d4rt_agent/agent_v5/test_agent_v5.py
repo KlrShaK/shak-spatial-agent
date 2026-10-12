@@ -275,7 +275,7 @@ TASK = {"id": "q1", "question": "Between 0s and 6s, which way does the dog move?
         "options": {"A": "Forward then left", "B": "Backward then left", "C": "Stays still", "D": "Right"}}
 
 
-def test_loop_end_to_end_and_options_hidden_until_answer():
+def test_loop_options_after_family_and_fresh_answer_context():
     replies = [
         _act("final_answer", letter="A"),                  # out of turn: rejected, the family is asked again
         _act("choose_family", family="subject_motion"),
@@ -283,6 +283,7 @@ def test_loop_end_to_end_and_options_hidden_until_answer():
         _act("name_entity", slot="subject", value="dog"),
         _act("entity_track", entity="e1"),
         _act("done_measuring"),
+        _act("review_evidence", decision="answer"),
         _act("final_answer", letter="A"),
     ]
     agent, qwen = _agent(replies, [("dog", u_path)])
@@ -291,10 +292,12 @@ def test_loop_end_to_end_and_options_hidden_until_answer():
     assert out["kind"] == "subject_direction" and out["slots"] == {"subject": "dog"}
     assert [t["tool"] for t in out["tools"]] == ["entity_track"]
     assert out["trace"][0]["status"] == "rejected"
-    for messages in qwen.seen[:-1]:
-        assert "Forward then left" not in _texts(messages), "options leaked before the answer turn"
+    for messages in qwen.seen[:2]:
+        assert "Forward then left" not in _texts(messages), "family selection should remain question-first"
+    assert "Forward then left" in _texts(qwen.seen[2]), "kind selection needs the candidate distinctions"
     assert "Forward then left" in _texts(qwen.seen[-1])
     assert "In time order:" in _texts(qwen.seen[-1]), "the answer turn carries the full dossier"
+    assert not any(m['role'] == 'assistant' for m in qwen.seen[-1]), "earlier reasoning leaked into the final context"
 
 
 def test_two_entity_kind_asks_one_slot_per_turn():
@@ -305,6 +308,7 @@ def test_two_entity_kind_asks_one_slot_per_turn():
         _act("name_entity", slot="reference", value="cat"),
         _act("distance", a="e1", b="e2"),
         _act("done_measuring"),
+        _act("review_evidence", decision="answer"),
         _act("final_answer", letter="B"),
     ]
     agent, _ = _agent(replies, [("dog", lambda t: (-1.5 + 0.03 * t, 0.0, 4.0)), ("cat", lambda t: (1.5, 0.0, 4.0))])
@@ -323,10 +327,180 @@ def test_measuring_budget_then_forced_answer():
     assert any("stopped after 3 steps" in n for n in out["notes"])
 
 
-def test_semantic_goes_straight_to_the_answer():
-    agent, qwen = _agent([_act("choose_family", family="semantic"), _act("final_answer", letter="D")], [])
+def test_semantic_can_answer_after_review_without_geometry():
+    agent, qwen = _agent([_act("choose_family", family="semantic"),
+                          _act("review_evidence", decision="answer"), _act("final_answer", letter="D")], [])
     out = agent.solve({**TASK, "clip": FakeClip()})
     assert out["kind"] == "semantic" and out["letter"] == "D" and out["tools"] == []
+
+
+def test_review_can_recover_from_semantic_without_opening_all_tools():
+    replies = [_act("choose_family", family="semantic"),
+               _act("review_evidence", decision="reroute", missing="signed relative position"),
+               _act("choose_family", family="two_entities"), _act("choose_kind", kind="pair_relation"),
+               _act("name_entity", slot="subject", value="dog"),
+               _act("name_entity", slot="reference", value="cat"),
+               _act("camera_motion"),  # wrong menu, must be rejected
+               _act("relative_position", a="e1", b="e2", frame="image"),
+               _act("done_measuring"), _act("final_answer", letter="D")]
+    agent, _ = _agent(replies, [("dog", lambda t: (-1.0, 0.0, 4.0)), ("cat", lambda t: (1.0, 0.0, 4.0))])
+    out = agent.solve({**TASK, "question": "Where is the dog relative to the cat?", "clip": FakeClip()})
+    assert out['status'] == 'answered', out.get('error')
+    assert out['initial_kind'] == 'semantic' and out['kind'] == 'pair_relation'
+    assert out['family'] == 'two_entities' and out['kind_switches'] == 1
+    rejected = [t for t in out['trace'] if t['phase'] == 'measure' and t['status'] == 'rejected']
+    assert len(rejected) == 1 and 'camera_motion' not in rejected[0]['allowed']
+    assert [t['tool'] for t in out['tools']] == ['relative_position']
+    assert len([t for t in out['trace'] if t['phase'] == 'review']) == 1
+
+
+def test_review_resumes_same_workspace_and_preserves_budget():
+    replies = [_act("choose_family", family="subject_motion"), _act("choose_kind", kind="subject_direction"),
+               _act("name_entity", slot="subject", value="dog"), _act("done_measuring"),
+               _act("review_evidence", decision="measure", missing="the dog's displacement"),
+               _act("entity_track", entity="e1"), _act("final_answer", letter="A")]
+    agent, _ = _agent(replies, [("dog", u_path)], max_steps=3)
+    out = agent.solve({**TASK, 'clip': FakeClip()})
+    assert out['status'] == 'answered', out.get('error')
+    assert out['measuring_steps'] == 3 and len(out['tools']) == 1
+
+
+def test_regrounding_excludes_old_measurement_from_final_context():
+    replies = [_act("choose_family", family="subject_motion"), _act("choose_kind", kind="subject_direction"),
+               _act("name_entity", slot="subject", value="dog"), _act("entity_track", entity="e1"),
+               _act("ground", entity="e1", phrase="dog"), _act("done_measuring"),
+               _act("review_evidence", decision="answer"), _act("final_answer", letter="A")]
+    agent, qwen = _agent(replies, [("dog", u_path)])
+    out = agent.solve({**TASK, 'clip': FakeClip()})
+    assert out['status'] == 'answered', out.get('error')
+    assert len(out['tools']) == 2, 'historical evidence must remain in the audit trace'
+    assert '## entity_track' not in _texts(qwen.seen[-1])
+    assert out['tools'][0]['data']['entity_revisions']['e1'] < out['tools'][1]['data']['entity_revisions']['e1']
+
+
+def test_option_named_entity_can_fill_a_slot():
+    replies = [_act("choose_family", family="subject_motion"), _act("choose_kind", kind="subject_direction"),
+               _act("name_entity", slot="subject", value="dog"), _act("done_measuring"),
+               _act("review_evidence", decision="answer"), _act("final_answer", letter="A")]
+    agent, _ = _agent(replies, [("dog", u_path)])
+    task = {**TASK, 'question': 'What moves to the right?', 'options': {'A': 'The dog', 'B': 'The cat'},
+            'clip': FakeClip()}
+    out = agent.solve(task)
+    assert out['status'] == 'answered' and out['decomposition_ok'], out.get('error')
+    assert out['slots']['subject'] == 'dog'
+
+
+def test_orientation_invalidated_by_select_and_reground(monkeypatch):
+    ws, _ = make_workspace([('dog', u_path)], program_entities=[Entity('e1', 'object', 'dog')])
+    ws._orient_fn = lambda: object()
+    calls = []
+    def facing(*args):
+        calls.append(1)
+        return [{'usable': True, 'call': len(calls)}]
+    monkeypatch.setattr('d4rt_agent.agent_v5.orientation.facing_rows', facing)
+    assert ws.facing('e1', [0, 5])[0]['call'] == 1
+    assert ws.facing('e1', [0, 5])[0]['call'] == 1
+    TOOLS['select'](ws, {'entity': 'e1', 'instances': [0]})
+    assert ws.facing('e1', [0, 5])[0]['call'] == 2
+    ws.reground('e1', 'dog', 0)
+    assert ws.facing('e1', [0, 5])[0]['call'] == 3
+
+
+def test_category_count_handles_work_in_visual_inspection():
+    ws, _ = make_workspace([('dog', lambda t: (0.0, 0.0, 4.0))], kind='instance_count',
+                           program_entities=[Entity('c1', 'category', 'dog')])
+    TOOLS['count'](ws, {'entity': 'c1'})
+    handle = ws.tracks_of('c1')[0].id
+    assert handle == 'c1#0' and ws.track(handle).id == handle
+    assert ws.masks_at(handle)(0).any()
+    assert len(TOOLS['show'](ws, {'target': 'entities'}).images) == 1
+    assert len(TOOLS['show'](ws, {'target': handle}).images) == 1
+
+
+def test_image_track_survives_missing_3d_and_uses_only_2d_units():
+    ws, _ = make_workspace([('dog', u_path)], program_entities=[Entity('e1', 'object', 'dog')])
+    track = ws.track('e1')
+    expected = track.centroid[-1] - track.centroid[0]
+    track.xyz[:] = np.nan
+    track.smooth[:] = np.nan
+    track.confident[:] = False
+    result = TOOLS['entity_track'](ws, {'entity': 'e1', 'frame': 'image'})
+    assert result.data.get('available', True)
+    assert result.data['units'] == 'image_fraction'
+    assert np.allclose(result.data['net'], expected)
+    assert len(result.data['net']) == 2
+
+
+def test_relative_position_distinguishes_constant_range_side_swap():
+    ws, scene = make_workspace([('dog', lambda t: (-1, 0, 4)), ('cat', lambda t: (1, 0, 4))],
+                               kind='pair_relation', program_entities=[Entity('e1', 'object', 'dog'),
+                                                                      Entity('e2', 'object', 'cat')])
+    a, b = ws.track('e1'), ws.track('e2')
+    theta = np.linspace(0, np.pi, scene.length)
+    b.smooth[:] = [0, 0, 4]
+    a.smooth[:] = b.smooth + np.column_stack([np.cos(theta), np.zeros(scene.length), np.sin(theta)])
+    a.present[:] = b.present[:] = True
+    result = TOOLS['relative_position'](ws, {'a': 'e1', 'b': 'e2', 'frame': 'scene'})
+    positions = np.array(result.data['positions'])
+    assert np.allclose(np.linalg.norm(positions, axis=1), 1)
+    assert positions[0, 0] > 0 and positions[-1, 0] < 0
+    assert 'relative_position' in kinds.tools_for('pair_relation')
+    assert 'relative_position' not in kinds.tools_for('camera_path')
+
+
+def test_camera_motion_detects_roll_and_return_path():
+    from d4rt_agent.agent_v5.measure import measure_camera_motion
+    from d4rt_agent.agent_v5.program import Measurement
+    def roll(t):
+        a = np.deg2rad(2 * t)
+        return np.array([[np.cos(a), -np.sin(a), 0], [np.sin(a), np.cos(a), 0], [0, 0, 1]])
+    m = Measurement('m1', 'camera_motion', ['cam'], 'dominant_motion')
+    scene, _ = synthetic.build_scene(camera_R=roll)
+    result = measure_camera_motion(scene, None, m)
+    assert result.value['motion'] != 'static' and result.value['motion_detected']
+    scene, _ = synthetic.build_scene(camera_t=lambda t: (3 * np.sin(np.pi * t / 39), 0, 0))
+    result = measure_camera_motion(scene, None, m)
+    assert result.value['motion'] != 'static' and result.value['motion_detected']
+    assert abs(result.value['right_over_scale']) < .1
+
+
+def test_relative_position_current_camera_axes_differ_after_a_turn():
+    ws, scene = make_workspace([('dog', lambda t: (-1, 0, 4)), ('cat', lambda t: (1, 0, 4))],
+                               kind='pair_relation', program_entities=[Entity('e1', 'object', 'dog'),
+                                                                      Entity('e2', 'object', 'cat')])
+    a, b = ws.track('e1'), ws.track('e2')
+    a.smooth[:] = [1, 0, 4]
+    b.smooth[:] = [0, 0, 4]
+    a.present[:] = b.present[:] = True
+    scene.cam_R[-1] = synthetic.rot_y(90)
+    fixed = TOOLS['relative_position'](ws, {'a': 'e1', 'b': 'e2', 'frame': 'scene'})
+    moving = TOOLS['relative_position'](ws, {'a': 'e1', 'b': 'e2', 'frame': 'camera'})
+    assert np.allclose(fixed.data['positions'][-1], [1, 0, 0])
+    assert np.allclose(moving.data['positions'][-1], [0, 0, 1])
+    with pytest.raises(ToolError, match='subject-body'):
+        TOOLS['relative_position'](ws, {'a': 'e1', 'b': 'e2', 'frame': 'own'})
+
+
+@pytest.mark.parametrize('question,expected', [
+    ('During the first 2 seconds, what moves?', ('interval', 0, 2)),
+    ('Between the start and the 8-second mark, what moves?', ('interval', 0, 8)),
+    ('At 2 seconds, where is the dog?', ('instant', 2, None)),
+    ('Over 5 seconds, what happens?', ('event', None, None)),
+    ('Between the moment the server tosses the ball and the moment they land, what moves?', ('event', None, None)),
+])
+def test_window_duration_is_not_an_instant(question, expected):
+    from d4rt_agent.agent_v5.program import window_from_question
+    window = window_from_question(question)
+    assert (window.kind, window.t0, window.t1) == expected
+
+
+def test_distance_inherits_instant_window_without_repeating_at_s():
+    from d4rt_agent.agent_v5.program import Window
+    ws, _ = make_workspace([('dog', u_path)], program_entities=[Entity('e1', 'object', 'dog')])
+    ws.program.window = Window('instant', 2.0)
+    result = TOOLS['distance'](ws, {'a': 'e1', 'b': 'cam'})
+    assert result.data['reduce'] == 'value_at'
+    assert result.data['value']['frame'] == 12
 
 
 # --------------------------------------------------------------------------- #
