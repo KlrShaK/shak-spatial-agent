@@ -305,6 +305,8 @@ def run(args: argparse.Namespace) -> int:
             solution = agent.solve(task)
         solution["reference"] = {"answer": entry["answer"], "options": entry["options"], "task": entry.get("task"),
                                  "group": entry.get("group"), "dataset": entry.get("dataset")}
+        solution["clip"] = {"relative_path": entry.get("relative_path") or f"{entry.get('dataset')}/{entry.get('video')}",
+                            "split": args.split if args.bench == "dsi" else None}
         solution["correct"] = solution.get("letter") in (entry["answer"], *entry.get("answer_also", ()))
         solution["wall_seconds"] = round(time.time() - started, 1)
         solution.update(gpu_memory_report())

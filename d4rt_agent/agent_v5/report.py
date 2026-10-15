@@ -15,6 +15,7 @@ from collections import defaultdict
 import json
 from pathlib import Path
 import random
+import re
 from typing import Any, Iterable, Mapping, Sequence
 
 DEFAULT_BASELINES = Path("/cluster/work/igp_psr/spanwar/shak-spatial-agent/dyn_dataset_exploration/outputs/"
@@ -28,12 +29,22 @@ def load_answers(results_dir: Path) -> list[dict[str, Any]]:
     for path in sorted((Path(results_dir) / "answers").glob("*.json")):
         a = json.loads(path.read_text())
         ref = a.get("reference", {})
+        costs = a.get("generation_costs", {})
+        from d4rt_agent.agent_v5.research.assessment_audit import audit_assessment
+        audit = audit_assessment(a)
+        clip = a.get("clip", {}).get("relative_path") or ref.get("relative_path") or \
+            re.sub(r"^(?:qa_|sceneqa_|cameraqa_)", "", a["question_id"].rsplit("_", 1)[0])
         rows.append({"qid": a["question_id"], "letter": a.get("letter"), "gt": ref.get("answer"),
                      "correct": bool(a.get("correct")), "kind": a.get("kind") or "none",
                      "family": a.get("family") or "none", "group": str(ref.get("group")), "task": ref.get("task"),
                      "dataset": ref.get("dataset"), "status": a.get("status"), "steps": a.get("measuring_steps", 0),
                      "tools": [t["tool"] for t in a.get("tools", [])], "peak_tokens": a.get("peak_tokens", 0),
-                     "clip": a["question_id"].rsplit("_", 1)[0], "seconds": a.get("wall_seconds")})
+                     "clip": clip, "seconds": a.get("wall_seconds"), "answer_policy": a.get("answer_policy"),
+                     "protocol": a.get("answer_protocol"), "assessment_present": a.get("assessment_present", False),
+                     "schema_recovery": a.get("schema_recovery", "not_needed"), "repairs": len(a.get("repair_history", [])),
+                     "calls": costs.get("calls"), "output_tokens": costs.get("output_tokens"),
+                     "input_tokens_estimate": costs.get("input_tokens_estimate"), "assessment_audit": audit,
+                     "submission_failures": sum(r.get("phase") == "answer" and r.get("status") == "rejected" for r in a.get("trace", []))})
     return rows
 
 
@@ -101,6 +112,21 @@ def report(results_dir: Path, baselines_path: Path | None) -> str:
            f"{answered} answered, {n - answered} unanswered or errored.",
            f"Mean measuring steps {sum(r['steps'] for r in rows) / n:.1f}; "
            f"peak context {max(r['peak_tokens'] for r in rows)} tokens.", ""]
+    workflow = [r for r in rows if r["protocol"] == "freeform_assessment_v1"]
+    if workflow:
+        out += ["## Integrated answer workflow", "",
+                f"Assessment prose present: {sum(r['assessment_present'] for r in workflow)}/{len(workflow)}; "
+                f"rejected submissions: {sum(r['submission_failures'] for r in workflow)}; "
+                f"answer-only recoveries: {sum(r['schema_recovery'] == 'answer_only' for r in workflow)}; "
+                f"failed recoveries: {sum(r['schema_recovery'] == 'failed' for r in workflow)}; "
+                f"repair rounds: {sum(r['repairs'] for r in workflow)}.",
+                "Prose presence and mechanical coverage do not validate grounding. Inspect the offline assessment audit."]
+        comparable = [r for r in workflow if r["assessment_audit"]["assessment_answer_consistent"] is not None]
+        out.append(f"Assessment–answer inconsistencies: {sum(not r['assessment_audit']['assessment_answer_consistent'] for r in comparable)}/{len(comparable)} parseable assessments.")
+        for key in ("calls", "output_tokens", "input_tokens_estimate"):
+            known = [r[key] for r in workflow if r[key] is not None]
+            out.append(f"Recorded {key}: {sum(known)} across {len(known)}/{len(workflow)} questions.")
+        out.append("")
     for field in ("kind", "family", "group", "task", "dataset"):
         out += ["", f"## by {field}", ""] + breakdown(rows, field)
     if baselines_path and Path(baselines_path).exists():
