@@ -314,7 +314,7 @@ def grounding_text(ws: Workspace, base: str) -> str:
         boxes = g.boxes[k][scene.gf_index][g.present(k)[scene.gf_index]]
         cx = float(np.nanmean((boxes[:, 0] + boxes[:, 2]) / 2)) if len(boxes) else float("nan")
         cy = float(np.nanmean((boxes[:, 1] + boxes[:, 3]) / 2)) if len(boxes) else float("nan")
-        rows.append([k, render.span_label(scene.t_s, a, b), f"{row['presence']:.0%}", f"{row['score']:.2f}",
+        rows.append([k, render.span_label(scene.t_s, a, b, gf_index=scene.gf_index), f"{row['presence']:.0%}", f"{row['score']:.2f}",
                      f"{row['area']:.1%}", _region_name(cx, cy)])
     used = ws.used_phrase.get(base, entity.phrase)
     head = f"{base}: SAM3 found {g.count} instance(s) for {used!r}" + \
@@ -394,10 +394,10 @@ def tool_camera_motion(ws: Workspace, args: Mapping[str, Any]) -> ToolResult:
         dtilt = float(cam["tilt_smooth"][b] - cam["tilt_smooth"][a])
         droll = float(cam["roll_smooth"][b] - cam["roll_smooth"][a])
         d = (cam["trans_smooth"][b] - cam["trans_smooth"][a]) / scene.scale     # [right, down, forward]
-        rows.append([render.span_label(t, a, b), render.signed(dpan, rot_noise), render.signed(dtilt, rot_noise),
+        rows.append([render.span_label(t, a, b, gf_index=scene.gf_index), render.signed(dpan, rot_noise), render.signed(dtilt, rot_noise),
                      render.signed(droll, rot_noise), render.signed(d[0], trans_floor),
                      render.signed(-d[1], trans_floor), render.signed(d[2], trans_floor)])
-        spans.append((render.time_label(t, a), render.time_label(t, b),
+        spans.append((render.time_label(t, a, gf_index=scene.gf_index), render.time_label(t, b, gf_index=scene.gf_index),
                       _camera_primitive(dpan, dtilt, d, rot_noise, trans_floor),
                       max(abs(dpan) / 10.0, float(np.linalg.norm(d)) / 0.1)))
     v = r.value
@@ -470,12 +470,12 @@ def tool_camera_profile(ws: Workspace, args: Mapping[str, Any]) -> ToolResult:
         fps = effective_fps(scene)
         rows = []
         for a, b in render.segment_bounds(lo, hi):
-            dt = max((b - a) / fps, 1e-6)
+            dt = max(float(t[b] - t[a]) if t is not None else (b - a) / fps, 1e-6)
             trans = float(np.linalg.norm(cam["trans_smooth"][b] - cam["trans_smooth"][a])) / scene.scale / dt
             rot = float(np.hypot(cam["pan_smooth"][b] - cam["pan_smooth"][a],
                                  cam["tilt_smooth"][b] - cam["tilt_smooth"][a])) / dt
             energy = trans / TUNING["rhythm_trans_floor_per_s"] + rot / TUNING["rhythm_rot_floor_deg_s"]
-            rows.append([render.span_label(t, a, b), f"{trans:.3f}", f"{rot:.1f}", f"{energy:.1f}",
+            rows.append([render.span_label(t, a, b, gf_index=scene.gf_index), f"{trans:.3f}", f"{rot:.1f}", f"{energy:.1f}",
                          "moving" if energy >= 1.0 else "still"])
         v = rhythm.value
         lines += [
@@ -520,7 +520,7 @@ def tool_camera_zoom(ws: Workspace, args: Mapping[str, Any]) -> ToolResult:
     for a, b in render.segment_bounds(lo, hi):
         ratio = float(fx[b] / fx[lo])
         fwd = float(cam["trans_smooth"][b, 2] - cam["trans_smooth"][a, 2]) / scene.scale
-        rows.append([render.span_label(t, a, b), f"x{ratio:.3f}", render.signed(fwd, 0.05)])
+        rows.append([render.span_label(t, a, b, gf_index=scene.gf_index), f"x{ratio:.3f}", render.signed(fwd, 0.05)])
     v = r.value
     lines = [
         "Focal length relative to the window's start (x1.10 = 10% longer = zoomed in), and the camera's forward "
@@ -622,16 +622,16 @@ def tool_entity_track(ws: Workspace, args: Mapping[str, Any]) -> ToolResult:
     for a, b in render.segment_bounds(int(idx[0]), int(idx[-1])):
         inside = idx[(idx >= a) & (idx <= b)]
         if len(inside) < 2:
-            rows.append([render.span_label(t, a, b), "-", "-", "-", "-", "not visible"])
+            rows.append([render.span_label(t, a, b, gf_index=scene.gf_index), "-", "-", "-", "-", "not visible"])
             continue
         d = comp(int(inside[0]), int(inside[-1]))
         words = render.named_axes(np.array([d[0], d[1], d[2]]), min(floor_xy, floor), TUNING["axis_dominance"]) \
             if frame != "image" else _image_words(d, floor_xy, floor)
         prim = render.primitive(words)
         size = float(np.linalg.norm(d))
-        rows.append([render.span_label(t, int(inside[0]), int(inside[-1])), render.signed(d[0], floor_xy),
+        rows.append([render.span_label(t, int(inside[0]), int(inside[-1]), gf_index=scene.gf_index), render.signed(d[0], floor_xy),
                      render.signed(-d[1], floor_xy), render.signed(d[2], floor), f"{size:.3f}", prim])
-        spans.append((render.time_label(t, int(inside[0])), render.time_label(t, int(inside[-1])), prim, size))
+        spans.append((render.time_label(t, int(inside[0]), gf_index=scene.gf_index), render.time_label(t, int(inside[-1]), gf_index=scene.gf_index), prim, size))
     net = comp(int(idx[0]), int(idx[-1]))
     net_words = render.named_axes(net, floor, TUNING["axis_dominance"]) if frame != "image" \
         else _image_words(net, floor_xy, floor)
@@ -649,7 +649,7 @@ def tool_entity_track(ws: Workspace, args: Mapping[str, Any]) -> ToolResult:
         _label(f"net '{render.primitive(net_words)}'; describe the motion in the order above, not by the largest part"),
         render.reliability("high" if track.confident[idx].mean() > 0.6 else "medium",
                            ([f"window: {note}"] if note != "whole clip" else [])
-                           + ([f"visible only {render.span_label(t, int(idx[0]), int(idx[-1]))} of the window"]
+                           + ([f"visible only {render.span_label(t, int(idx[0]), int(idx[-1]), gf_index=scene.gf_index)} of the window"]
                               if (idx[0] - lo) > 0.25 * max(hi - lo, 1) or (hi - idx[-1]) > 0.25 * max(hi - lo, 1)
                               else []) + track.notes + [FRAME_CAVEAT[frame]]),
     ]
@@ -689,7 +689,7 @@ def tool_distance(ws: Workspace, args: Mapping[str, Any]) -> ToolResult:
     v = r.value
     if at:
         lines = [
-            f"Distance between {_who(ws, a)} and {_who(ws, b)} at {render.time_label(t, v['frame'])}: "
+            f"Distance between {_who(ws, a)} and {_who(ws, b)} at {render.time_label(t, v['frame'], gf_index=scene.gf_index)}: "
             f"{v['units'] / scene.scale:.3f} scene scales" + (f" = about {v['metres']:.2f} m" if "metres" in v else
                                                                " (no metric scale for this clip)") + ".",
             _units_line(scene),
@@ -697,7 +697,7 @@ def tool_distance(ws: Workspace, args: Mapping[str, Any]) -> ToolResult:
             "rule out values several times too large or too small, not to split close ones.",
             render.reliability(r.confidence, _common_notes(r)),
         ]
-        summary = f"distance {a}-{b} at {render.time_label(t, v['frame'])}: " + \
+        summary = f"distance {a}-{b} at {render.time_label(t, v['frame'], gf_index=scene.gf_index)}: " + \
             (f"{v['metres']:.2f} m" if "metres" in v else f"{v['units'] / scene.scale:.3f} scales")
         return ToolResult(render.block(title, lines), summary, data=r.to_dict())
     lo, hi = r.window
@@ -710,16 +710,16 @@ def tool_distance(ws: Workspace, args: Mapping[str, Any]) -> ToolResult:
     for s, e in render.segment_bounds(int(ok[0]), int(ok[-1])):
         inside = ok[(ok >= s) & (ok <= e)]
         if len(inside) < 2:
-            rows.append([render.span_label(t, s, e), "-", "-", "-", "not both visible"])
+            rows.append([render.span_label(t, s, e, gf_index=scene.gf_index), "-", "-", "-", "not both visible"])
             continue
         r0, r1 = float(smooth[inside[0]]), float(smooth[inside[-1]])
         change = r1 / r0 - 1.0
         word = "still" if abs(change) < tol_rel / 2 else ("closer" if change < 0 else "farther")
-        rows.append([render.span_label(t, int(inside[0]), int(inside[-1])),
+        rows.append([render.span_label(t, int(inside[0]), int(inside[-1]), gf_index=scene.gf_index),
                      f"{r0 / scene.scale:.3f}" + (f" ({r0 * mpu:.1f} m)" if mpu else ""),
                      f"{r1 / scene.scale:.3f}" + (f" ({r1 * mpu:.1f} m)" if mpu else ""),
                      f"{change:+.0%}", word])
-        spans.append((render.time_label(t, int(inside[0])), render.time_label(t, int(inside[-1])), word, abs(change)))
+        spans.append((render.time_label(t, int(inside[0]), gf_index=scene.gf_index), render.time_label(t, int(inside[-1]), gf_index=scene.gf_index), word, abs(change)))
     lines = [
         f"Straight-line distance between {_who(ws, a)} and {_who(ws, b)} over time (smoothed). " + _units_line(scene),
         f"A change counts when it exceeds about {tol_rel:.0%} of the distance (per span, half that is shown as a move).",
@@ -763,7 +763,7 @@ def tool_region_relation(ws: Workspace, args: Mapping[str, Any]) -> ToolResult:
         if len(inside) < 2:
             continue
         d0, d1 = dist[inside[0]] / scene.scale, dist[inside[-1]] / scene.scale
-        rows.append([render.span_label(t, int(inside[0]), int(inside[-1])), f"{d0:.3f}", f"{d1:.3f}",
+        rows.append([render.span_label(t, int(inside[0]), int(inside[-1]), gf_index=scene.gf_index), f"{d0:.3f}", f"{d1:.3f}",
                      render.signed(d1 - d0, r.value["tolerance_units"] / scene.scale)])
     v = r.value
     lines = [
@@ -792,7 +792,7 @@ def tool_elevation(ws: Workspace, args: Mapping[str, Any]) -> ToolResult:
     elev = np.asarray(r.series["elevation"], float)
     ok = np.flatnonzero(np.isfinite(elev))
     t = scene.t_s
-    rows = [[render.span_label(t, s, e), f"{np.nanmedian(elev[s:e + 1]):+.0f}"]
+    rows = [[render.span_label(t, s, e, gf_index=scene.gf_index), f"{np.nanmedian(elev[s:e + 1]):+.0f}"]
             for s, e in render.segment_bounds(int(ok[0]), int(ok[-1])) if np.isfinite(elev[s:e + 1]).any()]
     v = r.value
     lines = [
@@ -829,23 +829,23 @@ def tool_visibility(ws: Workspace, args: Mapping[str, Any]) -> ToolResult:
         seg = slice(s, e + 1)
         pres = track.present[seg]
         if not pres.any():
-            rows.append([render.span_label(t, s, e), "0%", "-", "-", "-"])
+            rows.append([render.span_label(t, s, e, gf_index=scene.gf_index), "0%", "-", "-", "-"])
             continue
         c = track.centroid[seg][pres]
-        rows.append([render.span_label(t, s, e), f"{pres.mean():.0%}", f"{track.border[seg][pres].mean():.0%}",
+        rows.append([render.span_label(t, s, e, gf_index=scene.gf_index), f"{pres.mean():.0%}", f"{track.border[seg][pres].mean():.0%}",
                      f"{np.median(track.area_frac[seg][pres]):.1%}",
                      _region_name(float(np.mean(c[:, 0])), float(np.mean(c[:, 1])))])
     first, last = track.first, track.last
     enter = "in view from the first frame" if first == 0 else (
-        f"first visible at {render.time_label(t, first)}" if first is not None else "never visible")
+        f"first visible at {render.time_label(t, first, gf_index=scene.gf_index)}" if first is not None else "never visible")
     leave = "still in view on the last frame" if last == scene.length - 1 else (
-        f"last visible at {render.time_label(t, last)}" if last is not None else "")
+        f"last visible at {render.time_label(t, last, gf_index=scene.gf_index)}" if last is not None else "")
     gaps = _gaps(track.present)
     lines = [
         f"Where {_who(ws, eid)} is in the picture: share of frames it is visible, share of those where it touches the "
         "image border (cut off), its median size (share of the image), and where in the picture it is.",
         render.table(["time", "visible", "at border", "size", "where"], rows),
-        f"{enter}; {leave}." + (f" Not visible during: {', '.join(render.span_label(t, a, b) for a, b in gaps)}."
+        f"{enter}; {leave}." + (f" Not visible during: {', '.join(render.span_label(t, a, b, gf_index=scene.gf_index) for a, b in gaps)}."
                                 if gaps else ""),
     ]
     if r.available:
@@ -886,7 +886,7 @@ def tool_apparent_size(ws: Workspace, args: Mapping[str, Any]) -> ToolResult:
     area = np.asarray(r.series["area"], float)
     ok = np.flatnonzero(np.isfinite(area))
     t = scene.t_s
-    rows = [[render.span_label(t, s, e), f"{np.nanmedian(area[s:e + 1]):.2%}"]
+    rows = [[render.span_label(t, s, e, gf_index=scene.gf_index), f"{np.nanmedian(area[s:e + 1]):.2%}"]
             for s, e in render.segment_bounds(int(ok[0]), int(ok[-1])) if np.isfinite(area[s:e + 1]).any()]
     v = r.value
     lines = [
@@ -922,7 +922,7 @@ def tool_motion_profile(ws: Workspace, args: Mapping[str, Any]) -> ToolResult:
         sel = (at >= s) & (at <= e)
         if not sel.any():
             continue
-        rows.append([render.span_label(t, s, e), f"{np.mean(speed[sel]):.3f}", f"{np.mean(moving[sel]):.0%}"])
+        rows.append([render.span_label(t, s, e, gf_index=scene.gf_index), f"{np.mean(speed[sel]):.3f}", f"{np.mean(moving[sel]):.0%}"])
     v = r.value
     lines = [
         f"Speed of {_who(ws, eid)} through the scene (camera motion removed), in scene scales per second; "
@@ -1041,7 +1041,7 @@ def tool_orientation(ws: Workspace, args: Mapping[str, Any]) -> ToolResult:
     for row in rows_f:
         p = row["pos"]
         if not row.get("usable"):
-            rows.append([render.time_label(t, p), row.get("status", "no unique front") if row.get("status") != "ok"
+            rows.append([render.time_label(t, p, gf_index=scene.gf_index), row.get("status", "no unique front") if row.get("status") != "ok"
                          else "no unique front", "-", "-", "-"])
             continue
         heading = orientation.heading_deg(row["forward_level"])
@@ -1054,7 +1054,7 @@ def tool_orientation(ws: Workspace, args: Mapping[str, Any]) -> ToolResult:
             quadrant, octant, margin = orientation.sector(bearing)
             bearings.append((render.time_label(t, p), quadrant))
             side = f"{quadrant} ({octant}, {bearing:+.0f} deg{', near a boundary' if margin < 10 else ''})"
-        rows.append([render.time_label(t, p), orientation.facing_words(row["forward_cam"]), f"{turn:+.0f}", side,
+        rows.append([render.time_label(t, p, gf_index=scene.gf_index), orientation.facing_words(row["forward_cam"]), f"{turn:+.0f}", side,
                      f"{row['azimuth_deg']:.0f}"])
     if not bearings and first_heading is None:
         return _unavailable(title, "Orient-Anything never resolved a unique front for this entity")

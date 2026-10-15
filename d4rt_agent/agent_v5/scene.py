@@ -469,6 +469,18 @@ def smooth_track(scene: Scene, xyz: np.ndarray) -> np.ndarray:
     ``SMOOTH_WINDOW_S`` long). Measurements read this, never the raw path; the raw path is
     kept only for the noise floor (draft rule: the smoothed trajectory is the one used)."""
 
+    t = scene.t_s
+    if t is not None and len(t) == len(xyz) and len(t) > 2 and not np.allclose(np.diff(t), np.diff(t)[0]):
+        # A local quadratic in seconds, rather than sample index, preserves constant
+        # physical velocity across irregular sampling. Missing samples stay missing.
+        values = np.asarray(xyz, dtype=float)
+        result = values.copy()
+        valid = np.isfinite(values).all(1)
+        for i in np.flatnonzero(valid):
+            use = valid & (np.abs(t - t[i]) <= SMOOTH_WINDOW_S / 2)
+            if use.sum() >= 3:
+                result[i] = np.polynomial.polynomial.polyfit(t[use] - t[i], values[use], 2)[0]
+        return result
     return traj3d_geometry.smooth_trajectory(xyz, window=smoothing_window(scene, len(xyz)), polyorder=2)
 
 
@@ -518,8 +530,6 @@ def merge_fragments(scene: Scene, tracks: list[EntityTrack]) -> list[EntityTrack
     and the entity did not teleport across it. Applied greedily, earliest first.
     """
 
-    fps = effective_fps(scene)
-    max_gap = max(2, int(round(GAP_MERGE_S * fps)))
     tracks = sorted(tracks, key=lambda t: t.first if t.first is not None else 10**9)
     merged = True
     while merged:
@@ -529,7 +539,13 @@ def merge_fragments(scene: Scene, tracks: list[EntityTrack]) -> list[EntityTrack
                 if a == b or tracks[a].last is None or tracks[b].first is None:
                     continue
                 ta, tb = tracks[a], tracks[b]
-                if ta.last >= tb.first or tb.first - ta.last > max_gap:
+                if ta.last >= tb.first:
+                    continue
+                if scene.t_s is not None:
+                    gap_ok = scene.t_s[tb.first] - scene.t_s[ta.last] <= GAP_MERGE_S
+                else:
+                    gap_ok = scene.gf_index[tb.first] - scene.gf_index[ta.last] <= 2
+                if not gap_ok:
                     continue
                 if (ta.present & tb.present).any():
                     continue
@@ -624,6 +640,10 @@ def resolve_window(scene: Scene, window: Window | None) -> tuple[int, int, str]:
     if window is None or window.kind == "whole":
         return 0, T - 1, "whole clip"
     t = scene.t_s
+    if window.kind == "frames":
+        lo = int(np.argmin(np.abs(scene.gf_index - float(window.t0))))
+        hi = int(np.argmin(np.abs(scene.gf_index - float(window.t1))))
+        return min(lo, hi), max(lo, hi), f"generator frames {window.t0}..{window.t1}"
     def at(seconds: float) -> int:
         if t is None:
             raise WindowUnresolved(f"no established frame rate for {scene.clip['dataset']}: cannot map {seconds} s")
@@ -642,5 +662,8 @@ def resolve_window(scene: Scene, window: Window | None) -> tuple[int, int, str]:
                      "first_half": (0, 0.5), "second_half": (0.5, 1.0), "start_to_middle": (0, 0.5),
                      "end": (0.88, 1.0)}
         f0, f1 = fractions[window.phase]
-        return int(round(f0 * (T - 1))), int(round(f1 * (T - 1))), f"{window.phase} of the clip"
+        axis = scene.gf_index.astype(float)
+        bounds = axis[0] + np.array([f0, f1]) * (axis[-1] - axis[0])
+        lo, hi = (int(np.argmin(np.abs(axis - v))) for v in bounds)
+        return lo, hi, f"{window.phase} of elapsed clip duration"
     raise WindowUnresolved(f"event window {window.event!r} needs its event located first")

@@ -21,7 +21,7 @@ ENTITY_KINDS = (
     "camera", "object", "group", "category", "main_subject",
     "landmark_object", "landmark_region",
 )
-WINDOW_KINDS = ("whole", "interval", "instant", "phase", "event")
+WINDOW_KINDS = ("whole", "interval", "instant", "phase", "event", "frames")
 PHASES = ("first_25", "middle_50", "last_25", "first_half", "second_half", "start_to_middle", "end")
 # "convention": the frame is a generator convention, decided by calibration, not wording.
 FRAMES = ("world0", "camera_t", "levelled", "image", "convention")

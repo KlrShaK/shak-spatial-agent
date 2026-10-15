@@ -278,12 +278,12 @@ def camera_state(scene: Scene) -> dict[str, np.ndarray]:
         return cached
     angles = traj3d_buckets.camera_pose_angles(scene.cam_R, level=scene.level)
     trans = scene.to_level(scene.cam_t)              # [right, down, forward]
-    window = smoothing_window(scene, scene.length)
-    smooth = traj3d_geometry.smooth_trajectory(trans, window=window, polyorder=2)
+    from d4rt_agent.agent_v5.scene import smooth_track
+    smooth = smooth_track(scene, trans)
     # The angles get the same smoothing as the paths (unwrapped first, so +-180 is not a jump).
     # Motions are read off the smoothed angles; the raw ones are kept for the shake residual.
     rot = np.stack([_unwrapped_deg(angles[k]) for k in ("pan_deg", "tilt_deg", "roll_deg")], 1)
-    rot_smooth = traj3d_geometry.smooth_trajectory(rot, window=window, polyorder=2)
+    rot_smooth = smooth_track(scene, rot)
     state = {"pan": angles["pan_deg"], "tilt": angles["tilt_deg"], "roll": angles["roll_deg"],
              "pan_smooth": rot_smooth[:, 0], "tilt_smooth": rot_smooth[:, 1], "roll_smooth": rot_smooth[:, 2],
              "trans": trans, "trans_smooth": smooth}

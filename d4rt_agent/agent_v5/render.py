@@ -31,12 +31,12 @@ def segment_bounds(lo: int, hi: int, n: int = MAX_SEGMENTS) -> list[tuple[int, i
     return [(int(a), int(b)) for a, b in zip(edges[:-1], edges[1:])]
 
 
-def time_label(t_s: np.ndarray | None, pos: int) -> str:
-    return f"{float(t_s[pos]):.2f}s" if t_s is not None else f"f{pos}"
+def time_label(t_s: np.ndarray | None, pos: int, gf_index: np.ndarray | None = None) -> str:
+    return f"{float(t_s[pos]):.2f}s" if t_s is not None else f"f{int(gf_index[pos]) if gf_index is not None else pos}"
 
 
-def span_label(t_s: np.ndarray | None, a: int, b: int) -> str:
-    return f"{time_label(t_s, a)}-{time_label(t_s, b)}"
+def span_label(t_s: np.ndarray | None, a: int, b: int, gf_index: np.ndarray | None = None) -> str:
+    return f"{time_label(t_s, a, gf_index)}-{time_label(t_s, b, gf_index)}"
 
 
 def named_axes(comp: Sequence[float], floor: float, dominance: float) -> dict[str, str | None]:
