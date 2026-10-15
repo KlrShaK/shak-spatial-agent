@@ -20,6 +20,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
+import time
 import traceback
 from typing import Any, Callable, Mapping
 
@@ -99,9 +100,12 @@ class AgentV5:
         """Generate until one valid action from ``allowed`` passes ``check``; ``(name, args, check's value)``."""
 
         for attempt in range(1, MAX_REJECTIONS + 1):
+            started = time.monotonic()
             raw = self._generate(conv, max_new_tokens)
             record: dict[str, Any] = {"phase": phase, "attempt": attempt, "allowed": allowed, "raw": raw,
-                                      "at": _utc_now(), "status": "rejected"}
+                                      "at": _utc_now(), "status": "rejected", "seconds": time.monotonic() - started,
+                                      "max_new_tokens": max_new_tokens, "input_tokens_estimate": conv.tokens(),
+                                      "output_tokens": self._count_fn()(raw) if self._count_fn() else None}
             trace.append(record)
             try:
                 extracted = extract_first_action(raw)
