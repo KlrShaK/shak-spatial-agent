@@ -10,6 +10,7 @@ is auditable, and a model made to state a reason states a better one.
 from __future__ import annotations
 
 import json
+import re
 from typing import Any, Mapping, Sequence
 
 from d4rt_agent.agent_v5.tools import TOOL_SPECS
@@ -50,6 +51,8 @@ def schemas_text(names: Sequence[str]) -> str:
 def validate_action(action: Mapping[str, Any], allowed: Sequence[str]) -> tuple[str, dict[str, Any]]:
     """``(name, arguments)`` of a well-formed action that is valid now, or ActionRejected."""
 
+    if not isinstance(action, Mapping):
+        raise ActionRejected("the JSON envelope must be an object")
     name = action.get("action", action.get("name"))
     if not isinstance(name, str):
         raise ActionRejected("the JSON needs an `action` string")
@@ -71,12 +74,109 @@ def validate_action(action: Mapping[str, Any], allowed: Sequence[str]) -> tuple[
     missing = [key for key in spec["required"] if arguments.get(key) in (None, "")]
     if missing:
         raise ActionRejected(f"`{name}` needs {missing}")
+    arguments = {k: v for k, v in arguments.items() if v is not None}
     arguments["justification"] = justification.strip()
     return name, arguments
 
 
 def parse_letter(value: Any, letters: Sequence[str]) -> str:
-    text = str(value).strip().upper().strip("().:")
+    text = str(value).strip()
+    if text in letters:
+        return text
+    text = text.upper().strip("().:")
     if text[:1] in letters and (len(text) == 1 or not text[1].isalpha()):
         return text[:1]
     raise ActionRejected(f"`letter` must be one of {list(letters)}")
+
+
+def assessment_prefix(raw: str) -> str:
+    """Retain advisory prose even when the following submission is malformed."""
+    start = re.search(r'\{\s*"(?:action|name)"\s*:\s*"(?:final_answer|answer_only)"', raw)
+    return raw[:start.start()].strip() if start else (raw.strip() if raw.strip() != "{}" else "")
+
+
+def parse_answer_response(raw: str) -> tuple[str, dict[str, Any]]:
+    """Separate free-form prose from one terminal, strictly parsed action envelope."""
+    fence = re.search(r"(?:^|\n)[ \t]*```(?:json)?[ \t]*\n(.*?)\n[ \t]*```[ \t]*$", raw.strip(), re.S)
+    if fence:
+        raw = raw.strip()[:fence.start()] + "\n" + fence.group(1)
+    decoder = json.JSONDecoder()
+    candidates = []
+    offset = 0
+    while offset < len(raw):
+        start = raw.find("{", offset)
+        if start < 0:
+            break
+        try:
+            value, consumed = decoder.raw_decode(raw[start:])
+        except ValueError:
+            offset = start + 1
+            continue
+        end = start + consumed
+        if isinstance(value, dict):
+            name = value.get("action", value.get("name"))
+            if name in ("final_answer", "answer_only"):
+                candidates.append((start, end))
+            elif isinstance(name, str) and name in SPECS:
+                raise ActionRejected("only a final submission tool may appear in the answer response")
+        offset = end  # Skip braces inside already parsed objects and quoted strings.
+    if len(candidates) != 1:
+        raise ActionRejected("expected exactly one complete final tool-call object")
+    start, end = candidates[0]
+    if raw[end:].strip():
+        raise ActionRejected("nothing may follow the final tool-call object")
+    prefix = raw[:start].strip()
+    if prefix.endswith("["):
+        raise ActionRejected("the final tool call must be an object, not an array")
+
+    def unique_pairs(pairs):
+        result = {}
+        for key, value in pairs:
+            if key in result:
+                raise ActionRejected(f"duplicate key {key}")
+            result[key] = value
+        return result
+
+    envelope = json.loads(raw[start:end], object_pairs_hook=unique_pairs)
+    if set(envelope) != {"action", "arguments"}:
+        raise ActionRejected("expected an action/arguments JSON object")
+    return prefix, envelope
+
+
+def validate_answer_submission(args: Mapping[str, Any], options: Mapping[str, str],
+                               evidence: Mapping[str, Mapping[str, Any]], *, repair_allowed: bool) -> str:
+    """Validate the submission and repair mechanics; do not interpret assessment prose."""
+    letter = args.get("letter")
+    if not isinstance(letter, str) or letter.strip() not in options:
+        raise ActionRejected(f"letter must be an actual option label from {list(options)}")
+    if args.get("limitations") is not None and not isinstance(args["limitations"], str):
+        raise ActionRejected("limitations must be a string or null")
+    repair = args.get("repair_request")
+    if repair is not None:
+        if not repair_allowed:
+            raise ActionRejected("repair is unavailable; omit repair_request and answer with stated limitations")
+        if not isinstance(repair, dict) or repair.get("mode") not in ("measure", "reroute"):
+            raise ActionRejected("repair_request needs mode measure or reroute")
+        fields = {"requirement", "option", "claim", "missing", "evidence", "mode", "could_change_choice"}
+        if set(repair) != fields:
+            raise ActionRejected(f"repair_request needs exactly {sorted(fields)}")
+        if not isinstance(repair["option"], str) or repair["option"] not in options:
+            raise ActionRejected("repair must identify an actual option label")
+        if not isinstance(repair.get("requirement"), str):
+            raise ActionRejected("repair must identify a requirement ID")
+        if not all(isinstance(repair.get(k), str) and repair[k].strip()
+                   for k in ("claim", "missing", "could_change_choice")):
+            raise ActionRejected("repair needs claim text, missing evidence and how resolving it could_change_choice")
+        refs = repair["evidence"]
+        if not isinstance(refs, list) or any(not isinstance(r, str) or r not in evidence for r in refs):
+            raise ActionRejected("repair evidence must list current IDs (empty allowed when none exists)")
+    refs = args.get("evidence_ids", [])
+    if not isinstance(refs, list) or any(not isinstance(r, str) or r not in evidence for r in refs):
+        raise ActionRejected("evidence_ids must cite current reports or included visuals")
+    return letter.strip()
+
+
+def answer_template(options: Mapping[str, str]) -> str:
+    return json.dumps({"action": "final_answer", "arguments": {
+        "letter": "<one of " + ", ".join(options) + ">", "justification": "<brief reason for this choice>",
+        "limitations": "<remaining uncertainty>"}}, separators=(",", ":"))
