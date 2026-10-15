@@ -143,10 +143,12 @@ class D4RTBackbone(Backbone):
         del dense
 
         cam_R, cam_t = np.tile(np.eye(3), (n, 1, 1)), np.zeros((n, 3))
+        pose_valid = np.ones(n, dtype=bool)
         for f in range(1, n):
             fit = robust_rigid(local[f], ref[f], weights=np.minimum(conf[f], 1.0) ** 2, seed=f)
             if fit is None or fit.inliers.sum() < MIN_CELLS_FOR_FIT:
                 cam_R[f], cam_t[f] = cam_R[f - 1], cam_t[f - 1]      # hold the last pose
+                pose_valid[f] = False
                 continue
             cam_R[f], cam_t[f] = fit.rotation, fit.translation
 
@@ -171,6 +173,7 @@ class D4RTBackbone(Backbone):
             "gf_index": gf_index, "model_hw": np.asarray(hw), "source_hw": np.asarray(clip.record["source_hw"]),
             "cam_R": cam_R, "cam_t": cam_t, "K": K, "points": ref.reshape(n, gh, gw, 3).astype(np.float16),
             "geometry_stride": np.int32(CELL_PX), "grid_uv": grid_uv, "grid_traj": grid_traj, "grid_conf": grid_conf,
+            "pose_valid": pose_valid,
         }
 
     def metric(self, clip: Clip, arrays: Mapping[str, np.ndarray]) -> dict[str, Any] | None:

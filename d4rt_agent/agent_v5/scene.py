@@ -215,6 +215,7 @@ class Scene:
     metres_per_unit: float | None     # from the active backbone's metric source
     metric_iqr: float | None
     metric_source: str | None = None  # "da3-nested" | "d4rt-native" | None
+    pose_valid: np.ndarray | None = None
 
     @property
     def length(self) -> int:
@@ -270,6 +271,7 @@ def scene_from_arrays(slug: str, clip: Mapping[str, Any], arrays: Mapping[str, n
         up=np.asarray(up, dtype=np.float64), up_fraction=float(fraction), up_source=source, level=level,
         scale=scale, fps=clip.get("fps_gf"), metres_per_unit=metric.get("metres_per_unit"),
         metric_iqr=metric.get("iqr_over_median"), metric_source=metric.get("source"),
+        pose_valid=np.asarray(arrays["pose_valid"], dtype=bool) if "pose_valid" in arrays else None,
     )
 
 
@@ -389,7 +391,8 @@ def subsample_scene(scene: Scene, gf_positions: Sequence[int]) -> Scene:
     keep = np.unique(keep)
     return dataclasses.replace(
         scene, gf_index=scene.gf_index[keep], cam_R=scene.cam_R[keep], cam_t=scene.cam_t[keep], K=scene.K[keep],
-        points=scene.points[keep], grid_traj=scene.grid_traj[keep], grid_conf=scene.grid_conf[keep])
+        points=scene.points[keep], grid_traj=scene.grid_traj[keep], grid_conf=scene.grid_conf[keep],
+        pose_valid=None if scene.pose_valid is None else scene.pose_valid[keep])
 
 
 def smoothing_window(scene: Scene, length: int) -> int:
