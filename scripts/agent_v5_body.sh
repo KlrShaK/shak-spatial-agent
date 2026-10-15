@@ -5,7 +5,7 @@
 #   RUN_DIR      results directory: answers/, cache/ (clips, scenes, groundings), run_config.json
 #   ATTEMPT_ID   token identifying THIS pair of racing jobs (unset: no race, e.g. the smoke test)
 #   BACKBONE     point4d (default) | d4rt -- the 4D model behind every geometric tool
-#   BENCH        dynbench (default) | dsi
+#   BENCH        dynbench (default) | dsi | vlm4d
 #   EXTRA_ARGS   optional, passed through to the runner (e.g. --limit 40, --shard 0/4, --all)
 
 set -euo pipefail
@@ -21,7 +21,7 @@ POINT4D_REPO="${POINT4D_REPO:-/cluster/work/igp_psr/spanwar/Point4D}"
 BACKBONE="${BACKBONE:-point4d}"
 BENCH="${BENCH:-dynbench}"
 case "$BACKBONE" in point4d|d4rt) ;; *) echo "BACKBONE must be point4d or d4rt, got '$BACKBONE'" >&2; exit 2;; esac
-case "$BENCH" in dynbench|dsi) ;; *) echo "BENCH must be dynbench or dsi, got '$BENCH'" >&2; exit 2;; esac
+case "$BENCH" in dynbench|dsi|vlm4d) ;; *) echo "BENCH must be dynbench, dsi or vlm4d, got '$BENCH'" >&2; exit 2;; esac
 
 pick() {  # the first of the two paths that exists
   if [[ -e "$1" ]]; then echo "$1"; else echo "$2"; fi
