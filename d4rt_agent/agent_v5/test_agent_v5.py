@@ -198,7 +198,7 @@ def test_every_measured_kind_has_a_playbook_and_known_tools():
         assert spec.family in kinds.FAMILIES
         for tool in kinds.tools_for(spec.name):
             assert tool in TOOL_SPECS
-            assert tool in TOOLS or tool in ("switch_kind", "done_measuring")
+            assert tool in TOOLS or tool in ("switch_kind", "done_measuring", "add_entity", "add_requirement")
         if spec.route == "measure":
             assert (PROMPTS / "playbooks" / f"{spec.name}.md").exists(), spec.name
     assert all(kinds.kinds_of(f) for f in kinds.FAMILIES if f != "semantic")

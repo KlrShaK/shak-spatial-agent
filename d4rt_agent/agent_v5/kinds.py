@@ -25,7 +25,7 @@ from d4rt_agent.agent_v5.program import (
 
 COMMON_TOOLS = ("ground", "select", "show", "switch_kind", "done_measuring")
 
-FAMILIES: dict[str, str] = {
+LEGACY_FAMILIES: dict[str, str] = {
     "camera": "Only the camera itself: how it moved, turned, zoomed or shook, or whether the background at the end "
               "is the same place as at the start (same / slight shift / different scene).",
     "subject_motion": "How one entity moves: its direction of travel, whether and how it moves, its speed, or its turning in its own frame.",
@@ -77,7 +77,7 @@ def _event_slots() -> tuple[Slot, ...]:
     return tuple(slots)
 
 
-KINDS: tuple[KindSpec, ...] = (
+LEGACY_KINDS: tuple[KindSpec, ...] = (
     # camera
     KindSpec("camera_path", "camera", "The camera's own movement or turning over the clip: pan, tilt, dolly, truck, "
              "pedestal, orbit, static, or a mix.", (), ("camera_motion",)),
@@ -139,23 +139,78 @@ KINDS: tuple[KindSpec, ...] = (
     KindSpec("semantic", "semantic", "What is happening or what something is: appearance, not measurement.", (), (),
              route="vlm_only"),
 )
-KIND_BY_NAME: dict[str, KindSpec] = {k.name: k for k in KINDS}
+FAMILIES = {
+    "motion": "An actor's trajectory, body or projected rotation, kinematics or stability.",
+    "spatial": "Range, signed relative position, viewpoint, region relation or group configuration.",
+    "view": "Visibility, framing, lens zoom or revisiting a view.",
+    "entity_sets": "Count or identify physical entities satisfying a predicate.",
+    "events": "Locate, order or count event occurrences and repetitions.",
+    "visual": "Appearance/activity or actor-object-part interaction, using targeted inspection.",
+}
+_ACTOR = Slot("subject", "Name the actor (or 'camera'). Use the question/options or visually identify a generic subject.", "entity_or_camera", implicit_ok=True)
+_CATEGORY = Slot("category", "Name the category whose instances should be considered.", "category")
+_RELATION = (_ACTOR, _SECOND)
+KINDS = (
+    KindSpec("trajectory", "motion", "Position change or path, including a relative orbit; specify frame and anchor.",
+             (_ACTOR,), ("entity_track", "camera_motion", "orbit")),
+    KindSpec("body_rotation", "motion", "Body-facing or camera orientation change; not path turning or wheel spin.",
+             (_ACTOR,), ("orientation", "camera_motion")),
+    KindSpec("projected_rotation", "motion", "Image-plane spin of tracked material points, not body-facing.",
+             (_SUBJECT,), ("projected_rotation", "camera_motion")),
+    KindSpec("kinematics", "motion", "Path speed, velocity, acceleration or comparison across actors/windows.",
+             (_ACTOR,), ("kinematics", "motion_profile")),
+    KindSpec("stability", "motion", "Camera pose jitter with estimation quality; low net motion does not imply stability.",
+             (), ("camera_profile", "camera_motion")),
+    KindSpec("range", "spatial", "Scalar separation or its trend; metric only with scale provenance.",
+             _RELATION, ("distance",)),
+    KindSpec("relative_position", "spatial", "Signed offsets: left/right, above/below, ahead/behind in an explicit frame.",
+             _RELATION, ("relative_position",)),
+    KindSpec("viewpoint", "spatial", "Viewing side relative to body orientation, and viewing elevation.",
+             (_SUBJECT,), ("orientation", "elevation", "relative_position")),
+    KindSpec("region_relation", "spatial", "Along/across/inside a region, distinguishing projection from physical geometry.",
+             next(k.slots for k in LEGACY_KINDS if k.name == "landmark_relation"), ("region_geometry", "region_relation")),
+    KindSpec("group_configuration", "spatial", "Member separation, dispersion and alignment; not just centroid motion.",
+             (_CATEGORY,), ("census", "group_geometry")),
+    KindSpec("visibility", "view", "Visibility intervals, image entry/exit and occlusion uncertainty.",
+             (_MAIN_SUBJECT,), ("view_state",)),
+    KindSpec("framing", "view", "Image location and apparent extent, distinct from physical range.",
+             (_MAIN_SUBJECT,), ("view_state", "distance")),
+    KindSpec("zoom", "view", "Focal change versus approach or changing subject size.",
+             (), ("camera_zoom", "camera_motion")),
+    KindSpec("revisit", "view", "Background correspondence between views.", (), ("scene_revisit", "camera_motion")),
+    KindSpec("count_entities", "entity_sets", "Distinct identities at a time, in a window, or satisfying a predicate.",
+             (_CATEGORY,), ("census", "evaluate_predicate", "count_entities", "encounters")),
+    KindSpec("select_entities", "entity_sets", "Identify instances by supported predicates; unknown is not false.",
+             (_CATEGORY,), ("census", "evaluate_predicate", "count_entities")),
+    KindSpec("locate_events", "events", "Localize events with original predicates and participants.", (), ("locate_event", "record_event", "event_reduce")),
+    KindSpec("order_events", "events", "Order any number of localized occurrences, including option-defined events.", (), ("locate_event", "record_event", "event_reduce")),
+    KindSpec("count_events", "events", "Count occurrences or completed action cycles; not physical objects.", (), ("locate_event", "record_event", "event_reduce", "encounters")),
+    KindSpec("visual_state", "visual", "Appearance, activity or absence with explicit inspected evidence.", (), ("observe",)),
+    KindSpec("interaction", "visual", "Actor-object-part relationships, including anatomical roles.", (), ("observe", "record_event")),
+)
+LEGACY_KIND_BY_NAME = {k.name: k for k in LEGACY_KINDS}
+KIND_BY_NAME = {k.name: k for k in (*LEGACY_KINDS, *KINDS)}
+COMPOSITIONAL_NAMES = {k.name for k in KINDS}
+COMPOSITION_TOOLS = ("ground", "select", "inspect", "observe", "merge_identity", "track_quality",
+                     "add_entity", "add_requirement", "event_window", "done_measuring")
 
 
-def kinds_of(family: str) -> list[KindSpec]:
-    return [k for k in KINDS if k.family == family]
+def kinds_of(family: str, legacy: bool = False) -> list[KindSpec]:
+    return [k for k in (LEGACY_KINDS if legacy else KINDS) if k.family == family]
 
 
-def family_menu() -> str:
-    return "\n".join(f"- `{name}`: {text}" for name, text in FAMILIES.items())
+def family_menu(legacy: bool = False) -> str:
+    return "\n".join(f"- `{name}`: {text}" for name, text in (LEGACY_FAMILIES if legacy else FAMILIES).items())
 
 
-def kind_menu(family: str) -> str:
-    return "\n".join(f"- `{k.name}`: {k.description}" for k in kinds_of(family))
+def kind_menu(family: str, legacy: bool = False) -> str:
+    return "\n".join(f"- `{k.name}`: {k.description}" for k in kinds_of(family, legacy))
 
 
-def tools_for(kind: str) -> tuple[str, ...]:
-    spec = KIND_BY_NAME[kind]
+def tools_for(kind: str, legacy: bool = False) -> tuple[str, ...]:
+    spec = (LEGACY_KIND_BY_NAME if legacy else KIND_BY_NAME)[kind]
+    if not legacy and kind in COMPOSITIONAL_NAMES:
+        return tuple(dict.fromkeys(spec.tools + COMPOSITION_TOOLS))
     if spec.route == "vlm_only":
         return ("done_measuring",)
     return spec.tools + COMMON_TOOLS
@@ -165,7 +220,7 @@ def tools_for(kind: str) -> tuple[str, ...]:
 # slot answers -> entities and events
 # --------------------------------------------------------------------------- #
 
-_MAIN = re.compile(r"\bmain (subject|object|character|person)\b", re.I)
+_MAIN = re.compile(r"\b(?:main (?:subject|object|character|person)|character|subject|(?:the|this) object)\b", re.I)
 _CAMERA = re.compile(r"^(the )?(camera|observer|viewer|cameraman|camera operator)$", re.I)
 
 
@@ -200,7 +255,7 @@ def validate_slot(slot: Slot, value: Any, question: str) -> str:
     return text
 
 
-def entities_from_slots(kind: str, slots: Mapping[str, str], question: str) -> tuple[list[Entity], list[Event]]:
+def entities_from_slots(kind: str, slots: Mapping[str, str], question: str, *, legacy: bool = False) -> tuple[list[Entity], list[Event]]:
     """The entities (always including the camera, ``cam``) and events a kind's filled slots define."""
 
     entities = [Entity("cam", "camera", role="observer")]
@@ -212,7 +267,8 @@ def entities_from_slots(kind: str, slots: Mapping[str, str], question: str) -> t
         return eid
 
     if "subject" in slots:
-        main = KIND_BY_NAME[kind].slots and any(s.implicit_ok for s in KIND_BY_NAME[kind].slots) \
+        spec = (LEGACY_KIND_BY_NAME if legacy else KIND_BY_NAME)[kind]
+        main = spec.slots and any(s.implicit_ok for s in spec.slots) \
             and bool(_MAIN.search(question))
         first = slots["subject"]
         second = slots.get("reference")
@@ -222,7 +278,8 @@ def entities_from_slots(kind: str, slots: Mapping[str, str], question: str) -> t
             phrase = singular(sam3_phrase(first)[0])
             entities.append(Entity("g1", "group", phrase, count=2, role="pair"))
         else:
-            add("e1", first, "main_subject" if main else "object", "subject")
+            if first != "camera":
+                add("e1", first, "main_subject" if main else "object", "subject")
             if second == "camera":
                 pass                                    # the camera is already an entity
             elif second is not None:
