@@ -54,12 +54,25 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
                         "the rest from the largest groups in proportion; drawn with a fixed seed")
     p.add_argument("--shard", default="0/1", help="i/n: this process takes every n-th clip")
     p.add_argument("--force", action="store_true")
-    p.add_argument("--max-steps", type=int, default=16)
+    p.add_argument("--stack", choices=["legacy", "compositional"], default="legacy",
+                   help="candidate compositional stack is opt-in until matched evaluation")
+    p.add_argument("--legacy-menu", action="store_true", help="ablation: compositional workflow with legacy family/kind menus")
+    p.add_argument("--answer-policy", choices=["plain", "rated", "rated_repair"], default=None)
+    p.add_argument("--repair-tool-limit", type=int, choices=range(5), default=4)
+    p.add_argument("--repair-cycles", type=int, default=None,
+                   help="plain-policy review cycles; 0 disables repair, positive values enable one rated repair round")
+    p.add_argument("--answer-views", choices=["targeted", "overview", "standard"], default="targeted")
+    p.add_argument("--max-steps", type=int, default=None)
     p.add_argument("--token-budget", type=int, default=16000)
     p.add_argument("--max-new-tokens", type=int, default=512)
     p.add_argument("--dry-run", action="store_true", help="resolve questions and clips and print the first prompt; "
                                                           "no model is loaded")
-    return p.parse_args(argv)
+    args = p.parse_args(argv)
+    args.answer_policy = args.answer_policy or ("rated_repair" if args.stack == "compositional" else "plain")
+    args.repair_cycles = args.repair_cycles if args.repair_cycles is not None else (2 if args.answer_policy == "plain" else 1)
+    if args.stack == "legacy" and args.answer_policy != "plain":
+        p.error("rated policies require --stack compositional")
+    return args
 
 
 # --------------------------------------------------------------------------- #
@@ -196,7 +209,9 @@ def run(args: argparse.Namespace) -> int:
     pending = [e for e in entries if args.force or not (answers / f"{e['id']}.json").exists()]
     write_json(args.results_dir / "run_config.json", {
         "bench": args.bench, "backbone": args.backbone, "qwen_model": args.qwen_model, "catalog": str(args.catalog),
-        "all": args.all, "split": args.split, "max_steps": args.max_steps, "token_budget": args.token_budget,
+        "all": args.all, "split": args.split,
+        "max_steps": args.max_steps if args.max_steps is not None else (32 if args.stack == "compositional" else 16),
+        "token_budget": args.token_budget,
         "shard": args.shard, "questions": len(entries), "pending": len(pending),
         "code_sha": os.environ.get("CODE_SHA"), "slurm_job_id": os.environ.get("SLURM_JOB_ID")})
     print(f"{len(entries)} questions, {len(pending)} pending ({args.bench}, backbone {args.backbone})", flush=True)
@@ -208,10 +223,18 @@ def run(args: argparse.Namespace) -> int:
 
     def workspace(clip: Any, program: Any) -> Workspace:
         return Workspace(clip, program, scene_fn=models.scenes().scene, ground_fn=models.ground,
-                         orient_fn=models.orient)
+                         orient_fn=models.orient, **({"point_fn": models.track_points} if hasattr(models, "track_points") else {}))
 
-    agent = AgentV5(qwen=models.qwen(), workspace_factory=workspace, backbone=args.backbone,
-                    max_steps=args.max_steps, token_budget=args.token_budget)
+    agent_class = AgentV5
+    extra = {}
+    if args.stack == "compositional":
+        from d4rt_agent.agent_v5.composition import CompositionalAgentV5
+        agent_class = CompositionalAgentV5
+        extra = dict(legacy_menu=args.legacy_menu, repair_cycles=args.repair_cycles, answer_views=args.answer_views,
+                     answer_policy=args.answer_policy, repair_tool_limit=args.repair_tool_limit)
+    agent = agent_class(qwen=models.qwen(), workspace_factory=workspace, backbone=args.backbone,
+                        max_steps=args.max_steps if args.max_steps is not None else (32 if extra else 16),
+                        token_budget=args.token_budget, **extra)
     tally: Counter[str] = Counter()
     for n, entry in enumerate(pending, 1):
         started = time.time()
@@ -250,7 +273,10 @@ def dry_run(entries: Sequence[Mapping[str, Any]], args: argparse.Namespace, cach
             print(f"FAIL {entry['id']}: {error}", flush=True)
     if entries:
         print("\n--- first decomposition prompt ---\n" + prompt("system.md") + "\n\n"
-              + prompt("choose_family.md", question=entries[0]["question"], menu=kinds.family_menu()))
+              + prompt("choose_family.md", question=entries[0]["question"] + ("\nOptions: " + str(entries[0]["options"])
+                        if args.stack == "compositional" else ""), menu=(kinds.family_menu(
+                            legacy=args.stack == "legacy" or args.legacy_menu) if hasattr(kinds, "LEGACY_FAMILIES")
+                            else kinds.family_menu())))
     return 1 if failures else 0
 
 
