@@ -182,3 +182,16 @@ class D4RTBackbone(Backbone):
         if self._metric_provider is None:
             self._metric_provider = Point4DBackbone()
         return self._metric_provider.metric(clip, arrays)
+
+    def track_points(self, clip, scene, uv, anchor):
+        model, size = self.model()
+        from infer_track_3d import _infer_tracks, _resize_video
+
+        h, w = scene.model_hw
+        video = _resize_video(clip.frames(scene.gf_index.tolist()), image_hw=size)
+        result = _infer_tracks(model=model, video_model_rgb=video,
+                               query_uv_norm=(uv / np.array([w, h])).astype(np.float32),
+                               query_src_indices_global=np.full(len(uv), anchor, dtype=np.int64), query_chunk_size=8192)
+        return np.transpose(result["tracks_xyz_ref0"], (1, 0, 2)).astype(np.float32), [
+            {"anchor_frame": int(scene.gf_index[anchor]), "anchor_scene_index": int(anchor),
+             "frame": "native ref0", "anchor_correspondences": len(uv)}]

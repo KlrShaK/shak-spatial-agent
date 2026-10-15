@@ -64,6 +64,36 @@ class Models:
             self._scenes = SceneCache(get_backbone(self.backbone_name), self.cache)
         return self._scenes
 
+    def track_points(self, clip, scene, grounding, indices, anchor):
+        from d4rt_agent.agent_v5.backbones.base import query_grid
+
+        uv = query_grid(scene.model_hw)
+        h, w = scene.model_hw
+        mask = grounding.masks[indices, int(scene.gf_index[anchor])].any(0)
+        mh, mw = mask.shape
+        xy = (uv * [mw / w, mh / h]).astype(int)
+        uv = uv[mask[np.clip(xy[:, 1], 0, mh - 1), np.clip(xy[:, 0], 0, mw - 1)]]
+        if len(uv) < 3:
+            raise ValueError("fewer than three reseeding grid points inside the selected mask")
+        digest = hashlib.sha256(uv.tobytes() + scene.cam_t.tobytes() + scene.gf_index.tobytes() +
+                                scene.points[anchor].tobytes()).hexdigest()[:20]
+        target = self.scenes().directory(clip) / "reseed_v2" / f"{anchor}_{digest}.npz"
+        metadata = target.with_suffix(".json")
+        if target.exists():
+            try:
+                with np.load(target) as z:
+                    diagnostics = str(z["diagnostics"].item()) if "diagnostics" in z else metadata.read_text()
+                    return {"tracks": z["tracks"], "diagnostics": json.loads(diagnostics)}
+            except (OSError, ValueError, KeyError):
+                pass  # Interrupted or corrupt entries are recomputed.
+        tracks, diagnostics = self.scenes().backbone.track_points(clip, scene, uv, anchor)
+        target.parent.mkdir(parents=True, exist_ok=True)
+        tmp = target.with_suffix(".tmp.npz")
+        np.savez_compressed(tmp, tracks=tracks, anchor=np.int32(anchor), uv=uv,
+                            diagnostics=np.asarray(json.dumps(diagnostics)))
+        os.replace(tmp, target)
+        return {"tracks": tracks, "diagnostics": diagnostics}
+
     # -- SAM3 ----------------------------------------------------------------------
 
     def sam3(self) -> Any:

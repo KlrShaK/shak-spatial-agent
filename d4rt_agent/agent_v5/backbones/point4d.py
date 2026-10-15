@@ -62,6 +62,32 @@ class Point4DBackbone(Backbone):
 
     # -- metric scale: DA3-Nested ------------------------------------------------
 
+    def track_points(self, clip, scene, uv, anchor):
+        import torch
+        from point4d.inference import LongTrackConfig, track_long_video
+        from d4rt_agent.agent_v5.backbones.reseed import align_to_scene
+
+        result = np.full((scene.length, len(uv), 3), np.nan, dtype=np.float32)
+        diagnostics = []
+        cfg = LongTrackConfig(chunk_size=CHUNK_SIZE, overlap=OVERLAP,
+                              image_hw=scene.model_hw, geometry_stride=scene.stride)
+        # Each invocation starts at the chosen anchor; backwards processing is restored
+        # to chronological positions after alignment to the existing scene's anchor cloud.
+        for indices in (np.arange(anchor, scene.length), np.arange(anchor, -1, -1)):
+            if len(indices) < 2:
+                continue
+            frames = clip.frames(scene.gf_index[indices].tolist())
+            with torch.inference_mode():
+                tracks, confidence, geometry = track_long_video(self.model(), frames, uv, cfg, return_geometry=True)
+            aligned, quality = align_to_scene(tracks, geometry["points"][0], scene.points[anchor])
+            if np.isfinite(result[anchor]).any():
+                quality["anchor_disagreement"] = float(np.nanmedian(np.linalg.norm(result[anchor] - aligned[0], axis=1)))
+                result[indices[1:]] = aligned[1:]
+            else:
+                result[indices] = aligned
+            diagnostics.append({"scene_indices": indices.tolist(), "generator_frames": scene.gf_index[indices].tolist(), **quality})
+        return result, diagnostics
+
     def da3(self) -> Any:
         if self._da3 is None:
             self._da3 = load_da3_nested()
