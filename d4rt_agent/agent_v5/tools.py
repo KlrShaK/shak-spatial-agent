@@ -405,8 +405,8 @@ def tool_camera_motion(ws: Workspace, args: Mapping[str, Any]) -> ToolResult:
     words = render.named_axes(disp, TUNING["cam_dir_floor_scales"], TUNING["cam_dir_dominance"])
     label = f"dominant motion '{v['motion']}'" + (f" {v['direction']}" if v.get("direction") else "")
     if v["motion"] == "static":
-        label += (" -- no rotation or translation reached the thresholds fitted on this benchmark, so this camera "
-                  "counts as FIXED; the small values in the table are estimation noise")
+        label += (" -- no measured component exceeded the descriptive floor; inspect the values and pose quality "
+                  "before concluding the camera is fixed")
     if v.get("orbit"):
         label += " (orbit: lateral translation while turning back toward the centre; cw = clockwise seen from above)"
     lines = [
@@ -423,7 +423,8 @@ def tool_camera_motion(ws: Workspace, args: Mapping[str, Any]) -> ToolResult:
         render.reliability(r.confidence, _common_notes(r)),
     ]
     return ToolResult(render.block(title, lines), f"camera_motion: {label}; peak pan {v['pan_deg']:+.0f} deg, "
-                      f"net move {render.primitive(words)}", data=r.to_dict())
+                      f"net move {render.primitive(words)}", data={**r.to_dict(),
+                      "status": "unresolved" if v["motion"] == "unresolved" else "partial"})
 
 
 def _camera_primitive(dpan: float, dtilt: float, d: np.ndarray, rot_floor: float, trans_floor: float) -> str:

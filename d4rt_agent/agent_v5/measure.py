@@ -304,30 +304,30 @@ def measure_camera_motion(scene: Scene, window: Window | None, m: Measurement) -
     tilt = cam["tilt_smooth"][lo: hi + 1]
     pan, tilt = pan - pan[0], tilt - tilt[0]
     trans = cam["trans_smooth"][lo: hi + 1] - cam["trans_smooth"][lo]
-    # Peak excursion from the window's start, signed, so a pan-and-return still registers; or the
-    # net change over the window. Which one the benchmark's generator used is calibrated.
+    # Labels obey the calibrated reduction; net and peak readings remain separately available.
     def extreme(x):
         return float(x[np.nanargmax(np.abs(x))])
     pan_ext = extreme(pan) if T["cam_rot_peak"] else float(pan[-1])
     tilt_ext = extreme(tilt) if T["cam_rot_peak"] else float(tilt[-1])
-    if T["cam_trans_peak"]:
-        right, down, fwd = (extreme(trans[:, i]) for i in range(3))
-    else:
-        right, down, fwd = (float(trans[-1, i]) for i in range(3))
+    roll = cam["roll_smooth"][lo:hi + 1] - cam["roll_smooth"][lo]
+    roll_ext = extreme(roll) if T["cam_rot_peak"] else float(roll[-1])
+    right, down, fwd = (extreme(trans[:, i]) if T["cam_trans_peak"] else float(trans[-1, i]) for i in range(3))
     scale = scene.scale
     reliable = float(np.linalg.norm([right, down, fwd])) <= T["cam_trans_cap_scales"] * scale
     keep = 1.0 if reliable else 0.0
     strengths = {
         "pan": abs(pan_ext) / T["cam_pan_deg"],
         "tilt": abs(tilt_ext) / T["cam_tilt_deg"],
+        "roll": abs(roll_ext) / T["cam_pan_deg"],
         "dolly": keep * abs(fwd) / (T["cam_trans_scales"] * scale),
         "truck": keep * abs(right) / (T["cam_trans_scales"] * scale),
         "pedestal": keep * abs(down) / (T["cam_trans_scales"] * scale),
     }
-    signed = {"pan": pan_ext, "tilt": tilt_ext, "dolly": fwd, "truck": right, "pedestal": -down}
+    signed = {"pan": pan_ext, "tilt": tilt_ext, "roll": roll_ext, "dolly": fwd, "truck": right, "pedestal": -down}
     direction_words = {
         "pan": ("right", "left"), "tilt": ("up", "down"), "dolly": ("forward", "backward"),
         "truck": ("right", "left"), "pedestal": ("up", "down"),
+        "roll": ("positive_roll", "negative_roll"),
     }
     active = {k: v for k, v in strengths.items() if v >= 1.0}
     motion, direction, orbit = "static", None, None
@@ -335,32 +335,47 @@ def measure_camera_motion(scene: Scene, window: Window | None, m: Measurement) -
         order = sorted(active, key=lambda k: -active[k])
         motion = order[0]
         direction = direction_words[motion][0 if signed[motion] >= 0 else 1]
-        # an orbit: lateral translation with the camera turning back toward the subject
         if "truck" in active and "pan" in active and signed["truck"] * signed["pan"] < 0 \
                 and abs(right) >= T["cam_orbit_min_scales"] * scale \
                 and active["truck"] >= T["cam_orbit_ratio"] * active["pan"]:
-            motion = "orbit"
-            direction = "cw" if right < 0 else "ccw"      # translating left + panning right = clockwise
-            orbit = {"lateral": right, "pan": pan_ext}
+            motion, direction = "orbit", "cw" if right < 0 else "ccw"
+            orbit = {"lateral": right, "pan": pan_ext, "source": "opposing_pan_lateral_translation_proxy"}
         elif len(order) > 1 and active[order[1]] >= T["cam_complex_ratio"] * active[order[0]]:
             motion, direction = "complex", None
     value = {
         "motion": motion, "direction": direction,
         "pan_deg": pan_ext, "tilt_deg": tilt_ext,
+        "net_pan_deg": float(pan[-1]), "net_tilt_deg": float(tilt[-1]),
         "roll_deg": float(np.nanmax(np.abs(cam["roll_smooth"][lo:hi + 1] - cam["roll_smooth"][lo]))),
         "right": right, "down": down, "forward": fwd,
         "right_over_scale": right / scale, "forward_over_scale": fwd / scale, "down_over_scale": down / scale,
         "strength": {k: round(v, 3) for k, v in strengths.items()},
         "signed": {k: float(v) for k, v in signed.items()},
         "orbit": orbit,
+        "rotation_reduction": "peak" if T["cam_rot_peak"] else "net",
+        "translation_reduction": "peak" if T["cam_trans_peak"] else "net",
+        "peak_pan_deg": extreme(pan), "peak_tilt_deg": extreme(tilt),
+        "peak_translation": [extreme(trans[:, i]) for i in range(3)],
+        "net_translation": trans[-1].tolist(),
+        "excursion": float(np.linalg.norm(trans, axis=1).max()),
+        "path_length": float(np.linalg.norm(np.diff(trans, axis=0), axis=1).sum()),
     }
     confidence = "high"
     notes = []
+    if orbit is not None:
+        notes.append("Opposing pan and lateral translation suggest an orbit; confirm relative to a grounded subject with orbit.")
     if not reliable:
         notes.append(f"the estimated translation ({np.linalg.norm([right, down, fwd]) / scale:.1f} scene scales) is implausibly large and was ignored")
         confidence = "medium"
+        value["motion"], value["direction"] = "unresolved", None
+    if scene.pose_valid is not None and not scene.pose_valid[lo:hi + 1].all():
+        notes.append("one or more camera poses are held fallbacks; their apparent stillness is not measured camera stability")
+        confidence = "low"
+        if value["motion"] == "static":
+            value["motion"] = "unresolved"
     if scene.up_source == "camera":
-        confidence = "medium"
+        if confidence == "high":
+            confidence = "medium"
         note += "; no ground plane found, vertical is the camera's own"
     return Result(m.id, m.signal, m.reduce, value=value, window=(lo, hi), window_note=note, notes=notes,
                   floor={"pan_deg": T["cam_pan_deg"], "tilt_deg": T["cam_tilt_deg"],
