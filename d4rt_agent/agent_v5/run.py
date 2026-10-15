@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import argparse
 from collections import Counter
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -215,6 +216,27 @@ def write_json(path: Path, payload: Any) -> None:
     os.replace(tmp, path)
 
 
+def source_digest(root: Path = REPO) -> str:
+    manifest = root / "source_manifest.json"
+    if manifest.exists():
+        return hashlib.sha256(manifest.read_bytes()).hexdigest()
+    digest = hashlib.sha256()
+    for path in sorted((root / "d4rt_agent/agent_v5").rglob("*")):
+        if path.suffix in (".py", ".md", ".json") and path.is_file():
+            digest.update(str(path.relative_to(root)).encode())
+            digest.update(path.read_bytes())
+    return digest.hexdigest()
+
+
+def validate_resume(results_dir: Path, signature: str) -> None:
+    if not any((results_dir / "answers").glob("*.json")):
+        return
+    path = results_dir / "run_config.json"
+    previous = json.loads(path.read_text()) if path.exists() else {}
+    if previous.get("run_signature") != signature:
+        raise ValueError("result directory contains answers from a different or unversioned source/policy; use a new results directory")
+
+
 def run(args: argparse.Namespace) -> int:
     from d4rt_agent.agent_v5.models import Models, gpu_memory_report
     from d4rt_agent.agent_v5.orchestrator import AgentV5
@@ -224,13 +246,31 @@ def run(args: argparse.Namespace) -> int:
     cache = args.cache_dir or (args.results_dir / "cache")
     answers = args.results_dir / "answers"
     pending = [e for e in entries if args.force or not (answers / f"{e['id']}.json").exists()]
+    source_manifest = REPO / "source_manifest.json"
+    effective_steps = args.max_steps if args.max_steps is not None else (32 if args.stack == "compositional" else 16)
+    contract = {"schema_version": 3, "bench": args.bench, "backbone": args.backbone, "qwen_model": args.qwen_model,
+                "stack": args.stack, "legacy_menu": args.legacy_menu, "max_steps": effective_steps,
+                "token_budget": args.token_budget, "max_new_tokens": args.max_new_tokens,
+                "answer_policy": args.answer_policy, "repair_cycles": args.repair_cycles,
+                "repair_tool_limit": args.repair_tool_limit, "answer_views": args.answer_views,
+                "split": args.split if args.bench == "dsi" else None,
+                "source_sha256": source_digest()}
+    signature = hashlib.sha256(json.dumps(contract, sort_keys=True).encode()).hexdigest()
+    validate_resume(args.results_dir, signature)
     write_json(args.results_dir / "run_config.json", {
         "bench": args.bench, "backbone": args.backbone, "qwen_model": args.qwen_model, "catalog": str(args.catalog),
         "all": args.all, "split": args.split,
         "max_steps": args.max_steps if args.max_steps is not None else (32 if args.stack == "compositional" else 16),
         "token_budget": args.token_budget,
         "shard": args.shard, "questions": len(entries), "pending": len(pending),
-        "code_sha": os.environ.get("CODE_SHA"), "slurm_job_id": os.environ.get("SLURM_JOB_ID")})
+        "stack": args.stack, "legacy_menu": args.legacy_menu, "repair_cycles": args.repair_cycles,
+        "answer_policy": args.answer_policy, "repair_tool_limit": args.repair_tool_limit,
+        "answer_protocol": "freeform_assessment_v1" if args.answer_policy != "plain" else "plain_v1",
+        "source_sha256": contract["source_sha256"], "run_signature": signature,
+        "generation_limits": {"answer": 512 if args.answer_policy == "plain" else "512 + 256 * option count", "recovery": 512},
+        "answer_views": args.answer_views, "selection_file": str(args.selection_file) if args.selection_file else None,
+        "code_sha": os.environ.get("CODE_SHA"), "slurm_job_id": os.environ.get("SLURM_JOB_ID"),
+        "source_manifest_sha256": hashlib.sha256(source_manifest.read_bytes()).hexdigest() if source_manifest.exists() else None})
     print(f"{len(entries)} questions, {len(pending)} pending ({args.bench}, backbone {args.backbone})", flush=True)
     if args.dry_run:
         return dry_run(pending, args, cache)
