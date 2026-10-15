@@ -116,3 +116,19 @@ def test_breakdown_equals_the_repos_own_statistics_script(tmp_path):
             assert round(ours["ego"], 2) == row["Real Ego-centric Accuracy (%)"]
             assert round(ours["synth_fp"], 2) == row["Synthetic FP Accuracy (%)"]
             assert round(ours["synth_directional"], 2) == row["Synthetic Directional Accuracy (%)"]
+
+
+def test_shuffle_seed_randomises_clip_order_but_keeps_a_clips_questions_together(tmp_path):
+    rows = [{"id": f"q{i}", "video_path": f"/v/{i // 3:02d}.mp4", "dataset": "d", "video": "x", "group": "g"} for i in range(60)]
+    base = parse_args(["--bench", "vlm4d", "--results-dir", str(tmp_path)])
+    shuffled = parse_args(["--bench", "vlm4d", "--results-dir", str(tmp_path), "--shuffle-seed", "0"])
+    again = parse_args(["--bench", "vlm4d", "--results-dir", str(tmp_path), "--shuffle-seed", "0"])
+    other = parse_args(["--bench", "vlm4d", "--results-dir", str(tmp_path), "--shuffle-seed", "1"])
+    plain, a, b, c = select(rows, base), select(rows, shuffled), select(rows, again), select(rows, other)
+    assert [r["video_path"] for r in plain] == sorted(r["video_path"] for r in rows)       # default: unchanged, sorted
+    assert {r["id"] for r in a} == {r["id"] for r in rows} and len(a) == 60                 # nothing lost
+    assert a == b and a != c and [r["id"] for r in a] != [r["id"] for r in plain]          # seeded, and really shuffled
+    runs = [r["video_path"] for r in a]
+    assert all(len({runs[i] for i in range(j, j + 3)}) == 1 for j in range(0, 60, 3))      # 3 questions per clip stay adjacent
+    # a prefix is a random set of clips, not the alphabetical first ones
+    assert {r["video_path"] for r in a[:15]} != {f"/v/{i:02d}.mp4" for i in range(5)}
