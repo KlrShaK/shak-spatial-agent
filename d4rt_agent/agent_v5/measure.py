@@ -718,9 +718,9 @@ def measure_metric_speed(scene: Scene, program: QueryProgram, m: Measurement,
     """An entity's average speed in the world, over the frames of the window where it is seen.
 
     The track is in the world frame (the first camera's axes), so the camera's own motion is
-    not counted as the subject's. Two readings of "average speed" are made -- displacement from
-    start to end over the time, and the distance travelled -- and calibration picks which one the
-    benchmark's answers follow (``speed_mode``).
+    not counted as the subject's. Both net displacement rate and noise-corrected path rate
+    are reported; ``speed_mode`` selects the calibrated primary estimate. Path steps span
+    about ``speed_step_s`` seconds and never bridge visibility or depth gaps.
     """
 
     track = _single_track(m, tracks)
@@ -749,26 +749,41 @@ def measure_metric_speed(scene: Scene, program: QueryProgram, m: Measurement,
     # the path in steps of ~speed_step_s: per-frame steps would turn estimation jitter into speed
     grid = np.arange(t[0], t[-1] + 1e-9, T["speed_step_s"])
     picks = np.unique(np.abs(t[None, :] - grid[:, None]).argmin(1))
-    steps = np.linalg.norm(np.diff(pos[picks], axis=0), axis=1)
+    consecutive = np.diff(idx) == 1
+    dt = np.diff(t)
+    observed_duration = float(dt[consecutive].sum())
+    segments = np.cumsum(np.r_[0, ~consecutive])
+    same_segment = segments[picks[1:]] == segments[picks[:-1]]
+    steps = np.linalg.norm(np.diff(pos[picks], axis=0), axis=1)[same_segment]
     floor = T["speed_noise_mult"] * track.noise
-    span = float(t[picks[-1]] - t[picks[0]]) if len(picks) > 1 else 0.0
-    path = float(np.maximum(steps - floor, 0.0).sum()) / span if span > 0 else 0.0
+    path_duration = float(np.diff(t[picks])[same_segment].sum())
+    path = float(np.maximum(steps - floor, 0.0).sum()) / path_duration if path_duration > 0 else None
+    if T["speed_mode"] == "path" and path is None:
+        return unavailable(m, "no within-segment coarse steps support a path-speed estimate")
     ups = net if T["speed_mode"] == "net" else path
     base, spread = metric_scale(scene)
     mpu = None if base is None else base * T["speed_scale_mult"]
     value: dict[str, Any] = {"units_per_s": ups, "net_units_per_s": net, "path_units_per_s": path,
-                             "mode": T["speed_mode"], "duration_s": duration, "frames_used": int(len(idx))}
+                             "mode": T["speed_mode"], "duration_s": duration, "observed_duration_s": observed_duration,
+                             "path_duration_s": path_duration,
+                             "frames_used": int(len(idx))}
     notes, conf = [], "high" if track.confident[idx].mean() >= 0.6 else "medium"
+    if path is None:
+        notes.append("Path rate unavailable: no within-segment coarse steps; this does not establish zero speed.")
+    elif path_duration < observed_duration - 1e-6:
+        notes.append("Path rate covers only time between coarse samples within observed segments; remaining time is unmeasured.")
+    if not consecutive.all():
+        notes.append("Net rate uses median endpoint displacement across the observed envelope; path steps exclude track gaps.")
     if mpu is None:
         notes.append("no metric scale for this clip")
         conf = "low"
     else:
-        value.update({"mps": ups * mpu, "net_mps": net * mpu, "path_mps": path * mpu, "metres_per_unit": mpu,
+        value.update({"mps": ups * mpu, "net_mps": net * mpu, "path_mps": None if path is None else path * mpu, "metres_per_unit": mpu,
                       "scale_iqr_over_median": spread})
     if (idx[0] - lo) > 0.25 * max(hi - lo, 1) or (hi - idx[-1]) > 0.25 * max(hi - lo, 1):
         notes.append(f"visible only on frames {idx[0]}..{idx[-1]} of the window {lo}..{hi}")
     return Result(m.id, m.signal, m.reduce, value=value, confidence=conf, window=(int(idx[0]), int(idx[-1])),
-                  window_note=note, notes=notes, floor={"noise_units": track.noise},
+                  window_note=note, notes=notes, floor={"noise_units": track.noise, "path_step_noise_units": floor},
                   series={"t": t, "pos": pos, "picks": picks, "frames": idx})
 
 
@@ -904,7 +919,7 @@ def _median_smooth(x: np.ndarray, window: int) -> np.ndarray:
 
 
 def windowed_speed(positions: np.ndarray, frames: np.ndarray, fps: float,
-                   seconds: float = SPEED_WINDOW_S) -> tuple[np.ndarray, np.ndarray]:
+                   seconds: float = SPEED_WINDOW_S, *, times: np.ndarray | None = None) -> tuple[np.ndarray, np.ndarray]:
     """Speed as displacement over about ``seconds``, per second, for each usable frame.
 
     ``positions[i]`` is at frame ``frames[i]``. A per-frame step would turn a pose estimate's
@@ -914,14 +929,16 @@ def windowed_speed(positions: np.ndarray, frames: np.ndarray, fps: float,
     """
 
     frames = np.asarray(frames)
-    need = max(1, int(round(seconds * fps)))
+    times = frames / fps if times is None else np.asarray(times, dtype=float)
     speeds, at = [], []
     for i in range(len(frames)):
-        j = int(np.searchsorted(frames, frames[i] + need))
+        j = int(np.searchsorted(times, times[i] + seconds))
         if j >= len(frames):
             break
-        dt = frames[j] - frames[i]
-        speeds.append(np.linalg.norm(positions[j] - positions[i]) * fps / dt)
+        dt = times[j] - times[i]
+        if dt <= 0:
+            continue
+        speeds.append(np.linalg.norm(positions[j] - positions[i]) / dt)
         at.append((frames[i] + frames[j]) / 2)
     return np.asarray(speeds), np.asarray(at)
 
@@ -971,8 +988,9 @@ def measure_rhythm(scene: Scene, window: Window | None, m: Measurement) -> Resul
     trans = np.stack([_smooth1d(cam["trans"][lo: hi + 1, i], win) for i in range(3)], 1)
     pan = _smooth1d(np.degrees(np.unwrap(np.radians(cam["pan"][lo: hi + 1]))), win)
     tilt = _smooth1d(cam["tilt"][lo: hi + 1], win)
-    trans_speed, at = windowed_speed(trans, frames, fps)
-    rot_speed, _ = windowed_speed(np.stack([pan, tilt, np.zeros_like(pan)], 1), frames, fps)
+    times = None if scene.t_s is None else scene.t_s[frames]
+    trans_speed, at = windowed_speed(trans, frames, fps, times=times)
+    rot_speed, _ = windowed_speed(np.stack([pan, tilt, np.zeros_like(pan)], 1), frames, fps, times=times)
     if len(at) < 3:
         return unavailable(m, "too few frames for a speed profile")
     trans_speed = trans_speed / scene.scale
@@ -1176,7 +1194,8 @@ def measure_motion_profile(scene: Scene, program: QueryProgram, m: Measurement,
         return unavailable(m, "the subject is visible on fewer than 5 frames")
     T = TUNING
     fps = effective_fps(scene)
-    speed, at = windowed_speed(track.smooth[idx], idx, fps)
+    speed, at = windowed_speed(track.smooth[idx], idx, fps,
+                               times=None if scene.t_s is None else scene.t_s[idx])
     if len(speed) < 3:
         return unavailable(m, "the subject is visible over too short a span to measure a speed")
     speed = speed / scene.scale                              # scales per second

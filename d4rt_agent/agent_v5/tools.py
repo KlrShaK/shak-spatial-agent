@@ -953,17 +953,22 @@ def tool_speed(ws: Workspace, args: Mapping[str, Any]) -> ToolResult:
         return _unavailable(title, r.reason, r)
     v = r.value
     if "mps" in v:
-        head = (f"{_who(ws, eid)} averages about {v['mps']:.2f} m/s over {v['duration_s']:.1f} s: start-to-end "
-                f"displacement {v['net_mps']:.2f} m/s, distance actually travelled {v['path_mps']:.2f} m/s "
+        path_text = "path rate unavailable" if v["path_mps"] is None else \
+                    f"noise-corrected path rate {v['path_mps']:.2f} m/s over {v['path_duration_s']:.1f} observed s"
+        head = (f"{_who(ws, eid)}: selected {v['mode']} estimate {v['mps']:.2f} m/s; median endpoint "
+                f"displacement rate {v['net_mps']:.2f} m/s, {path_text} "
                 f"(metric source: {scene.metric_source}).")
     else:
-        head = (f"{_who(ws, eid)} averages {v['units_per_s'] / scene.scale:.3f} scene scales per second over "
-                f"{v['duration_s']:.1f} s; there is no metric scale for this clip.")
+        path_text = "path rate unavailable" if v["path_units_per_s"] is None else \
+                    f"noise-corrected path rate {v['path_units_per_s'] / scene.scale:.3f} scales/s over {v['path_duration_s']:.1f} observed s"
+        head = (f"{_who(ws, eid)}: selected {v['mode']} estimate {v['units_per_s'] / scene.scale:.3f} scene scales per second; "
+                f"median endpoint displacement rate {v['net_units_per_s'] / scene.scale:.3f} scales/s, {path_text}; "
+                "there is no metric scale for this clip.")
     lines = [head, "The camera's own motion is not counted. " + _units_line(scene),
              "Metric speed from one camera is uncertain: expect up to a factor of about 2; use it to rule out options "
              "several times too fast or too slow, and check against what the entity is (a walking person is ~1.4 m/s).",
              render.reliability(r.confidence, _common_notes(r))]
-    summary = f"speed {eid}: " + (f"{v['mps']:.2f} m/s" if "mps" in v else f"{v['units_per_s'] / scene.scale:.3f} scales/s")
+    summary = f"speed {eid} ({v['mode']}): " + (f"{v['mps']:.2f} m/s" if "mps" in v else f"{v['units_per_s'] / scene.scale:.3f} scales/s")
     return ToolResult(render.block(title, lines), summary, data=r.to_dict())
 
 
