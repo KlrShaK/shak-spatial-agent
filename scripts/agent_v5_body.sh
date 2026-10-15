@@ -63,6 +63,12 @@ echo "CODE_SHA=$CODE_SHA THIRD_PARTY=$SHAK_THIRD_PARTY"
 nvidia-smi --query-gpu=name,memory.total,memory.free --format=csv
 
 # shellcheck disable=SC2086
+if [[ -n "${EVALUATION_PLAN:-}" ]]; then
+  export PYTHONPATH="${EVALUATION_DEPENDENCIES:?set staged evaluation dependencies}:$PYTHONPATH"
+  "$D4RT_PYTHON" -u -m d4rt_agent.agent_v5.research.subset_eval worker \
+    --plan "$EVALUATION_PLAN" --bench "$BENCH"
+  exit $?
+fi
 "$D4RT_PYTHON" -m d4rt_agent.agent_v5.run \
   --bench "$BENCH" --backbone "$BACKBONE" --results-dir "$RUN_DIR" --qwen-model "$MODEL_DIR" $EXTRA_ARGS
 
