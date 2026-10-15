@@ -1,0 +1,458 @@
+{
+ "constants": {
+  "t": {
+   "cam_pan_deg": 4.0,
+   "cam_tilt_deg": 6.0,
+   "cam_trans_scales": 0.5,
+   "cam_complex_ratio": 1.0,
+   "cam_orbit_min_scales": 0.08,
+   "cam_orbit_ratio": 0.6,
+   "cam_trans_cap_scales": 1000000000.0,
+   "cam_rot_peak": 1,
+   "cam_trans_peak": 0,
+   "jitter_slight_deg": 0.05,
+   "jitter_shaky_deg": 0.25,
+   "jitter_severe_deg": 2.0,
+   "range_rel_tol": 0.35,
+   "region_rel_tol": 0.15,
+   "pair_rel_tol": 0.35,
+   "range_noise_mult": 3.0,
+   "plateau_from_frac": 0.65,
+   "axis_dominance": 0.25,
+   "move_floor_scales": 0.03,
+   "image_move_floor": 0.05,
+   "onset_pan_deg": 4.0,
+   "onset_move_scales": 0.05,
+   "tie_frames": 0.0,
+   "metric_scale_mult": 1.0,
+   "speed_mode": "net",
+   "speed_noise_mult": 2.0,
+   "speed_step_s": 0.5,
+   "cam_dir_floor_scales": 0.2,
+   "cam_dir_dominance": 0.35,
+   "speed_scale_mult": 1.0,
+   "zoom_rel_tol": 0.35,
+   "size_rel_tol": 0.7,
+   "vis_out_frac": 0.35,
+   "vis_partial_border": 0.5,
+   "vis_partial_area": 0.3,
+   "elev_eye_deg": 10.0,
+   "elev_change_deg": 12.0,
+   "rhythm_trans_floor_per_s": 0.1,
+   "rhythm_rot_floor_deg_s": 1.5,
+   "rhythm_burst_ratio": 3.5,
+   "rhythm_cv": 0.6,
+   "revisit_same_frac": 0.3,
+   "revisit_diff_frac": 0.1,
+   "speed_floor_per_s": 0.02,
+   "motion_pause_s": 0.5,
+   "motion_continuous_frac": 0.75,
+   "motion_once_frac": 0.3
+  },
+  "d": {
+   "min_score": 0.6,
+   "min_margin": 0.25,
+   "fused_margin": 0.25,
+   "metric_sigma_floor": 0.3,
+   "dir_w_x": 1.0,
+   "dir_w_y": 0.5,
+   "dir_w_z": 0.3
+  },
+  "s": {
+   "SCALE_SOURCE": "da3",
+   "MIN_LIFESPAN_S": 0.5,
+   "GAP_MERGE_S": 2.0,
+   "JUMP_MERGE_SCALES": 0.35,
+   "SMOOTH_WINDOW_S": 0.6,
+   "MIN_CORE_CELLS": 3,
+   "DEPTH_BAND": 1.6
+  },
+  "conv": {
+   "frame": "world0",
+   "z_toward_camera": false
+  },
+  "trusted": [
+   "cam_subject_elevation",
+   "camera_path",
+   "camera_rhythm",
+   "camera_shake",
+   "camera_translation",
+   "metric_speed",
+   "scene_revisit",
+   "subject_direction",
+   "subject_visibility"
+  ],
+  "gate": {
+   "apparent_size": {
+    "min_score": 9.0,
+    "min_margin": 9.0,
+    "fused_margin": 9.0
+   },
+   "cam_subject_elevation": {
+    "min_score": 0.3,
+    "min_margin": 1.0,
+    "fused_margin": 0.25
+   },
+   "cam_subject_range": {
+    "min_score": 9.0,
+    "min_margin": 9.0,
+    "fused_margin": 9.0
+   },
+   "camera_zoom": {
+    "min_score": 9.0,
+    "min_margin": 9.0,
+    "fused_margin": 9.0
+   },
+   "event_order": {
+    "min_score": 9.0,
+    "min_margin": 9.0,
+    "fused_margin": 9.0
+   },
+   "instance_count": {
+    "min_score": 9.0,
+    "min_margin": 9.0,
+    "fused_margin": 9.0
+   },
+   "landmark_relation": {
+    "min_score": 9.0,
+    "min_margin": 9.0,
+    "fused_margin": 9.0
+   },
+   "metric_distance": {
+    "min_score": 9.0,
+    "min_margin": 9.0,
+    "fused_margin": 9.0
+   },
+   "metric_speed": {
+    "min_score": 0.85,
+    "min_margin": 0.0,
+    "fused_margin": 0.25
+   },
+   "pair_relation": {
+    "min_score": 9.0,
+    "min_margin": 9.0,
+    "fused_margin": 9.0
+   },
+   "scene_revisit": {
+    "min_score": 0.3,
+    "min_margin": 0.75,
+    "fused_margin": 0.25
+   },
+   "subject_direction": {
+    "min_score": 1.0,
+    "min_margin": 0.0,
+    "fused_margin": 0.25
+   },
+   "subject_motion_profile": {
+    "min_score": 9.0,
+    "min_margin": 9.0,
+    "fused_margin": 9.0
+   }
+  },
+  "fusion": {
+   "cam_subject_elevation": {
+    "a": 1.0,
+    "b": 8.0,
+    "eps": 0.05
+   },
+   "camera_path": {
+    "a": 1.0,
+    "b": 2.0,
+    "eps": 0.05
+   },
+   "camera_rhythm": {
+    "a": 1.0,
+    "b": 2.0,
+    "eps": 0.05
+   },
+   "camera_shake": {
+    "a": 1.0,
+    "b": 2.0,
+    "eps": 0.05
+   },
+   "instance_count": {
+    "a": 1.0,
+    "b": 0.0,
+    "eps": 1.0
+   },
+   "landmark_relation": {
+    "a": 1.0,
+    "b": 0.0,
+    "eps": 1.0
+   },
+   "metric_distance": {
+    "a": 1.0,
+    "b": 0.0,
+    "eps": 1.0
+   },
+   "scene_revisit": {
+    "a": 1.0,
+    "b": 1.0,
+    "eps": 0.05
+   },
+   "subject_direction": {
+    "a": 1.0,
+    "b": 2.0,
+    "eps": 0.05
+   }
+  },
+  "temporal": {
+   "camera_path": "sampled16",
+   "camera_shake": "all",
+   "cam_subject_range": "sampled16",
+   "pair_relation": "sampled16",
+   "subject_direction": "all",
+   "metric_distance": "sampled16",
+   "landmark_relation": "all",
+   "camera_translation": "all",
+   "metric_speed": "sampled16",
+   "event_order": "all",
+   "instance_count": "all",
+   "camera_zoom": "all",
+   "apparent_size": "all",
+   "subject_visibility": "sampled16",
+   "cam_subject_elevation": "all",
+   "camera_rhythm": "all",
+   "scene_revisit": "all",
+   "subject_motion_profile": "sampled16"
+  },
+  "fallback": {
+   "apparent_size": "evidence",
+   "cam_subject_elevation": "fused",
+   "cam_subject_range": "evidence",
+   "camera_path": "fused",
+   "camera_rhythm": "fused",
+   "camera_shake": "fused",
+   "camera_translation": "frames",
+   "camera_zoom": "evidence",
+   "event_order": "frames",
+   "instance_count": "fused",
+   "landmark_relation": "fused",
+   "metric_distance": "fused",
+   "metric_speed": "frames",
+   "pair_relation": "frames",
+   "scene_revisit": "fused",
+   "subject_direction": "fused",
+   "subject_motion_profile": "evidence",
+   "subject_visibility": "evidence"
+  },
+  "fuse": {
+   "kinds": [
+    "camera_path",
+    "camera_rhythm",
+    "camera_translation",
+    "instance_count",
+    "pair_relation",
+    "subject_visibility"
+   ],
+   "eps": {
+    "camera_path": 0.05,
+    "pair_relation": 0.05,
+    "camera_translation": 0.3,
+    "instance_count": 0.05,
+    "subject_visibility": 0.05,
+    "camera_rhythm": 0.15
+   },
+   "priors": {
+    "camera_path": {
+     "{\"direction\": null, \"motion\": \"static\", \"shake\": true}": 2,
+     "{\"direction\": \"right\", \"motion\": \"pan\"}": 28,
+     "{\"direction\": null, \"motion\": \"static\", \"shake\": false}": 9,
+     "{\"direction\": null, \"motion\": \"pan\"}": 41,
+     "{\"direction\": \"forward\", \"motion\": \"dolly\"}": 6,
+     "{\"direction\": null, \"motion\": \"tilt\"}": 1,
+     "{\"direction\": \"backward\", \"motion\": \"dolly\"}": 3,
+     "{\"direction\": \"left\", \"motion\": \"pan\"}": 23,
+     "{\"direction\": null, \"motion\": \"complex\"}": 11,
+     "{\"direction\": \"ccw\", \"motion\": \"orbit\"}": 4,
+     "{\"direction\": \"cw\", \"motion\": \"orbit\"}": 2,
+     "{\"direction\": null, \"motion\": \"dolly\"}": 5,
+     "{\"direction\": \"up\", \"motion\": \"tilt\"}": 2,
+     "{\"direction\": \"down\", \"motion\": \"tilt\"}": 2
+    },
+    "camera_shake": {
+     "{\"level\": 0}": 14,
+     "{\"level\": 1}": 19,
+     "{\"level\": 2}": 13,
+     "{\"level\": 3}": 1
+    },
+    "cam_subject_range": {
+     "{\"trend\": \"constant\"}": 41,
+     "{\"trend\": \"farther\"}": 35,
+     "{\"trend\": \"closer_then_farther\"}": 6,
+     "{\"trend\": \"closer\"}": 32,
+     "{\"trend\": \"farther_then_closer\"}": 1,
+     "{\"trend\": \"fluctuating\"}": 20
+    },
+    "pair_relation": {
+     "{\"trend\": \"constant\"}": 8,
+     "{\"trend\": \"closer\"}": 5,
+     "{\"trend\": \"farther\"}": 9,
+     "{\"trend\": \"closer_then_farther\"}": 4,
+     "{\"trend\": \"fluctuating\"}": 1
+    },
+    "subject_direction": {
+     "{\"x\": \"right\"}": 6,
+     "{\"slight\": [\"z\"], \"x\": \"right\", \"z\": \"backward\"}": 6,
+     "{\"slight\": [\"z\"], \"x\": \"right\", \"z\": \"forward\"}": 5,
+     "{\"slight\": [\"z\"], \"x\": \"left\", \"z\": \"backward\"}": 3,
+     "{\"trend\": \"farther\"}": 2,
+     "{\"x\": \"left\", \"y\": \"up\", \"z\": \"backward\"}": 1,
+     "{\"z\": \"forward\"}": 2,
+     "{\"x\": \"right\", \"z\": \"backward\"}": 5,
+     "{\"x\": \"right\", \"z\": \"forward\"}": 10,
+     "{\"x\": \"left\"}": 7,
+     "{\"x\": \"left\", \"z\": \"forward\"}": 5,
+     "{\"x\": \"left\", \"z\": \"backward\"}": 6,
+     "{\"trend\": \"closer\"}": 1,
+     "{\"x\": \"left\", \"y\": \"down\"}": 2,
+     "{\"x\": \"right\", \"y\": \"down\"}": 1,
+     "{\"slight\": [\"x\"], \"x\": \"right\", \"z\": \"forward\"}": 1,
+     "{\"slight\": [\"x\"], \"x\": \"left\", \"z\": \"backward\"}": 1,
+     "{\"slight\": [\"x\"], \"x\": \"right\", \"y\": \"down\", \"z\": \"forward\"}": 1,
+     "{\"slight\": [\"z\"], \"x\": \"left\", \"z\": \"forward\"}": 1
+    },
+    "metric_distance": {
+     "{\"unit\": \"m\", \"value\": 3.0}": 7,
+     "{\"unit\": \"m\", \"value\": 1.0}": 5,
+     "{\"unit\": \"m\", \"value\": 5.1}": 1,
+     "{\"unit\": \"m\", \"value\": 15.0}": 9,
+     "{\"unit\": \"m\", \"value\": 1.5}": 4,
+     "{\"unit\": \"m\", \"value\": 1.1}": 2,
+     "{\"unit\": \"m\", \"value\": 1.6}": 2,
+     "{\"unit\": \"m\", \"value\": 1.2}": 3,
+     "{\"unit\": \"m\", \"value\": 10.0}": 1,
+     "{\"unit\": \"m\", \"value\": 0.5}": 5,
+     "{\"unit\": \"m\", \"value\": 13.0}": 1,
+     "{\"unit\": \"m\", \"value\": 2.9}": 1,
+     "{\"unit\": \"m\", \"value\": 30.0}": 2,
+     "{\"unit\": \"m\", \"value\": 6.0}": 3,
+     "{\"unit\": \"m\", \"value\": 0.7}": 2,
+     "{\"unit\": \"m\", \"value\": 0.2}": 3,
+     "{\"unit\": \"m\", \"value\": 2.5}": 2,
+     "{\"unit\": \"m\", \"value\": 4.6}": 1,
+     "{\"unit\": \"m\", \"value\": 2.7}": 1,
+     "{\"unit\": \"m\", \"value\": 2.3}": 1,
+     "{\"unit\": \"m\", \"value\": 2.0}": 2,
+     "{\"unit\": \"m\", \"value\": 0.8}": 1,
+     "{\"unit\": \"m\", \"value\": 0.4}": 1,
+     "{\"unit\": \"m\", \"value\": 12.9}": 1,
+     "{\"unit\": \"m\", \"value\": 7.0}": 1,
+     "{\"unit\": \"m\", \"value\": 0.3}": 1,
+     "{\"unit\": \"m\", \"value\": 8.0}": 2,
+     "{\"unit\": \"m\", \"value\": 2.4}": 1,
+     "{\"unit\": \"m\", \"value\": 22.4}": 1,
+     "{\"unit\": \"m\", \"value\": 5.9}": 1,
+     "{\"unit\": \"m\", \"value\": 8.8}": 1,
+     "{\"unit\": \"m\", \"value\": 20.0}": 1,
+     "{\"unit\": \"m\", \"value\": 8.9}": 1,
+     "{\"unit\": \"m\", \"value\": 5.0}": 1,
+     "{\"unit\": \"m\", \"value\": 1.7}": 1,
+     "{\"unit\": \"m\", \"value\": 1.4}": 1
+    },
+    "landmark_relation": {
+     "{\"trend\": \"constant\"}": 3,
+     "{\"trend\": \"farther\"}": 13,
+     "{\"trend\": \"closer\"}": 7,
+     "{\"trend\": \"fluctuating\"}": 1
+    },
+    "camera_translation": {
+     "{\"x\": \"left\"}": 1,
+     "{\"x\": \"right\", \"z\": \"backward\"}": 1,
+     "{\"x\": \"left\", \"z\": \"backward\"}": 3,
+     "{\"slight\": [\"z\"], \"x\": \"right\", \"z\": \"backward\"}": 2,
+     "{\"x\": \"left\", \"z\": \"forward\"}": 1,
+     "{\"x\": \"left\", \"y\": \"up\", \"z\": \"backward\"}": 1
+    },
+    "metric_speed": {
+     "{\"unit\": \"m/s\", \"value\": 8.5}": 2,
+     "{\"unit\": \"m/s\", \"value\": 0.5}": 7,
+     "{\"unit\": \"m/s\", \"value\": 3.5}": 2,
+     "{\"unit\": \"m/s\", \"value\": 2.1}": 2,
+     "{\"unit\": \"m/s\", \"value\": 0.3}": 1,
+     "{\"unit\": \"m/s\", \"value\": 3.8}": 1,
+     "{\"unit\": \"m/s\", \"value\": 0.8}": 2,
+     "{\"unit\": \"m/s\", \"value\": 1.2}": 3,
+     "{\"unit\": \"m/s\", \"value\": 1.0}": 3,
+     "{\"unit\": \"m/s\", \"value\": 0.1}": 1,
+     "{\"unit\": \"m/s\", \"value\": 0.05}": 1,
+     "{\"unit\": \"m/s\", \"value\": 5.8}": 1,
+     "{\"unit\": \"m/s\", \"value\": 5.0}": 2,
+     "{\"unit\": \"m/s\", \"value\": 15.3}": 1,
+     "{\"unit\": \"m/s\", \"value\": 7.5}": 1,
+     "{\"unit\": \"m/s\", \"value\": 2.8}": 2,
+     "{\"unit\": \"m/s\", \"value\": 4.1}": 1,
+     "{\"unit\": \"m/s\", \"value\": 8.7}": 1,
+     "{\"unit\": \"m/s\", \"value\": 3.0}": 1,
+     "{\"unit\": \"m/s\", \"value\": 1.7}": 1,
+     "{\"unit\": \"m/s\", \"value\": 22.8}": 1,
+     "{\"unit\": \"m/s\", \"value\": 1.5}": 1
+    },
+    "event_order": {
+     "{\"first\": \"ev1\"}": 30,
+     "{\"first\": \"tie\"}": 2,
+     "{\"first\": \"ev2\"}": 18
+    },
+    "instance_count": {
+     "{\"count\": 2}": 16,
+     "{\"count\": 3}": 9,
+     "{\"count\": 4}": 3,
+     "{\"count\": 5}": 1,
+     "{\"count\": 1}": 1,
+     "{\"count\": 6}": 2,
+     "{\"count\": 7}": 1
+    },
+    "camera_zoom": {
+     "{\"zoom\": \"none\"}": 29,
+     "{\"zoom\": \"in\"}": 6,
+     "{\"zoom\": \"mixed\"}": 1,
+     "{\"zoom\": \"out\"}": 1
+    },
+    "apparent_size": {
+     "{\"size\": \"unchanged\"}": 24,
+     "{\"size\": \"fluctuating\"}": 4,
+     "{\"size\": \"larger\"}": 9,
+     "{\"size\": \"smaller\"}": 7
+    },
+    "subject_visibility": {
+     "{\"visible\": \"full\"}": 23,
+     "{\"visible\": \"out\"}": 3,
+     "{\"visible\": \"partial\"}": 2
+    },
+    "cam_subject_elevation": {
+     "{\"angle\": \"eye\"}": 10,
+     "{\"angle\": \"high\"}": 23,
+     "{\"angle\": \"low\"}": 5,
+     "{\"angle\": \"changing\"}": 1
+    },
+    "camera_rhythm": {
+     "{\"rhythm\": \"fixed\"}": 10,
+     "{\"rhythm\": \"steady\"}": 73,
+     "{\"rhythm\": \"speeds_up\"}": 5,
+     "{\"rhythm\": \"moving_then_stop\"}": 1,
+     "{\"rhythm\": \"still_then_burst\"}": 2,
+     "{\"rhythm\": \"irregular\"}": 4
+    },
+    "scene_revisit": {
+     "{\"revisit\": \"same\"}": 13,
+     "{\"revisit\": \"slight\"}": 10,
+     "{\"revisit\": \"different\"}": 4
+    },
+    "subject_motion_profile": {
+     "{\"motion\": \"continuous\"}": 13,
+     "{\"motion\": \"intermittent\"}": 2,
+     "{\"motion\": \"none\"}": 1
+    }
+   }
+  }
+ },
+ "provenance": {
+  "catalog": "dyn_dataset_exploration/outputs/decomposition_dev",
+  "dev_questions": 945,
+  "test_questions": 958,
+  "min_gain": 2,
+  "min_trust_n": 8,
+  "note": "chosen on dev clips only; test clips are read once for the report",
+  "gates": "D7 gate, fallback and fusion per kind (per_kind_vs_simple, fitted on dev by run_gates)"
+ }
+}
