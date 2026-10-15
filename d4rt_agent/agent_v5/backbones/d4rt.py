@@ -13,9 +13,8 @@ Live port of ``dyn_dataset_exploration/decomposition/prep_d4rt_scene.py``:
 **Frames.** D4RT's window is 32 frames: the first frame, the answer frames, and evenly spread
 fill-ins (``pick_frames``). Long clips are therefore covered more coarsely than by Point4D.
 
-**Metric.** Backbone-native, as chosen for v5: D4RT's depth units are taken as metres
-(``source = "d4rt-native"``). The research pipeline measured them at about 0.45x DA3-Nested's
-scale on dev clips, so every metric reading names this source.
+**Metric.** Estimated with the same frozen DA3-Nested depth-scale procedure as Point4D.
+Old caches labelled ``d4rt-native`` are treated as non-metric rather than assuming metres.
 """
 
 from __future__ import annotations
@@ -97,6 +96,7 @@ class D4RTBackbone(Backbone):
     def __init__(self) -> None:
         self._model: Any = None
         self._size: tuple[int, int] | None = None
+        self._metric_provider: Any = None
 
     def model(self) -> tuple[Any, tuple[int, int]]:
         if self._model is None:
@@ -174,5 +174,8 @@ class D4RTBackbone(Backbone):
         }
 
     def metric(self, clip: Clip, arrays: Mapping[str, np.ndarray]) -> dict[str, Any] | None:
-        return {"metres_per_unit": 1.0, "iqr_over_median": None, "source": "d4rt-native",
-                "note": "D4RT depth units taken as metres; measured at ~0.45x DA3-Nested's scale on dev clips"}
+        from d4rt_agent.agent_v5.backbones.point4d import Point4DBackbone
+
+        if self._metric_provider is None:
+            self._metric_provider = Point4DBackbone()
+        return self._metric_provider.metric(clip, arrays)

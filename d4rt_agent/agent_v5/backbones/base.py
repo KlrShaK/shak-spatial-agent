@@ -106,6 +106,10 @@ class SceneCache:
         metric_path = base / "metric.json"
         if metric_path.exists():
             metric = json.loads(metric_path.read_text())
+            if metric.get("source") == "d4rt-native":
+                # Old caches assumed metres without a scale estimator. Preserve the raw cache,
+                # but never expose that assumption as a calibrated metric observation.
+                metric = {"metres_per_unit": None, "source": None}
         else:
             metric = self.backbone.metric(clip, arrays) or {"metres_per_unit": None, "source": None}
             _write_json(metric_path, metric)

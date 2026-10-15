@@ -65,7 +65,7 @@ calibration findings in `dyn_dataset_exploration/logs/DECOMPOSITION.md`.
 | backbone | frames | metric scale |
 |---|---|---|
 | Point4D | up to 400 GF frames, chunked 48/8 | DA3-Nested depth ratio |
-| D4RT | at most 32 frames: the first, the answer frames, fill-ins | its native depth units, labelled `d4rt-native` (the research pipeline measured these at about 0.45x DA3) |
+| D4RT | at most 32 frames: the first, the answer frames, fill-ins | DA3-Nested depth ratio; old `d4rt-native` cache metadata is treated as unscaled |
 
 Scenes are cached per backbone under `<results>/cache/clips/<slug>/<backbone>/`.
 
