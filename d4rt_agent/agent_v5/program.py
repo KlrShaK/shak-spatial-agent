@@ -89,6 +89,82 @@ class Measurement:
 
 
 @dataclass
+class FrameSpec:
+    basis: str = "scene"
+    reference: str | None = None
+    anchor_s: float | None = None
+    explicit: bool = False
+
+
+@dataclass
+class Requirement:
+    id: str
+    kind: str
+    entities: list[str] = field(default_factory=list)
+    frame: FrameSpec = field(default_factory=FrameSpec)
+    window: Window = field(default_factory=Window)
+    reduction: str = "profile"
+    units: str = "relative"
+    predicate: str = ""
+    count_unit: str | None = None
+    depends_on: list[str] = field(default_factory=list)
+    events: list[str] = field(default_factory=list)
+
+
+@dataclass
+class InstanceSet:
+    entity: str
+    revision: int
+    instances: list[dict[str, Any]] = field(default_factory=list)
+    coverage: str = "detected candidates only; missed instances remain possible"
+
+
+@dataclass
+class EventOccurrence:
+    id: str
+    predicate: str
+    participants: list[str]
+    start_s: float | None
+    end_s: float | None
+    evidence_ids: list[str] = field(default_factory=list)
+    status: str = "supported"
+    complete: bool = True
+    onset_bracket_s: list[float] | None = None
+    end_bracket_s: list[float] | None = None
+    event_id: str | None = None
+    start_frame: float | None = None
+    end_frame: float | None = None
+    onset_bracket_frames: list[float] | None = None
+    end_bracket_frames: list[float] | None = None
+
+
+@dataclass
+class EvidenceRecord:
+    id: str
+    observable: str
+    entities: list[str]
+    revisions: dict[str, int]
+    status: str
+    frame: str | None = None
+    window: dict[str, Any] | None = None
+    units: str | dict[str, str] | None = None
+    source: str = "host_measurement"
+    requirement: str | None = None
+    superseded: bool = False
+    component: str | None = None
+    source_ids: list[str] = field(default_factory=list)
+    reduction: str | None = None
+    selected_instances: dict[str, list[int]] = field(default_factory=dict)
+    observations: dict[str, Any] = field(default_factory=dict)
+    quality: dict[str, Any] = field(default_factory=dict)
+    limitations: list[str] = field(default_factory=list)
+    visual_ids: list[str] = field(default_factory=list)
+    available: bool = True
+    quantity: str | None = None
+    axes: str | None = None
+
+
+@dataclass
 class QueryProgram:
     """What the agent's decomposition turns produced: the kind, the entities and events it named,
     and the window. ``measurements`` holds the tool calls made so far, in the order they ran."""
@@ -102,6 +178,8 @@ class QueryProgram:
     window: Window = field(default_factory=Window)
     measurements: list[Measurement] = field(default_factory=list)
     notes: list[str] = field(default_factory=list)
+    schema_version: int = 3
+    requirements: list[Requirement] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
