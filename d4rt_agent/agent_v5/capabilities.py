@@ -782,3 +782,66 @@ def locate_event(ws, args):
     ws.supersede({"event_reduce"})
     return report("event localization", {**value, "occurrences": occurrences}, status="partial", entities=[actor],
                   note="Signal transitions are onset proposals; start/end intervals and semantic actions need targeted inspection.")
+
+
+EXTRA_TOOLS = {"census": census, "count_entities": count_entities, "inspect": inspect,
+               "observe": observe, "merge_identity": merge_identity, "view_state": view_state,
+               "relative_position": relative_position, "kinematics": kinematics, "orbit": orbit,
+               "group_geometry": group_geometry, "record_event": record_event,
+               "event_reduce": event_reduce, "event_window": event_window, "locate_event": locate_event,
+               "evaluate_predicate": evaluate_predicate}
+
+WINDOW_ARGS = {"window": "optional [start_s,end_s]", "at_s": "optional instant in seconds",
+               "frames": "optional [start_generator_frame,end_generator_frame], usable when FPS is unknown"}
+FRAME_ARGS = {"frame": "scene|world0|camera|image|body_initial|body_current", "reference": "body-frame reference entity",
+              "anchor_s": "body frame anchor seconds; default 0"}
+
+
+def spec(description, arguments, required=()):
+    return {"description": description, "arguments": arguments, "required": list(required)}
+
+
+EXTRA_SPECS = {
+    "evaluate_predicate": spec("Evaluate a geometric predicate on every candidate identity. Semantic clauses need separate observations.",
+        {"entity": "category id", "operation": "left|right|up|down|forward|backward|moving|stationary",
+         "frame": "image|scene|world0|camera|body_initial", "anchor_s": "optional body anchor", **WINDOW_ARGS},
+        ("entity", "operation", "frame")),
+    "locate_event": spec("Locate all geometric transitions in the window; preserve arbitrary actions with record_event instead.",
+        {"actor": "entity id or cam", "predicate": "enters_frame|leaves_frame|becomes_visible|starts_moving|stops_moving|pan_left|pan_right|pan_any|tilt_up|tilt_down|tilt_any",
+         "event": "optional declared event ID", "text": "original event wording", **WINDOW_ARGS}, ("actor", "predicate")),
+    "census": spec("List all detected identities and visibility intervals without 3D.", {"entity": "category id", **WINDOW_ARGS}),
+    "count_entities": spec("Count observed identities, optionally satisfying a previously observed predicate.",
+        {"entity": "category id", "predicate": "exact predicate text or omit", "predicates": "optional list of predicates combined with AND",
+         "aggregation": "unique|at_time|max_simultaneous", **WINDOW_ARGS}),
+    "inspect": spec("Inspect up to eight relevant frames, with labelled instances or a crop.",
+        {"entity": "optional entity/member id", "crop": "optional boolean", "frame_ids": "optional exact GF indices (1-8)",
+         "annotation": "mask|box|none; default mask when an entity is named", **WINDOW_ARGS}),
+    "observe": spec("Record one visual predicate from cited inspections; unknown is different from false.",
+        {"entity": "entity/member id", "predicate": "predicate text", "value": "true|false|unknown",
+         "evidence_ids": "list of inspection IDs", **WINDOW_ARGS}, ("entity", "predicate", "value", "evidence_ids")),
+    "merge_identity": spec("After inspection, reconcile fragments of the same physical identity.",
+        {"entity": "category id", "instances": "list of raw indices", "evidence_ids": "inspection IDs"},
+        ("entity", "instances", "evidence_ids")),
+    "view_state": spec("Image position, extent and all visibility intervals; requires no depth.",
+        {"entity": "entity/member id", **WINDOW_ARGS}, ("entity",)),
+    "relative_position": spec("Signed a-minus-b positions, not scalar distance.",
+        {"a": "entity id", "b": "reference entity id", **FRAME_ARGS, **WINDOW_ARGS}, ("a", "b", "frame")),
+    "kinematics": spec("Path speed, net velocity, speed/acceleration variance over actual timestamps.",
+        {"entity": "entity/member id or cam", "units": "relative|metric", **WINDOW_ARGS}, ("entity",)),
+    "orbit": spec("Angular relative trajectory around a named reference.",
+        {"entity": "entity id or cam", "reference": "reference entity id", **WINDOW_ARGS}, ("entity", "reference")),
+    "group_geometry": spec("Member positions and dispersion; the centroid alone misses group changes.",
+        {"entity": "category id", "members": "optional member IDs", **WINDOW_ARGS}),
+    "record_event": spec("Localize ONE observed occurrence. Reuse occurrence_id to revise, not duplicate it.",
+        {"predicate": "original event text", "participants": "ordered entity IDs: actor then target/part",
+         "event": "optional required event ID (ev1 etc.) to bind this occurrence",
+         "start_s": "optional onset seconds", "end_s": "optional end seconds",
+         "start_frame": "alternative onset GF index", "end_frame": "alternative end GF index", "evidence_ids": "inspection IDs",
+         "status": "supported|unresolved", "complete": "boolean: completed cycle/event", "occurrence_id": "optional existing ID"},
+        ("predicate", "participants", "evidence_ids")),
+    "event_reduce": spec("Count/order/duration of localized occurrences; unique targets differ from encounter counts.",
+        {"predicate": "optional exact event text", "operation": "count|repetitions|order|duration|unique_participants",
+         "participant_index": "target index for unique_participants, default -1", **WINDOW_ARGS}),
+    "event_window": spec("Resolve the question window using supported localized event IDs.",
+        {"start_event": "optional occurrence ID", "end_event": "optional occurrence ID"}),
+}
