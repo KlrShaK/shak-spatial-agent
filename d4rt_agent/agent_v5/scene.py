@@ -287,6 +287,7 @@ class Grounding:
     area_frac: np.ndarray         # (K,T_gf)
     border: np.ndarray            # (K,T_gf)
     used_phrase: str | None = None    # set when a simpler prompt than ``phrase`` had to be used
+    sessions: tuple[int, ...] | None = None
 
     @property
     def count(self) -> int:
@@ -582,7 +583,8 @@ def _union(scene: Scene, a: EntityTrack, b: EntityTrack) -> EntityTrack:
                        a.notes + b.notes + [f"merged fragment {b.instances} into {a.instances}"], margins)
 
 
-def resolve_entities(scene: Scene, groundings: Mapping[str, Grounding | None], program: Any) -> dict[str, list[EntityTrack]]:
+def resolve_entities(scene: Scene, groundings: Mapping[str, Grounding | None], program: Any, *,
+                     identity_aliases: Mapping[str, Mapping[int, int]] | None = None) -> dict[str, list[EntityTrack]]:
     """Every non-camera entity of a program -> its track(s), by the role's policy.
 
     Returns ``{entity_id: [EntityTrack, ...]}``: one track for a single entity, ``count``
@@ -603,21 +605,26 @@ def resolve_entities(scene: Scene, groundings: Mapping[str, Grounding | None], p
         ranked = rank_instances(scene, g, policy)
         ranked = [r for r in ranked if r["frames"] > 0]
         if entity.kind == "group":
-            top = ranked[: max(entity.count or 2, 2) + 1]
-            tracks = [lift_instances(scene, g, [r["k"]], entity_id=f"{entity.id}[{i}]", policy="group")
-                      for i, r in enumerate(top)]
+            aliases = (identity_aliases or {}).get(entity.id, {})
+            members: dict[int, list[int]] = {}
+            for r in ranked:
+                members.setdefault(aliases.get(r["k"], r["k"]), []).append(r["k"])
+            tracks = [lift_instances(scene, g, indices, entity_id=f"{entity.id}[{i}]", policy="group")
+                      for i, indices in enumerate(members.values())]
             tracks = merge_fragments(scene, tracks)
-            tracks.sort(key=lambda t: -int(t.present.sum()))
-            tracks = tracks[: entity.count or 2]
+            tracks = [tr for tr in tracks if tr.present.sum() >= 3 and
+                      (scene.t_s is None or scene.t_s[tr.last] - scene.t_s[tr.first] >= MIN_LIFESPAN_S)]
+            scores = {r["k"]: r["rank_score"] for r in ranked}
+            tracks.sort(key=lambda tr: -sum(scores[k] for k in tr.instances))
+            if entity.count:
+                tracks = tracks[:entity.count]
             for i, tr in enumerate(tracks):
                 tr.id = f"{entity.id}[{i}]"
             resolved[entity.id] = tracks
         elif entity.kind == "category":
             tracks = [lift_instances(scene, g, [r["k"]], entity_id=f"{entity.id}#{r['k']}", policy="all")
                       for r in ranked]
-            tracks = merge_fragments(scene, tracks)
-            min_frames = max(3, int(round(MIN_LIFESPAN_S * effective_fps(scene))))
-            resolved[entity.id] = [t for t in tracks if int(t.present.sum()) >= min_frames]
+            resolved[entity.id] = tracks
         elif entity.kind == "landmark_region":
             resolved[entity.id] = [lift_instances(scene, g, [r["k"] for r in ranked], entity_id=entity.id,
                                                   policy="region_union")] if ranked else []
