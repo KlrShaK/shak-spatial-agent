@@ -654,17 +654,15 @@ FRAME_TEXT = {
              "forward = away from where the camera first looked). Camera motion is removed.",
     "camera": "as the moving camera sees it (right/left in the picture, forward = away from the camera). Camera "
               "motion is NOT removed: a still object looks like it moves when the camera does.",
-    "image": "in the picture: right/left and up/down as fractions of the image width/height; forward from the "
-             "depth to the camera.",
-    "own": "in the entity's OWN frame: forward = the way it faces at its first usable frame, right = its right "
+    "image": "in the picture: right/left and up/down as fractions of the image width/height; no depth coordinate.",
+    "own": "in the reference entity's OWN frame: forward = the way it faces at the requested anchor, right = its right "
            "(facing from Orient-Anything-V2).",
 }
 FRAME_CAVEAT = {
-    "scene": "left/right in this frame matches how the benchmark words directions about 9 times in 10; "
-             "forward/backward from a single camera's depth is close to a guess -- decide that part from the frames.",
-    "camera": "forward/backward (toward/away from the camera) is the depth estimate; left/right is reliable.",
-    "image": "image left/right/up/down is reliable; depth is an estimate.",
-    "own": "the entity's facing is estimated per frame; a symmetric object has no reliable front.",
+    "scene": "These axes are not the subject's body axes. Geometry and camera estimates can be uncertain.",
+    "camera": "These axes follow the current camera; apparent motion includes camera motion and depth uncertainty.",
+    "image": "Image motion depends on segmentation and projection; it does not establish physical 3D motion.",
+    "own": "The reference facing is estimated at the named anchor; a symmetric object may have no observable front.",
 }
 
 
@@ -693,10 +691,12 @@ def tool_entity_track(ws: Workspace, args: Mapping[str, Any]) -> ToolResult:
         return _unavailable(title, "the entity has a 3D position on fewer than 2 frames of the window")
     basis = None
     if frame == "own":
-        rows_f = ws.facing(eid, list(idx[np.unique(np.linspace(0, len(idx) - 1, min(8, len(idx))).astype(int))]))
+        anchor_s = float(args.get("anchor_s", 0.0))
+        anchor = int(np.argmin(np.abs(scene.t_s - anchor_s))) if scene.t_s is not None else 0
+        rows_f = ws.facing(str(args.get("reference") or eid), [anchor])
         usable = [r for r in rows_f if r.get("usable")]
         if not usable:
-            return _unavailable(title, "Orient-Anything never resolved a unique front for this entity")
+            return _unavailable(title, f"initial/reference orientation unresolved at {anchor_s}s; no later frame substituted")
         basis = orientation.subject_basis(usable[0])
 
     def comp(p0: int, p1: int) -> np.ndarray:
@@ -751,7 +751,10 @@ def tool_entity_track(ws: Workspace, args: Mapping[str, Any]) -> ToolResult:
     summary = f"entity_track {eid} ({frame}): " + render.chronological(spans)[:160]
     return ToolResult(render.block(title, lines), summary,
                       data={"entity": eid, "frame": frame, "net": [float(x) for x in net], "series_used": "smoothed",
-                            "rows": rows, "noise_floor": floor})
+                            "status": "partial", "reference_point": "visible_surface_proxy",
+                            "columns": ["time", "right", "up", "forward", "moved", "direction"],
+                            "rows": rows, "noise_floor": floor, "valid_frames": idx.tolist(),
+                            "notes": track.notes + [FRAME_CAVEAT[frame]], "confidence": "high" if track.confident[idx].mean() > 0.6 else "medium"})
 
 
 def _image_words(d: np.ndarray, floor_xy: float, floor_z: float) -> dict[str, str | None]:
