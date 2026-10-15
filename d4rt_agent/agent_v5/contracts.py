@@ -26,10 +26,39 @@ DECOMPOSITION_SPECS: dict[str, dict[str, Any]] = {
     "choose_window": {"description": "Give the time span the question is about.",
                       "arguments": {"start_s": "seconds", "end_s": "seconds"}, "required": ["start_s", "end_s"]},
     "final_answer": {"description": "Answer the multiple-choice question.",
-                     "arguments": {"letter": "the option letter", "limitations": "optional: what stayed uncertain"},
+                     "arguments": {"letter": "the option letter", "limitations": "optional: what stayed uncertain",
+                                   "evidence_ids": "optional list of current evidence IDs",
+                                   "repair_request": "optional {requirement,option,claim,missing,evidence,mode: measure|reroute,could_change_choice}"},
                      "required": ["letter"]},
+    "answer_only": {"description": "Recovery: submit from current evidence after formatting failures.",
+                    "arguments": {"letter": "actual option label", "limitations": "remaining uncertainty",
+                                  "evidence_ids": "optional current reports or included visuals"}, "required": ["letter"]},
 }
 SPECS: dict[str, dict[str, Any]] = {**DECOMPOSITION_SPECS, **TOOL_SPECS}
+
+COMPOSITION_SPECS = {
+    "set_event_count": {"description": "How many distinct event descriptions must be localized? Include option-defined events.",
+        "arguments": {"count": "integer from 1 to 16"}, "required": ["count"]},
+    "declare_event": {"description": "Name one event to investigate, preserving the original action and participants.",
+        "arguments": {"text": "one full event description from the question/options"}, "required": ["text"]},
+    "set_frame": {"description": "Choose the requested frame and its anchor explicitly.",
+        "arguments": {"frame": "scene|world0|camera|image|body_initial|body_current", "reference": "optional reference entity id",
+                      "anchor_s": "optional seconds, default 0", "explicit": "boolean: directly specified in wording"}, "required": ["frame"]},
+    "set_count_unit": {"description": "Distinguish physical identities, occurrences and complete repetitions.",
+        "arguments": {"unit": "distinct_entities|event_occurrences|repetitions",
+                      "aggregation": "unique|at_time|max_simultaneous"}, "required": ["unit"]},
+    "set_predicate": {"description": "Preserve the exact qualifying action/attribute, including negation and anatomical roles.",
+        "arguments": {"predicate": "predicate text, or 'none'"}, "required": ["predicate"]},
+    "add_entity": {"description": "Name an additional participant, region, category or anatomical part.",
+        "arguments": {"entity": "new short entity id", "phrase": "short segmentation noun phrase",
+                      "kind": "object|category|landmark_region|group", "role": "optional role/referring expression"},
+        "required": ["entity", "phrase", "kind"]},
+    "add_requirement": {"description": "Add or revisit a complementary recipe without discarding current evidence.",
+        "arguments": {"kind": "kind name", "entities": "existing entity IDs", "depends_on": "optional requirement IDs"},
+        "required": ["kind", "entities"]},
+}
+SPECS.update(COMPOSITION_SPECS)
+TOOL_SPECS.update({k: COMPOSITION_SPECS[k] for k in ("add_entity", "add_requirement")})
 
 
 class ActionRejected(ValueError):
