@@ -14,7 +14,7 @@ phrase the agent named, and says what SAM3 found.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 import re
 from typing import Any, Callable, Mapping, Sequence
 
@@ -22,7 +22,7 @@ import numpy as np
 
 from d4rt_agent.agent_v5 import measure, orientation, render
 from d4rt_agent.agent_v5.measure import TUNING, Result
-from d4rt_agent.agent_v5.program import Entity, Measurement, QueryProgram, Window, phrase_ladder
+from d4rt_agent.agent_v5.program import Entity, EvidenceRecord, Measurement, QueryProgram, Window, phrase_ladder
 from d4rt_agent.agent_v5.scene import (
     EntityTrack,
     Grounding,
@@ -46,6 +46,7 @@ class ToolResult:
     summary: str
     images: list[Any] = field(default_factory=list)
     data: dict[str, Any] = field(default_factory=dict)
+    evidence: list[EvidenceRecord] = field(default_factory=list)
 
 
 # --------------------------------------------------------------------------- #
@@ -58,12 +59,14 @@ class Workspace:
     ``orient_fn() -> OAV2 model``."""
 
     def __init__(self, clip: Any, program: QueryProgram, *, scene_fn: Callable[[Any], Scene],
-                 ground_fn: Callable[[Any, str, int], Grounding], orient_fn: Callable[[], Any] | None = None) -> None:
+                 ground_fn: Callable[[Any, str, int], Grounding], orient_fn: Callable[[], Any] | None = None,
+                 point_fn: Callable | None = None) -> None:
         self.clip = clip
         self.program = program
         self._scene_fn = scene_fn
         self._ground_fn = ground_fn
         self._orient_fn = orient_fn
+        self._point_fn = point_fn
         self._scene: Scene | None = None
         self.groundings: dict[str, Grounding] = {}        # entity id -> grounding
         self.used_phrase: dict[str, str] = {}             # entity id -> the prompt that found it
@@ -71,6 +74,30 @@ class Workspace:
         self._tracks: dict[str, list[EntityTrack]] = {}
         self._facing: dict[str, list[dict[str, Any]]] = {}
         self.counter = 0
+        self.revisions: dict[str, int] = {}
+        self.evidence: dict[str, Any] = {}
+        self.observations: dict[str, Any] = {}
+        self.occurrences: dict[str, Any] = {}
+        self.identity_aliases: dict[str, dict[int, int]] = {}
+        self.inspections: dict[str, Any] = {}
+        self.point_provenance: dict[tuple[str, int], Any] = {}
+        self.grounding_keys: dict[str, set[tuple[str, int]]] = {}
+        self.unverified_instances: dict[str, set[int]] = {}
+        self.visuals: dict[str, Any] = {}
+
+    def supersede(self, observables) -> None:
+        for record in self.evidence.values():
+            if record.observable in observables:
+                record.superseded = True
+
+    def invalidate(self, base: str) -> None:
+        self.revisions[base] = self.revisions.get(base, 0) + 1
+        self._tracks.pop(base, None)
+        self._facing = {k: v for k, v in self._facing.items()
+                        if k.split("@")[0].split("[")[0] != base}
+        for record in self.evidence.values():
+            if base in record.revisions:
+                record.superseded = True
 
     # -- scene -------------------------------------------------------------------
 
@@ -110,11 +137,16 @@ class Workspace:
         return self.groundings[base]
 
     def _ground(self, base: str, phrase: str, prompt_frame: int) -> Grounding:
+        key = (phrase, prompt_frame)
+        previous = self.groundings.get(base)
+        if previous is not None and key in self.grounding_keys.get(base, set()):
+            self.invalidate(base)
+            return previous
         found = None
         for rung in phrase_ladder(phrase):
             g = self._ground_fn(self.clip, rung, prompt_frame)
             if g.count > 0:
-                found = g
+                found = replace(g)
                 self.used_phrase[base] = rung
                 break
         if found is None:
@@ -125,9 +157,23 @@ class Workspace:
         else:
             found.used_phrase = self.used_phrase[base] if self.used_phrase[base] != phrase else None
             found.phrase = phrase
+        if previous is not None and previous.count and found.count and previous.phrase == phrase \
+                and self.entity(base).kind == "category":
+            session = max(previous.sessions or (0,)) + 1
+            first_new = previous.count
+            found = Grounding(phrase, np.concatenate([previous.obj_ids, found.obj_ids]),
+                              np.concatenate([previous.masks, found.masks]), np.concatenate([previous.probs, found.probs]),
+                              np.concatenate([previous.boxes, found.boxes]), np.concatenate([previous.area_frac, found.area_frac]),
+                              np.concatenate([previous.border, found.border]), found.used_phrase,
+                              (previous.sessions or (0,) * previous.count) + (session,) * found.count)
+            self.unverified_instances.setdefault(base, set()).update(range(first_new, found.count))
+        else:
+            self.grounding_keys[base] = set()
+            self.unverified_instances.pop(base, None)
+            self.identity_aliases.pop(base, None)
+        self.grounding_keys.setdefault(base, set()).add(key)
         self.groundings[base] = found
-        self._tracks.pop(base, None)
-        self._facing = {k: v for k, v in self._facing.items() if k.split("[")[0] != base}
+        self.invalidate(base)
         return found
 
     def reground(self, base: str, phrase: str, prompt_frame: int) -> Grounding:
@@ -144,21 +190,46 @@ class Workspace:
         scene = self.scene()
         if g.count == 0:
             tracks: list[EntityTrack] = []
+        elif entity.kind == "category":
+            tracks = [lift_instances(scene, g, self.instance_indices(base, k), entity_id=f"{base}[{k}]", policy="all")
+                      for k in range(g.count)]
         elif base in self.selected:
             ks = self.selected[base]
             if entity.kind == "group":
-                tracks = [lift_instances(scene, g, [k], entity_id=f"{base}[{i}]", policy="selected")
+                tracks = [lift_instances(scene, g, self.instance_indices(base, k), entity_id=f"{base}[{i}]", policy="selected")
                           for i, k in enumerate(ks)]
             else:
                 tracks = [lift_instances(scene, g, ks, entity_id=base, policy="selected")]
         else:
             stub = QueryProgram(self.program.qid, self.program.kind, "measure", "", entities=[entity])
-            tracks = resolve_entities(scene, {entity.phrase: g}, stub).get(base, [])
+            tracks = resolve_entities(scene, {entity.phrase: g}, stub, identity_aliases=self.identity_aliases).get(base, [])
         for t in tracks:
             if g.used_phrase:
                 t.notes.append(f"found only with the simpler prompt {g.used_phrase!r}: it may be another instance")
         self._tracks[base] = tracks
         return tracks
+
+    def instance_indices(self, base: str, index: int) -> list[int]:
+        g = self.grounding(base)
+        if not 0 <= index < g.count:
+            raise ToolError(f"{base}[{index}] is outside the segmentation")
+        aliases = self.identity_aliases.get(base, {})
+        root = aliases.get(index, index)
+        return [k for k in range(g.count) if aliases.get(k, k) == root]
+
+    def member_indices(self, base: str, index: int) -> list[int]:
+        """Group brackets address bound members; category brackets address raw SAM identities."""
+        if self.entity(base).kind != "group":
+            return self.instance_indices(base, index)
+        if base in self.selected:
+            chosen = self.selected[base]
+            if not 0 <= index < len(chosen):
+                raise ToolError(f"{base}[{index}] is outside the selected group")
+            return self.instance_indices(base, chosen[index])
+        tracks = self.tracks_of(base)
+        if not 0 <= index < len(tracks):
+            raise ToolError(f"{base}[{index}] is outside the grounded group")
+        return list(tracks[index].instances)
 
     def track(self, eid: str) -> EntityTrack | str | None:
         """'cam' -> 'camera'; 'g1[1]' -> that member; 'e1' -> its track; None when not found."""
@@ -167,9 +238,13 @@ class Workspace:
             return "camera"
         if "[" in eid:
             base, k = eid[:-1].split("[")
+            if int(k) < 0:
+                raise ToolError("instance indices must be nonnegative")
             lst = self.tracks_of(base)
             return lst[int(k)] if int(k) < len(lst) else None
         lst = self.tracks_of(eid)
+        if self.entity(eid).kind == "category" and eid in self.selected:
+            return lst[self.selected[eid][0]] if lst else None
         return lst[0] if lst else None
 
     def tracks_map(self, *eids: str) -> dict[str, list[EntityTrack]]:
@@ -177,8 +252,8 @@ class Workspace:
         for eid in eids:
             if eid in ("cam", "camera"):
                 continue
-            base = eid.split("[")[0]
-            out[base] = self.tracks_of(base)
+            track = self.track(eid)
+            out[eid] = [track] if isinstance(track, EntityTrack) else []
         return out
 
     def masks_at(self, eid: str) -> Callable[[int], np.ndarray | None]:
@@ -213,6 +288,14 @@ class Workspace:
     def window(self, args: Mapping[str, Any]) -> Window:
         """The tool's window: ``window: [start_s, end_s]`` or ``at_s``, else the question's own."""
 
+        if args.get("frames") is not None:
+            values = args["frames"]
+            if not isinstance(values, (list, tuple)) or len(values) != 2:
+                raise ToolError("frames must be [start_generator_frame, end_generator_frame]")
+            a, b = map(float, values)
+            if not (0 <= a <= b < self.clip.length):
+                raise ToolError("frame window is outside the clip")
+            return Window("frames", a, b)
         if args.get("at_s") is not None:
             return Window("instant", float(args["at_s"]))
         if args.get("window") not in (None, "", []):
@@ -231,7 +314,7 @@ class Workspace:
         try:
             return resolve_window(self.scene(), window)
         except WindowUnresolved as error:
-            raise ToolError(f"{error}; call it without a window to use the whole clip") from error
+            raise ToolError(f"{error}; inspect and locate the requested event window first") from error
 
 
 # --------------------------------------------------------------------------- #
@@ -362,10 +445,13 @@ def tool_select(ws: Workspace, args: Mapping[str, Any]) -> ToolResult:
     bad = [k for k in ks if not 0 <= k < g.count]
     if bad or not ks:
         raise ToolError(f"instances must be among 0..{g.count - 1}")
-    if entity.kind == "group" and len(ks) != (entity.count or 2):
-        raise ToolError(f"{base} is a pair: select exactly {entity.count or 2} instances, one per member")
+    if entity.kind == "group" and entity.count and len(ks) != entity.count:
+        raise ToolError(f"{base}: select exactly {entity.count} instances, one per member")
+    roots = [ws.identity_aliases.get(base, {}).get(k, k) for k in ks]
+    if entity.kind == "group" and len(set(roots)) != len(roots):
+        raise ToolError(f"{base}: select distinct physical identities, not two fragments of one member")
     ws.selected[base] = ks
-    ws._tracks.pop(base, None)                     # noqa: SLF001 -- re-lift with the selection
+    ws.invalidate(base)
     return ToolResult(render.block(f"select {base}", [grounding_text(ws, base)]), f"select {base} {ks}",
                       data={"entity": base, "instances": ks})
 
@@ -1121,7 +1207,7 @@ TOOL_SPECS: dict[str, dict[str, Any]] = {
                               "where it is clearly visible. Short phrases (the plain noun) find more instances.",
                "arguments": {"entity": "entity id", "phrase": "at most 5 words", "at_s": "optional seconds"},
                "required": ["entity"]},
-    "select": {"description": "Choose which of the found instances is the intended entity (see `ground` / `show`).",
+    "select": {"description": "Choose raw SAM instance numbers from ground. Group brackets then refer to selection order, not raw numbers.",
                "arguments": {"entity": "entity id", "instances": "list of instance numbers"},
                "required": ["entity", "instances"]},
     "camera_motion": {"description": "The camera's rotation (pan/tilt/roll) and translation over time.",
