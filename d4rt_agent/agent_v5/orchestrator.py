@@ -27,7 +27,7 @@ from d4rt_agent.agent_v5 import kinds as kinds_module
 from d4rt_agent.agent_v5.clips import KEYFRAME_LONG_SIDE, QWEN_LONG_SIDE, Clip
 from d4rt_agent.agent_v5.context import Conversation
 from d4rt_agent.agent_v5.contracts import ActionRejected, parse_letter, schemas_text, validate_action
-from d4rt_agent.agent_v5.kinds import KIND_BY_NAME, FAMILIES, Slot
+from d4rt_agent.agent_v5.kinds import KIND_BY_NAME, LEGACY_FAMILIES as FAMILIES, Slot
 from d4rt_agent.agent_v5.program import QueryProgram, Window, window_from_question
 from d4rt_agent.agent_v5.tools import TOOLS, ToolError, ToolResult, Workspace
 from d4rt_agent.simple_v2 import extract_first_action
@@ -153,7 +153,7 @@ class AgentV5:
                    state: State) -> None:
         question = str(task["question"])
         keyframes = [(clip.label(i) + ":", clip.pil(i, KEYFRAME_LONG_SIDE)) for i in clip.keyframes()]
-        conv.add("user", prompt("choose_family.md", question=question, menu=kinds_module.family_menu()),
+        conv.add("user", prompt("choose_family.md", question=question, menu=kinds_module.family_menu(legacy=True)),
                  images=keyframes, kind="opening")
         try:
             _, _, state.family = self._decide(conv, trace, ["choose_family"], "family",
@@ -161,20 +161,20 @@ class AgentV5:
             if state.family == "semantic":
                 state.kind = "semantic"
             else:
-                options = kinds_module.kinds_of(state.family)
+                options = kinds_module.kinds_of(state.family, legacy=True)
                 if len(options) == 1:
                     state.kind = options[0].name
                 else:
                     conv.add("user", prompt("choose_kind.md", family=state.family,
-                                            menu=kinds_module.kind_menu(state.family)), kind="step")
+                                            menu=kinds_module.kind_menu(state.family, legacy=True)), kind="step")
                     _, _, state.kind = self._decide(
                         conv, trace, ["choose_kind"], "kind",
                         lambda n, a: _member(a["kind"], {k.name for k in options}, "kind"), DECISION_TOKENS)
-            self._fill_slots(question, conv, trace, state, KIND_BY_NAME[state.kind].slots)
+            self._fill_slots(question, conv, trace, state, kinds_module.LEGACY_KIND_BY_NAME[state.kind].slots)
         except Exhausted as error:
             state.decomposition_ok = False
             state.notes.append(str(error))
-            state.kind = state.kind if state.kind and not KIND_BY_NAME[state.kind].slots else "semantic"
+            state.kind = state.kind if state.kind and not kinds_module.LEGACY_KIND_BY_NAME[state.kind].slots else "semantic"
         state.program = self._program(task, clip, conv, trace, state)
 
     def _fill_slots(self, question: str, conv: Conversation, trace: list[dict[str, Any]], state: State,
@@ -197,8 +197,8 @@ class AgentV5:
     def _program(self, task: Mapping[str, Any], clip: Clip, conv: Conversation, trace: list[dict[str, Any]],
                  state: State) -> QueryProgram:
         question = str(task["question"])
-        spec = KIND_BY_NAME[state.kind]
-        entities, events = kinds_module.entities_from_slots(state.kind, state.slots, question)
+        spec = kinds_module.LEGACY_KIND_BY_NAME[state.kind]
+        entities, events = kinds_module.entities_from_slots(state.kind, state.slots, question, legacy=True)
         window = window_from_question(question)
         if window.kind == "event" and spec.route == "measure" and clip.fps:
             duration = round((clip.length - 1) / clip.fps, 2)
@@ -227,7 +227,7 @@ class AgentV5:
         state.workspace = self.workspace_factory(task["clip"], state.program)
         conv.add("user", self._measure_intro(state), kind="step")
         while state.measuring_steps < self.max_steps:
-            allowed = list(kinds_module.tools_for(state.kind))
+            allowed = list(kinds_module.tools_for(state.kind, legacy=True))
             if state.kind_switches >= 1 and "switch_kind" in allowed:
                 allowed.remove("switch_kind")
             try:
@@ -245,7 +245,7 @@ class AgentV5:
         state.notes.append(f"measuring stopped after {self.max_steps} steps")
 
     def _measure_intro(self, state: State) -> str:
-        spec = KIND_BY_NAME[state.kind]
+        spec = kinds_module.LEGACY_KIND_BY_NAME[state.kind]
         program = state.program
         entities = ", ".join(
             "`cam` (the camera)" if e.kind == "camera" else
@@ -259,18 +259,18 @@ class AgentV5:
         playbook = playbook_path.read_text() if playbook_path.exists() else "- Use the tools that measure the quantity."
         return prompt("measure.md", kind=spec.name, description=spec.description, entities=entities, events=events,
                       window=window, playbook=playbook.strip(), steps=self.max_steps,
-                      schemas=schemas_text(kinds_module.tools_for(spec.name)))
+                      schemas=schemas_text(kinds_module.tools_for(spec.name, legacy=True)))
 
     def _switch(self, task: Mapping[str, Any], conv: Conversation, trace: list[dict[str, Any]], state: State,
                 kind: str) -> None:
-        if kind not in KIND_BY_NAME or kind == state.kind:
+        if kind not in kinds_module.LEGACY_KIND_BY_NAME or kind == state.kind:
             conv.add("user", f"`{kind}` is not a different kind from the list; continue measuring.", kind="reject")
             return
         state.kind_switches += 1
         state.notes.append(f"switched kind {state.kind} -> {kind}")
         state.kind = kind
         try:
-            self._fill_slots(str(task["question"]), conv, trace, state, KIND_BY_NAME[kind].slots)
+            self._fill_slots(str(task["question"]), conv, trace, state, kinds_module.LEGACY_KIND_BY_NAME[kind].slots)
         except Exhausted as error:
             state.notes.append(str(error))
         entities, events = kinds_module.entities_from_slots(kind, state.slots, str(task["question"]))
@@ -278,7 +278,7 @@ class AgentV5:
         state.program.entities += [e for e in entities if e.id not in known]
         state.program.events = events or state.program.events
         state.program.kind = kind
-        state.program.route = KIND_BY_NAME[kind].route
+        state.program.route = kinds_module.LEGACY_KIND_BY_NAME[kind].route
         if state.program.route == "vlm_only":
             state.measuring_steps = self.max_steps          # nothing to measure: go to the answer
             return
