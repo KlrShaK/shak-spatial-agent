@@ -796,82 +796,98 @@ def measure_metric_speed(scene: Scene, program: QueryProgram, m: Measurement,
 
 def measure_event_onset(scene: Scene, program: QueryProgram, m: Measurement,
                         tracks: Mapping[str, list[EntityTrack]]) -> Result:
+    """All observed transitions in the requested window; first onset is a reduction."""
     ev = next((e for e in program.events if e.id == m.of[0]), None)
     if ev is None:
         return unavailable(m, f"unknown event {m.of[0]!r}")
-    T = TUNING
-    frames = None
-    onset: int | None = None
-    notes: list[str] = []
-    detail: dict[str, Any] = {"event": ev.id, "predicate": ev.predicate, "actor": ev.actor}
-    conf = "high"
+    try:
+        lo, hi, note = resolve_window(scene, m.window or program.window)
+    except WindowUnresolved as error:
+        return unavailable(m, str(error))
+    valid = np.ones(scene.length, bool)
+    noise = 0.0
+    floor = {}
     if ev.actor in ("cam", "camera"):
         cam = camera_state(scene)
-        if ev.predicate in ("pan_left", "pan_right", "pan_any"):
-            pan = cam["pan_smooth"]
-            if ev.predicate == "pan_any":
-                hits = [o for o in (_onset_of_swing(pan, 1, T["onset_pan_deg"]), _onset_of_swing(pan, -1, T["onset_pan_deg"]))
-                        if o is not None]
-                onset = min(hits) if hits else None
+        xyz = cam["trans_smooth"]
+        residual = np.linalg.norm(cam["trans"] - xyz, axis=1)
+        finite = residual[np.isfinite(residual)]
+        noise = float(np.median(finite)) if len(finite) else 0.0
+        if scene.pose_valid is not None:
+            valid &= scene.pose_valid
+        if ev.predicate.startswith(("pan_", "tilt_")):
+            angle = cam["pan_smooth" if ev.predicate.startswith("pan_") else "tilt_smooth"]
+            delta = np.r_[0.0, np.diff(angle)]
+            raw = _unwrapped_deg(cam["pan" if ev.predicate.startswith("pan_") else "tilt"])
+            residual = np.abs(raw - angle)
+            finite = residual[np.isfinite(residual)]
+            step_floor = max(1e-6, 3 * float(np.median(finite)) if len(finite) else 0.0)
+            if ev.predicate.endswith(("left", "down")):
+                active = delta < -step_floor
+            elif ev.predicate.endswith(("right", "up")):
+                active = delta > step_floor
             else:
-                onset = _onset_of_swing(pan, 1 if ev.predicate == "pan_right" else -1, T["onset_pan_deg"])
-            frames = pan
-            detail["threshold"] = f"{T['onset_pan_deg']} deg swing"
-        elif ev.predicate in ("tilt_up", "tilt_down", "tilt_any"):
-            tilt = cam["tilt_smooth"]
-            if ev.predicate == "tilt_any":
-                hits = [o for o in (_onset_of_swing(tilt, 1, T["onset_pan_deg"]), _onset_of_swing(tilt, -1, T["onset_pan_deg"]))
-                        if o is not None]
-                onset = min(hits) if hits else None
-            else:
-                onset = _onset_of_swing(tilt, 1 if ev.predicate == "tilt_up" else -1, T["onset_pan_deg"])
-            frames = tilt
-        elif ev.predicate == "starts_moving":
-            trans = cam["trans_smooth"] - cam["trans_smooth"][0]
-            speed = np.linalg.norm(trans, axis=1)
-            hit = np.flatnonzero(speed >= T["onset_move_scales"] * scene.scale)
-            onset = int(hit[0]) if len(hit) else None
-            frames = speed
-        else:
-            return unavailable(m, f"no signal defined for camera event {ev.predicate!r}")
+                active = np.abs(delta) > step_floor
+            valid &= np.isfinite(angle)
+            active[1:] &= valid[1:] & valid[:-1]
+            state = np.zeros(scene.length, bool)
+            # A degree threshold is applied to total swing within a directional run, not rate.
+            for sign in (-1, 1):
+                directional = active & (delta * sign > 0)
+                edges = np.diff(np.r_[False, directional, False].astype(int))
+                for a, b in zip(np.flatnonzero(edges == 1), np.flatnonzero(edges == -1)):
+                    if abs(angle[b - 1] - angle[max(0, a - 1)]) >= TUNING["onset_pan_deg"]:
+                        state[a:b] = True
+            state[0] = bool(scene.length > 1 and valid[0] and valid[1] and state[1])
+            floor = {"total_swing_deg": TUNING["onset_pan_deg"], "step_noise_deg": step_floor}
+        elif ev.predicate not in ("starts_moving", "stops_moving"):
+            return unavailable(m, f"no geometric signal for {ev.text!r}; inspect the event visually")
     else:
-        lst = tracks.get(ev.actor)
-        track = lst[0] if lst else None
-        if track is None:
+        track = _operand_track(ev.actor, tracks)
+        if not isinstance(track, EntityTrack):
             return unavailable(m, f"could not ground {ev.actor!r}")
-        pres = track.present
-        if ev.predicate in ("enters_frame", "becomes_visible"):
-            first = track.first
-            if first is None:
-                onset = None
-            else:
-                onset = first
-                detail["present_from_first_frame"] = first == 0
-                if first == 0:
-                    notes.append("already in view on the first frame")
-                    conf = "medium"
-        elif ev.predicate == "leaves_frame":
-            last = track.last
-            onset = None if last is None or last >= scene.length - 1 else last + 1
-        elif ev.predicate == "starts_moving":
-            idx = np.flatnonzero(pres & np.isfinite(track.smooth).all(1))
-            if len(idx) >= 3:
-                disp = np.linalg.norm(track.smooth[idx] - track.smooth[idx[0]], axis=1)
-                hit = np.flatnonzero(disp >= max(T["onset_move_scales"] * scene.scale, 3 * track.noise))
-                onset = int(idx[hit[0]]) if len(hit) else None
-                frames = np.where(pres, np.linalg.norm(track.smooth - track.smooth[idx[0]], axis=1), np.nan)
+        xyz = track.smooth
+        noise = track.noise
+        if ev.predicate in ("enters_frame", "becomes_visible", "leaves_frame"):
+            state = track.present
+        elif ev.predicate in ("starts_moving", "stops_moving"):
+            valid &= track.present & np.isfinite(xyz).all(1)
         else:
-            return unavailable(m, f"no signal defined for {ev.predicate!r}")
-    t = None if onset is None else (float(scene.t_s[onset]) if scene.t_s is not None else None)
-    return Result(m.id, m.signal, m.reduce, value={"onset": onset, "onset_s": t, **detail},
-                  confidence=conf if onset is not None else "medium", notes=notes,
-                  series={"signal": frames, "onset": onset})
+            return unavailable(m, f"no geometric signal for {ev.text!r}; inspect the event visually")
+    if ev.predicate in ("starts_moving", "stops_moving"):
+        if scene.t_s is None:
+            return unavailable(m, "motion onset by speed requires an established frame rate; inspect using generator frames")
+        dt = np.diff(scene.t_s)
+        steps = np.linalg.norm(np.diff(xyz, axis=0), axis=1)
+        step_floor = np.maximum(TUNING["speed_floor_per_s"] * dt * scene.scale, 3 * noise)
+        state = np.r_[False, steps > step_floor]
+        valid[1:] &= valid[:-1].copy() & np.isfinite(steps) & (dt > 0)
+        state[0] = bool(scene.length > 1 and valid[0] and valid[1] and state[1])
+        floor = {"speed_scales_per_s": TUNING["speed_floor_per_s"], "step_noise_units": 3 * noise}
+    enters = ev.predicate not in ("leaves_frame", "stops_moving")
+    transitions = (state[1:] & ~state[:-1]) if enters else (~state[1:] & state[:-1])
+    hits = np.flatnonzero(transitions & valid[1:] & valid[:-1]) + 1
+    hits = hits[(hits >= lo) & (hits <= hi)]
+    onset = int(hits[0]) if len(hits) else None
+    occurrences = [{"onset": int(i), "onset_s": None if scene.t_s is None else float(scene.t_s[i]),
+                    "bracket": [int(i - 1), int(i)]} for i in hits]
+    first_valid = np.flatnonzero(valid[lo:hi + 1]) + lo
+    left_censored = bool(state[first_valid[0]]) if len(first_valid) and enters else False if len(first_valid) else None
+    value = {"onset": onset, "onset_s": None if onset is None or scene.t_s is None else float(scene.t_s[onset]),
+             "event": ev.id, "predicate": ev.predicate, "actor": ev.actor, "occurrences": occurrences,
+             "present_from_first_frame": bool(valid[0] and state[0]), "left_censored": left_censored,
+             "status": "observed_onset" if onset is not None else "already_underway" if left_censored else "no_observed_transition"}
+    return Result(m.id, m.signal, m.reduce, value=value, window=(lo, hi), window_note=note,
+                  floor=floor,
+                  confidence="medium", notes=["Transitions are observed signal changes; occlusion can mimic entry/exit."])
 
 
 def measure_order(scene: Scene, m: Measurement, results: Mapping[str, Result]) -> Result:
     a, b = (results.get(o) for o in m.of[:2])
     if a is None or b is None or not a.available or not b.available:
         return unavailable(m, "an event onset could not be measured")
+    if a.value.get("left_censored") or b.value.get("left_censored"):
+        return unavailable(m, "an event was already underway at the first observation; its onset order is unknown")
     oa, ob = a.value.get("onset"), b.value.get("onset")
     ea, eb = a.value["event"], b.value["event"]
     tie = TUNING["tie_frames"]

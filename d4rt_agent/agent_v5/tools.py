@@ -1010,16 +1010,19 @@ def tool_event_onset(ws: Workspace, args: Mapping[str, Any]) -> ToolResult:
         missing = _not_found(ws, ev.actor, title)
         if missing:
             return missing
-    if ev.predicate in ("other", "stops_moving"):
+    if ev.predicate == "other":
         return _unavailable(title, f"'{ev.predicate}' has no geometric signal; judge its timing from the frames")
     scene = ws.scene()
-    m = Measurement(_measure_id(ws), "onset", [evid], "onset")
+    m = Measurement(_measure_id(ws), "onset", [evid], "onset", window=ws.window(args))
     r = measure.measure_event_onset(scene, ws.program, m, ws.tracks_map(ev.actor))
     if not r.available:
         return _unavailable(title, r.reason, r)
     v = r.value
     t = scene.t_s
-    when = "was not found in the clip" if v["onset"] is None else f"starts at {render.time_label(t, v['onset'])}"
+    when = "was already underway at the first supported observation; its onset was not observed" \
+        if v.get("left_censored") and v["onset"] is None else \
+        "has no observed transition in this window" if v["onset"] is None else \
+        f"starts at {render.time_label(t, v['onset'], gf_index=scene.gf_index)}"
     lines = [f"Event {evid} ({ev.text}): {when}.", render.reliability(r.confidence, r.notes + [
         "an onset is where the measured signal first clearly changes; compare the two events' times yourself"])]
     return ToolResult(render.block(title, lines), f"event_onset {evid}: {when}", data=r.to_dict())
@@ -1157,7 +1160,7 @@ TOOL_SPECS: dict[str, dict[str, Any]] = {
     "count": {"description": "How many distinct instances of the counted category appear.",
               "arguments": {"entity": "category id (default c1)"}, "required": []},
     "event_onset": {"description": "When one of the named events starts.",
-                    "arguments": {"event": "ev1 or ev2"}, "required": ["event"]},
+                    "arguments": {"event": "event id", "window": _WINDOW}, "required": ["event"]},
     "orientation": {"description": "Which way an entity faces over time, and which of its sides the camera sees.",
                     "arguments": {"entity": "entity id", "window": _WINDOW}, "required": ["entity"]},
     "show": {"description": "An image of keyframes with the grounded entities outlined, or an entity's 3D track "
