@@ -1,0 +1,8002 @@
+{
+ "videos_real/davis/aerobatics.mp4": {
+  "source": "davis",
+  "frames": 71,
+  "fps": 24.0,
+  "width": 854,
+  "height": 480,
+  "seconds": 2.958
+ },
+ "videos_real/davis/baseball.mp4": {
+  "source": "davis",
+  "frames": 90,
+  "fps": 24.0,
+  "width": 910,
+  "height": 480,
+  "seconds": 3.75
+ },
+ "videos_real/davis/basketball-game.mp4": {
+  "source": "davis",
+  "frames": 77,
+  "fps": 24.0,
+  "width": 854,
+  "height": 480,
+  "seconds": 3.208
+ },
+ "videos_real/davis/bear.mp4": {
+  "source": "davis",
+  "frames": 82,
+  "fps": 24.0,
+  "width": 854,
+  "height": 480,
+  "seconds": 3.417
+ },
+ "videos_real/davis/bears-ball.mp4": {
+  "source": "davis",
+  "frames": 78,
+  "fps": 24.0,
+  "width": 854,
+  "height": 480,
+  "seconds": 3.25
+ },
+ "videos_real/davis/bike-packing.mp4": {
+  "source": "davis",
+  "frames": 69,
+  "fps": 24.0,
+  "width": 910,
+  "height": 480,
+  "seconds": 2.875
+ },
+ "videos_real/davis/bike-trial.mp4": {
+  "source": "davis",
+  "frames": 85,
+  "fps": 24.0,
+  "width": 854,
+  "height": 480,
+  "seconds": 3.542
+ },
+ "videos_real/davis/blackswan.mp4": {
+  "source": "davis",
+  "frames": 50,
+  "fps": 24.0,
+  "width": 854,
+  "height": 480,
+  "seconds": 2.083
+ },
+ "videos_real/davis/bmx-bumps.mp4": {
+  "source": "davis",
+  "frames": 90,
+  "fps": 24.0,
+  "width": 854,
+  "height": 480,
+  "seconds": 3.75
+ },
+ "videos_real/davis/bmx-rider.mp4": {
+  "source": "davis",
+  "frames": 85,
+  "fps": 24.0,
+  "width": 854,
+  "height": 480,
+  "seconds": 3.542
+ },
+ "videos_real/davis/bmx-trees.mp4": {
+  "source": "davis",
+  "frames": 80,
+  "fps": 24.0,
+  "width": 854,
+  "height": 480,
+  "seconds": 3.333
+ },
+ "videos_real/davis/boat.mp4": {
+  "source": "davis",
+  "frames": 75,
+  "fps": 24.0,
+  "width": 854,
+  "height": 480,
+  "seconds": 3.125
+ },
+ "videos_real/davis/boxing-fisheye.mp4": {
+  "source": "davis",
+  "frames": 87,
+  "fps": 24.0,
+  "width": 854,
+  "height": 480,
+  "seconds": 3.625
+ },
+ "videos_real/davis/boxing.mp4": {
+  "source": "davis",
+  "frames": 87,
+  "fps": 24.0,
+  "width": 854,
+  "height": 480,
+  "seconds": 3.625
+ },
+ "videos_real/davis/breakdance-flare.mp4": {
+  "source": "davis",
+  "frames": 71,
+  "fps": 24.0,
+  "width": 854,
+  "height": 480,
+  "seconds": 2.958
+ },
+ "videos_real/davis/breakdance.mp4": {
+  "source": "davis",
+  "frames": 84,
+  "fps": 24.0,
+  "width": 854,
+  "height": 480,
+  "seconds": 3.5
+ },
+ "videos_real/davis/burnout.mp4": {
+  "source": "davis",
+  "frames": 72,
+  "fps": 24.0,
+  "width": 854,
+  "height": 480,
+  "seconds": 3.0
+ },
+ "videos_real/davis/bus.mp4": {
+  "source": "davis",
+  "frames": 80,
+  "fps": 24.0,
+  "width": 854,
+  "height": 480,
+  "seconds": 3.333
+ },
+ "videos_real/davis/butterfly.mp4": {
+  "source": "davis",
+  "frames": 80,
+  "fps": 24.0,
+  "width": 854,
+  "height": 480,
+  "seconds": 3.333
+ },
+ "videos_real/davis/camel.mp4": {
+  "source": "davis",
+  "frames": 90,
+  "fps": 24.0,
+  "width": 854,
+  "height": 480,
+  "seconds": 3.75
+ },
+ "videos_real/davis/car-competition.mp4": {
+  "source": "davis",
+  "frames": 66,
+  "fps": 24.0,
+  "width": 854,
+  "height": 480,
+  "seconds": 2.75
+ },
+ "videos_real/davis/car-race.mp4": {
+  "source": "davis",
+  "frames": 31,
+  "fps": 24.0,
+  "width": 854,
+  "height": 480,
+  "seconds": 1.292
+ },
+ "videos_real/davis/car-roundabout.mp4": {
+  "source": "davis",
+  "frames": 75,
+  "fps": 24.0,
+  "width": 854,
+  "height": 480,
+  "seconds": 3.125
+ },
+ "videos_real/davis/car-shadow.mp4": {
+  "source": "davis",
+  "frames": 40,
+  "fps": 24.0,
+  "width": 854,
+  "height": 480,
+  "seconds": 1.667
+ },
+ "videos_real/davis/car-turn.mp4": {
+  "source": "davis",
+  "frames": 80,
+  "fps": 24.0,
+  "width": 854,
+  "height": 480,
+  "seconds": 3.333
+ },
+ "videos_real/davis/carousel.mp4": {
+  "source": "davis",
+  "frames": 69,
+  "fps": 24.0,
+  "width": 854,
+  "height": 480,
+  "seconds": 2.875
+ },
+ "videos_real/davis/cat-girl.mp4": {
+  "source": "davis",
+  "frames": 89,
+  "fps": 24.0,
+  "width": 910,
+  "height": 480,
+  "seconds": 3.708
+ },
+ "videos_real/davis/cat.mp4": {
+  "source": "davis",
+  "frames": 52,
+  "fps": 24.0,
+  "width": 854,
+  "height": 480,
+  "seconds": 2.167
+ },
+ "videos_real/davis/cats-car.mp4": {
+  "source": "davis",
+  "frames": 67,
+  "fps": 24.0,
+  "width": 910,
+  "height": 480,
+  "seconds": 2.792
+ },
+ "videos_real/davis/chairlift.mp4": {
+  "source": "davis",
+  "frames": 99,
+  "fps": 24.0,
+  "width": 854,
+  "height": 480,
+  "seconds": 4.125
+ },
+ "videos_real/davis/chamaleon.mp4": {
+  "source": "davis",
+  "frames": 85,
+  "fps": 24.0,
+  "width": 854,
+  "height": 480,
+  "seconds": 3.542
+ },
+ "videos_real/davis/choreography.mp4": {
+  "source": "davis",
+  "frames": 74,
+  "fps": 24.0,
+  "width": 854,
+  "height": 480,
+  "seconds": 3.083
+ },
+ "videos_real/davis/circus.mp4": {
+  "source": "davis",
+  "frames": 73,
+  "fps": 24.0,
+  "width": 854,
+  "height": 480,
+  "seconds": 3.042
+ },
+ "videos_real/davis/city-ride.mp4": {
+  "source": "davis",
+  "frames": 70,
+  "fps": 24.0,
+  "width": 854,
+  "height": 480,
+  "seconds": 2.917
+ },
+ "videos_real/davis/classic-car.mp4": {
+  "source": "davis",
+  "frames": 63,
+  "fps": 24.0,
+  "width": 854,
+  "height": 480,
+  "seconds": 2.625
+ },
+ "videos_real/davis/color-run.mp4": {
+  "source": "davis",
+  "frames": 84,
+  "fps": 24.0,
+  "width": 854,
+  "height": 480,
+  "seconds": 3.5
+ },
+ "videos_real/davis/cows.mp4": {
+  "source": "davis",
+  "frames": 104,
+  "fps": 24.0,
+  "width": 854,
+  "height": 480,
+  "seconds": 4.333
+ },
+ "videos_real/davis/crafting.mp4": {
+  "source": "davis",
+  "frames": 45,
+  "fps": 24.0,
+  "width": 854,
+  "height": 480,
+  "seconds": 1.875
+ },
+ "videos_real/davis/crossing.mp4": {
+  "source": "davis",
+  "frames": 52,
+  "fps": 24.0,
+  "width": 854,
+  "height": 480,
+  "seconds": 2.167
+ },
+ "videos_real/davis/curling.mp4": {
+  "source": "davis",
+  "frames": 76,
+  "fps": 24.0,
+  "width": 854,
+  "height": 480,
+  "seconds": 3.167
+ },
+ "videos_real/davis/dance-jump.mp4": {
+  "source": "davis",
+  "frames": 60,
+  "fps": 24.0,
+  "width": 854,
+  "height": 480,
+  "seconds": 2.5
+ },
+ "videos_real/davis/dance-twirl.mp4": {
+  "source": "davis",
+  "frames": 90,
+  "fps": 24.0,
+  "width": 854,
+  "height": 480,
+  "seconds": 3.75
+ },
+ "videos_real/davis/dancing.mp4": {
+  "source": "davis",
+  "frames": 62,
+  "fps": 24.0,
+  "width": 854,
+  "height": 480,
+  "seconds": 2.583
+ },
+ "videos_real/davis/deer.mp4": {
+  "source": "davis",
+  "frames": 79,
+  "fps": 24.0,
+  "width": 854,
+  "height": 480,
+  "seconds": 3.292
+ },
+ "videos_real/davis/demolition.mp4": {
+  "source": "davis",
+  "frames": 92,
+  "fps": 24.0,
+  "width": 854,
+  "height": 480,
+  "seconds": 3.833
+ },
+ "videos_real/davis/disc-jockey.mp4": {
+  "source": "davis",
+  "frames": 76,
+  "fps": 24.0,
+  "width": 1138,
+  "height": 480,
+  "seconds": 3.167
+ },
+ "videos_real/davis/dive-in.mp4": {
+  "source": "davis",
+  "frames": 70,
+  "fps": 24.0,
+  "width": 854,
+  "height": 480,
+  "seconds": 2.917
+ },
+ "videos_real/davis/dog-agility.mp4": {
+  "source": "davis",
+  "frames": 25,
+  "fps": 24.0,
+  "width": 854,
+  "height": 480,
+  "seconds": 1.042
+ },
+ "videos_real/davis/dog-competition.mp4": {
+  "source": "davis",
+  "frames": 85,
+  "fps": 24.0,
+  "width": 854,
+  "height": 480,
+  "seconds": 3.542
+ },
+ "videos_real/davis/dog-control.mp4": {
+  "source": "davis",
+  "frames": 60,
+  "fps": 24.0,
+  "width": 854,
+  "height": 480,
+  "seconds": 2.5
+ },
+ "videos_real/davis/dog-gooses.mp4": {
+  "source": "davis",
+  "frames": 86,
+  "fps": 24.0,
+  "width": 854,
+  "height": 480,
+  "seconds": 3.583
+ },
+ "videos_real/davis/dog.mp4": {
+  "source": "davis",
+  "frames": 60,
+  "fps": 24.0,
+  "width": 854,
+  "height": 480,
+  "seconds": 2.5
+ },
+ "videos_real/davis/dogs-jump.mp4": {
+  "source": "davis",
+  "frames": 66,
+  "fps": 24.0,
+  "width": 854,
+  "height": 480,
+  "seconds": 2.75
+ },
+ "videos_real/davis/dogs-scale.mp4": {
+  "source": "davis",
+  "frames": 83,
+  "fps": 24.0,
+  "width": 854,
+  "height": 480,
+  "seconds": 3.458
+ },
+ "videos_real/davis/dolphins-show.mp4": {
+  "source": "davis",
+  "frames": 74,
+  "fps": 24.0,
+  "width": 854,
+  "height": 480,
+  "seconds": 3.083
+ },
+ "videos_real/davis/dolphins.mp4": {
+  "source": "davis",
+  "frames": 59,
+  "fps": 24.0,
+  "width": 854,
+  "height": 480,
+  "seconds": 2.458
+ },
+ "videos_real/davis/dribbling.mp4": {
+  "source": "davis",
+  "frames": 49,
+  "fps": 24.0,
+  "width": 854,
+  "height": 480,
+  "seconds": 2.042
+ },
+ "videos_real/davis/drift-chicane.mp4": {
+  "source": "davis",
+  "frames": 52,
+  "fps": 24.0,
+  "width": 854,
+  "height": 480,
+  "seconds": 2.167
+ },
+ "videos_real/davis/drift-straight.mp4": {
+  "source": "davis",
+  "frames": 50,
+  "fps": 24.0,
+  "width": 854,
+  "height": 480,
+  "seconds": 2.083
+ },
+ "videos_real/davis/drift-turn.mp4": {
+  "source": "davis",
+  "frames": 64,
+  "fps": 24.0,
+  "width": 854,
+  "height": 480,
+  "seconds": 2.667
+ },
+ "videos_real/davis/drone-flying.mp4": {
+  "source": "davis",
+  "frames": 70,
+  "fps": 24.0,
+  "width": 854,
+  "height": 480,
+  "seconds": 2.917
+ },
+ "videos_real/davis/drone.mp4": {
+  "source": "davis",
+  "frames": 91,
+  "fps": 24.0,
+  "width": 854,
+  "height": 480,
+  "seconds": 3.792
+ },
+ "videos_real/davis/ducks.mp4": {
+  "source": "davis",
+  "frames": 75,
+  "fps": 24.0,
+  "width": 854,
+  "height": 480,
+  "seconds": 3.125
+ },
+ "videos_real/davis/e-bike.mp4": {
+  "source": "davis",
+  "frames": 80,
+  "fps": 24.0,
+  "width": 854,
+  "height": 480,
+  "seconds": 3.333
+ },
+ "videos_real/davis/elephant-hyenas.mp4": {
+  "source": "davis",
+  "frames": 55,
+  "fps": 24.0,
+  "width": 854,
+  "height": 480,
+  "seconds": 2.292
+ },
+ "videos_real/davis/elephant.mp4": {
+  "source": "davis",
+  "frames": 80,
+  "fps": 24.0,
+  "width": 854,
+  "height": 480,
+  "seconds": 3.333
+ },
+ "videos_real/davis/flamingo.mp4": {
+  "source": "davis",
+  "frames": 80,
+  "fps": 24.0,
+  "width": 854,
+  "height": 480,
+  "seconds": 3.333
+ },
+ "videos_real/davis/giant-slalom.mp4": {
+  "source": "davis",
+  "frames": 127,
+  "fps": 24.0,
+  "width": 854,
+  "height": 480,
+  "seconds": 5.292
+ },
+ "videos_real/davis/giraffes.mp4": {
+  "source": "davis",
+  "frames": 88,
+  "fps": 24.0,
+  "width": 854,
+  "height": 480,
+  "seconds": 3.667
+ },
+ "videos_real/davis/girl-dog.mp4": {
+  "source": "davis",
+  "frames": 86,
+  "fps": 24.0,
+  "width": 854,
+  "height": 480,
+  "seconds": 3.583
+ },
+ "videos_real/davis/goat.mp4": {
+  "source": "davis",
+  "frames": 90,
+  "fps": 24.0,
+  "width": 854,
+  "height": 480,
+  "seconds": 3.75
+ },
+ "videos_real/davis/gold-fish.mp4": {
+  "source": "davis",
+  "frames": 78,
+  "fps": 24.0,
+  "width": 854,
+  "height": 480,
+  "seconds": 3.25
+ },
+ "videos_real/davis/golf.mp4": {
+  "source": "davis",
+  "frames": 79,
+  "fps": 24.0,
+  "width": 854,
+  "height": 480,
+  "seconds": 3.292
+ },
+ "videos_real/davis/grass-chopper.mp4": {
+  "source": "davis",
+  "frames": 75,
+  "fps": 24.0,
+  "width": 854,
+  "height": 480,
+  "seconds": 3.125
+ },
+ "videos_real/davis/guitar-violin.mp4": {
+  "source": "davis",
+  "frames": 55,
+  "fps": 24.0,
+  "width": 854,
+  "height": 480,
+  "seconds": 2.292
+ },
+ "videos_real/davis/gym-ball.mp4": {
+  "source": "davis",
+  "frames": 69,
+  "fps": 24.0,
+  "width": 854,
+  "height": 480,
+  "seconds": 2.875
+ },
+ "videos_real/davis/gym.mp4": {
+  "source": "davis",
+  "frames": 60,
+  "fps": 24.0,
+  "width": 854,
+  "height": 480,
+  "seconds": 2.5
+ },
+ "videos_real/davis/helicopter-landing.mp4": {
+  "source": "davis",
+  "frames": 77,
+  "fps": 24.0,
+  "width": 854,
+  "height": 480,
+  "seconds": 3.208
+ },
+ "videos_real/davis/helicopter.mp4": {
+  "source": "davis",
+  "frames": 49,
+  "fps": 24.0,
+  "width": 854,
+  "height": 480,
+  "seconds": 2.042
+ },
+ "videos_real/davis/hike.mp4": {
+  "source": "davis",
+  "frames": 80,
+  "fps": 24.0,
+  "width": 854,
+  "height": 480,
+  "seconds": 3.333
+ },
+ "videos_real/davis/hockey.mp4": {
+  "source": "davis",
+  "frames": 75,
+  "fps": 24.0,
+  "width": 854,
+  "height": 480,
+  "seconds": 3.125
+ },
+ "videos_real/davis/horse-race.mp4": {
+  "source": "davis",
+  "frames": 80,
+  "fps": 24.0,
+  "width": 854,
+  "height": 480,
+  "seconds": 3.333
+ },
+ "videos_real/davis/horsejump-high.mp4": {
+  "source": "davis",
+  "frames": 50,
+  "fps": 24.0,
+  "width": 854,
+  "height": 480,
+  "seconds": 2.083
+ },
+ "videos_real/davis/horsejump-low.mp4": {
+  "source": "davis",
+  "frames": 60,
+  "fps": 24.0,
+  "width": 854,
+  "height": 480,
+  "seconds": 2.5
+ },
+ "videos_real/davis/horsejump-stick.mp4": {
+  "source": "davis",
+  "frames": 58,
+  "fps": 24.0,
+  "width": 854,
+  "height": 480,
+  "seconds": 2.417
+ },
+ "videos_real/davis/horses-kids.mp4": {
+  "source": "davis",
+  "frames": 78,
+  "fps": 24.0,
+  "width": 854,
+  "height": 480,
+  "seconds": 3.25
+ },
+ "videos_real/davis/hoverboard.mp4": {
+  "source": "davis",
+  "frames": 81,
+  "fps": 24.0,
+  "width": 854,
+  "height": 480,
+  "seconds": 3.375
+ },
+ "videos_real/davis/hurdles-race.mp4": {
+  "source": "davis",
+  "frames": 55,
+  "fps": 24.0,
+  "width": 854,
+  "height": 480,
+  "seconds": 2.292
+ },
+ "videos_real/davis/hurdles.mp4": {
+  "source": "davis",
+  "frames": 101,
+  "fps": 24.0,
+  "width": 854,
+  "height": 480,
+  "seconds": 4.208
+ },
+ "videos_real/davis/ice-hockey.mp4": {
+  "source": "davis",
+  "frames": 52,
+  "fps": 24.0,
+  "width": 854,
+  "height": 480,
+  "seconds": 2.167
+ },
+ "videos_real/davis/india.mp4": {
+  "source": "davis",
+  "frames": 81,
+  "fps": 24.0,
+  "width": 854,
+  "height": 480,
+  "seconds": 3.375
+ },
+ "videos_real/davis/inflatable.mp4": {
+  "source": "davis",
+  "frames": 60,
+  "fps": 24.0,
+  "width": 910,
+  "height": 480,
+  "seconds": 2.5
+ },
+ "videos_real/davis/jet-ski.mp4": {
+  "source": "davis",
+  "frames": 83,
+  "fps": 24.0,
+  "width": 854,
+  "height": 480,
+  "seconds": 3.458
+ },
+ "videos_real/davis/judo.mp4": {
+  "source": "davis",
+  "frames": 34,
+  "fps": 24.0,
+  "width": 854,
+  "height": 480,
+  "seconds": 1.417
+ },
+ "videos_real/davis/juggle.mp4": {
+  "source": "davis",
+  "frames": 68,
+  "fps": 24.0,
+  "width": 854,
+  "height": 480,
+  "seconds": 2.833
+ },
+ "videos_real/davis/juggling-selfie.mp4": {
+  "source": "davis",
+  "frames": 78,
+  "fps": 24.0,
+  "width": 854,
+  "height": 480,
+  "seconds": 3.25
+ },
+ "videos_real/davis/kart-turn.mp4": {
+  "source": "davis",
+  "frames": 83,
+  "fps": 24.0,
+  "width": 854,
+  "height": 480,
+  "seconds": 3.458
+ },
+ "videos_real/davis/kayak-race.mp4": {
+  "source": "davis",
+  "frames": 63,
+  "fps": 24.0,
+  "width": 854,
+  "height": 480,
+  "seconds": 2.625
+ },
+ "videos_real/davis/kid-football.mp4": {
+  "source": "davis",
+  "frames": 68,
+  "fps": 24.0,
+  "width": 854,
+  "height": 480,
+  "seconds": 2.833
+ },
+ "videos_real/davis/kids-robot.mp4": {
+  "source": "davis",
+  "frames": 75,
+  "fps": 24.0,
+  "width": 854,
+  "height": 480,
+  "seconds": 3.125
+ },
+ "videos_real/davis/kids-turning.mp4": {
+  "source": "davis",
+  "frames": 80,
+  "fps": 24.0,
+  "width": 854,
+  "height": 480,
+  "seconds": 3.333
+ },
+ "videos_real/davis/kite-surf.mp4": {
+  "source": "davis",
+  "frames": 50,
+  "fps": 24.0,
+  "width": 854,
+  "height": 480,
+  "seconds": 2.083
+ },
+ "videos_real/davis/kite-walk.mp4": {
+  "source": "davis",
+  "frames": 80,
+  "fps": 24.0,
+  "width": 854,
+  "height": 480,
+  "seconds": 3.333
+ },
+ "videos_real/davis/koala.mp4": {
+  "source": "davis",
+  "frames": 100,
+  "fps": 24.0,
+  "width": 854,
+  "height": 480,
+  "seconds": 4.167
+ },
+ "videos_real/davis/lab-coat.mp4": {
+  "source": "davis",
+  "frames": 47,
+  "fps": 24.0,
+  "width": 854,
+  "height": 480,
+  "seconds": 1.958
+ },
+ "videos_real/davis/lady-running.mp4": {
+  "source": "davis",
+  "frames": 65,
+  "fps": 24.0,
+  "width": 854,
+  "height": 480,
+  "seconds": 2.708
+ },
+ "videos_real/davis/landing.mp4": {
+  "source": "davis",
+  "frames": 35,
+  "fps": 24.0,
+  "width": 854,
+  "height": 480,
+  "seconds": 1.458
+ },
+ "videos_real/davis/libby.mp4": {
+  "source": "davis",
+  "frames": 49,
+  "fps": 24.0,
+  "width": 854,
+  "height": 480,
+  "seconds": 2.042
+ },
+ "videos_real/davis/lindy-hop.mp4": {
+  "source": "davis",
+  "frames": 73,
+  "fps": 24.0,
+  "width": 854,
+  "height": 480,
+  "seconds": 3.042
+ },
+ "videos_real/davis/lions.mp4": {
+  "source": "davis",
+  "frames": 96,
+  "fps": 24.0,
+  "width": 854,
+  "height": 480,
+  "seconds": 4.0
+ },
+ "videos_real/davis/loading.mp4": {
+  "source": "davis",
+  "frames": 50,
+  "fps": 24.0,
+  "width": 854,
+  "height": 480,
+  "seconds": 2.083
+ },
+ "videos_real/davis/lock.mp4": {
+  "source": "davis",
+  "frames": 43,
+  "fps": 24.0,
+  "width": 854,
+  "height": 480,
+  "seconds": 1.792
+ },
+ "videos_real/davis/longboard.mp4": {
+  "source": "davis",
+  "frames": 52,
+  "fps": 24.0,
+  "width": 854,
+  "height": 480,
+  "seconds": 2.167
+ },
+ "videos_real/davis/lucia.mp4": {
+  "source": "davis",
+  "frames": 70,
+  "fps": 24.0,
+  "width": 854,
+  "height": 480,
+  "seconds": 2.917
+ },
+ "videos_real/davis/luggage.mp4": {
+  "source": "davis",
+  "frames": 83,
+  "fps": 24.0,
+  "width": 854,
+  "height": 480,
+  "seconds": 3.458
+ },
+ "videos_real/davis/mallard-fly.mp4": {
+  "source": "davis",
+  "frames": 70,
+  "fps": 24.0,
+  "width": 854,
+  "height": 480,
+  "seconds": 2.917
+ },
+ "videos_real/davis/mallard-water.mp4": {
+  "source": "davis",
+  "frames": 80,
+  "fps": 24.0,
+  "width": 854,
+  "height": 480,
+  "seconds": 3.333
+ },
+ "videos_real/davis/man-bike.mp4": {
+  "source": "davis",
+  "frames": 75,
+  "fps": 24.0,
+  "width": 854,
+  "height": 480,
+  "seconds": 3.125
+ },
+ "videos_real/davis/mantaray.mp4": {
+  "source": "davis",
+  "frames": 73,
+  "fps": 24.0,
+  "width": 854,
+  "height": 480,
+  "seconds": 3.042
+ },
+ "videos_real/davis/marbles.mp4": {
+  "source": "davis",
+  "frames": 70,
+  "fps": 24.0,
+  "width": 854,
+  "height": 480,
+  "seconds": 2.917
+ },
+ "videos_real/davis/mascot.mp4": {
+  "source": "davis",
+  "frames": 78,
+  "fps": 24.0,
+  "width": 854,
+  "height": 480,
+  "seconds": 3.25
+ },
+ "videos_real/davis/mbike-santa.mp4": {
+  "source": "davis",
+  "frames": 60,
+  "fps": 24.0,
+  "width": 854,
+  "height": 480,
+  "seconds": 2.5
+ },
+ "videos_real/davis/mbike-trick.mp4": {
+  "source": "davis",
+  "frames": 79,
+  "fps": 24.0,
+  "width": 854,
+  "height": 480,
+  "seconds": 3.292
+ },
+ "videos_real/davis/mermaid.mp4": {
+  "source": "davis",
+  "frames": 78,
+  "fps": 24.0,
+  "width": 854,
+  "height": 480,
+  "seconds": 3.25
+ },
+ "videos_real/davis/miami-surf.mp4": {
+  "source": "davis",
+  "frames": 70,
+  "fps": 24.0,
+  "width": 854,
+  "height": 480,
+  "seconds": 2.917
+ },
+ "videos_real/davis/monkeys-trees.mp4": {
+  "source": "davis",
+  "frames": 83,
+  "fps": 24.0,
+  "width": 854,
+  "height": 480,
+  "seconds": 3.458
+ },
+ "videos_real/davis/monkeys.mp4": {
+  "source": "davis",
+  "frames": 87,
+  "fps": 24.0,
+  "width": 854,
+  "height": 480,
+  "seconds": 3.625
+ },
+ "videos_real/davis/monster-trucks.mp4": {
+  "source": "davis",
+  "frames": 99,
+  "fps": 24.0,
+  "width": 854,
+  "height": 480,
+  "seconds": 4.125
+ },
+ "videos_real/davis/motocross-bumps.mp4": {
+  "source": "davis",
+  "frames": 60,
+  "fps": 24.0,
+  "width": 854,
+  "height": 480,
+  "seconds": 2.5
+ },
+ "videos_real/davis/motocross-jump.mp4": {
+  "source": "davis",
+  "frames": 40,
+  "fps": 24.0,
+  "width": 854,
+  "height": 480,
+  "seconds": 1.667
+ },
+ "videos_real/davis/motorbike-indoors.mp4": {
+  "source": "davis",
+  "frames": 79,
+  "fps": 24.0,
+  "width": 854,
+  "height": 480,
+  "seconds": 3.292
+ },
+ "videos_real/davis/motorbike-race.mp4": {
+  "source": "davis",
+  "frames": 88,
+  "fps": 24.0,
+  "width": 854,
+  "height": 480,
+  "seconds": 3.667
+ },
+ "videos_real/davis/motorbike.mp4": {
+  "source": "davis",
+  "frames": 43,
+  "fps": 24.0,
+  "width": 854,
+  "height": 480,
+  "seconds": 1.792
+ },
+ "videos_real/davis/mtb-race.mp4": {
+  "source": "davis",
+  "frames": 69,
+  "fps": 24.0,
+  "width": 854,
+  "height": 480,
+  "seconds": 2.875
+ },
+ "videos_real/davis/music-band.mp4": {
+  "source": "davis",
+  "frames": 87,
+  "fps": 24.0,
+  "width": 854,
+  "height": 480,
+  "seconds": 3.625
+ },
+ "videos_real/davis/night-race.mp4": {
+  "source": "davis",
+  "frames": 46,
+  "fps": 24.0,
+  "width": 854,
+  "height": 480,
+  "seconds": 1.917
+ },
+ "videos_real/davis/obstacles-race.mp4": {
+  "source": "davis",
+  "frames": 48,
+  "fps": 24.0,
+  "width": 854,
+  "height": 480,
+  "seconds": 2.0
+ },
+ "videos_real/davis/obstacles.mp4": {
+  "source": "davis",
+  "frames": 81,
+  "fps": 24.0,
+  "width": 854,
+  "height": 480,
+  "seconds": 3.375
+ },
+ "videos_real/davis/ocean-birds.mp4": {
+  "source": "davis",
+  "frames": 35,
+  "fps": 24.0,
+  "width": 854,
+  "height": 480,
+  "seconds": 1.458
+ },
+ "videos_real/davis/orchid.mp4": {
+  "source": "davis",
+  "frames": 57,
+  "fps": 24.0,
+  "width": 854,
+  "height": 480,
+  "seconds": 2.375
+ },
+ "videos_real/davis/paragliding-launch.mp4": {
+  "source": "davis",
+  "frames": 80,
+  "fps": 24.0,
+  "width": 854,
+  "height": 480,
+  "seconds": 3.333
+ },
+ "videos_real/davis/paragliding.mp4": {
+  "source": "davis",
+  "frames": 70,
+  "fps": 24.0,
+  "width": 854,
+  "height": 480,
+  "seconds": 2.917
+ },
+ "videos_real/davis/parkour.mp4": {
+  "source": "davis",
+  "frames": 100,
+  "fps": 24.0,
+  "width": 854,
+  "height": 480,
+  "seconds": 4.167
+ },
+ "videos_real/davis/peacock.mp4": {
+  "source": "davis",
+  "frames": 75,
+  "fps": 24.0,
+  "width": 768,
+  "height": 480,
+  "seconds": 3.125
+ },
+ "videos_real/davis/people-sunset.mp4": {
+  "source": "davis",
+  "frames": 67,
+  "fps": 24.0,
+  "width": 854,
+  "height": 480,
+  "seconds": 2.792
+ },
+ "videos_real/davis/pigs.mp4": {
+  "source": "davis",
+  "frames": 79,
+  "fps": 24.0,
+  "width": 854,
+  "height": 480,
+  "seconds": 3.292
+ },
+ "videos_real/davis/plane-exhibition.mp4": {
+  "source": "davis",
+  "frames": 73,
+  "fps": 24.0,
+  "width": 854,
+  "height": 480,
+  "seconds": 3.042
+ },
+ "videos_real/davis/planes-crossing.mp4": {
+  "source": "davis",
+  "frames": 31,
+  "fps": 24.0,
+  "width": 854,
+  "height": 480,
+  "seconds": 1.292
+ },
+ "videos_real/davis/planes-water.mp4": {
+  "source": "davis",
+  "frames": 38,
+  "fps": 24.0,
+  "width": 854,
+  "height": 480,
+  "seconds": 1.583
+ },
+ "videos_real/davis/pole-vault.mp4": {
+  "source": "davis",
+  "frames": 73,
+  "fps": 24.0,
+  "width": 854,
+  "height": 480,
+  "seconds": 3.042
+ },
+ "videos_real/davis/puppet.mp4": {
+  "source": "davis",
+  "frames": 100,
+  "fps": 24.0,
+  "width": 854,
+  "height": 480,
+  "seconds": 4.167
+ },
+ "videos_real/davis/rallye.mp4": {
+  "source": "davis",
+  "frames": 50,
+  "fps": 24.0,
+  "width": 854,
+  "height": 480,
+  "seconds": 2.083
+ },
+ "videos_real/davis/rhino.mp4": {
+  "source": "davis",
+  "frames": 90,
+  "fps": 24.0,
+  "width": 854,
+  "height": 480,
+  "seconds": 3.75
+ },
+ "videos_real/davis/robot-battle.mp4": {
+  "source": "davis",
+  "frames": 85,
+  "fps": 24.0,
+  "width": 854,
+  "height": 480,
+  "seconds": 3.542
+ },
+ "videos_real/davis/robotic-arm.mp4": {
+  "source": "davis",
+  "frames": 82,
+  "fps": 24.0,
+  "width": 854,
+  "height": 480,
+  "seconds": 3.417
+ },
+ "videos_real/davis/rodeo.mp4": {
+  "source": "davis",
+  "frames": 85,
+  "fps": 24.0,
+  "width": 854,
+  "height": 480,
+  "seconds": 3.542
+ },
+ "videos_real/davis/rollerblade.mp4": {
+  "source": "davis",
+  "frames": 35,
+  "fps": 24.0,
+  "width": 854,
+  "height": 480,
+  "seconds": 1.458
+ },
+ "videos_real/davis/rollercoaster.mp4": {
+  "source": "davis",
+  "frames": 70,
+  "fps": 24.0,
+  "width": 854,
+  "height": 480,
+  "seconds": 2.917
+ },
+ "videos_real/davis/running.mp4": {
+  "source": "davis",
+  "frames": 72,
+  "fps": 24.0,
+  "width": 854,
+  "height": 480,
+  "seconds": 3.0
+ },
+ "videos_real/davis/salsa.mp4": {
+  "source": "davis",
+  "frames": 86,
+  "fps": 24.0,
+  "width": 854,
+  "height": 480,
+  "seconds": 3.583
+ },
+ "videos_real/davis/schoolgirls.mp4": {
+  "source": "davis",
+  "frames": 80,
+  "fps": 24.0,
+  "width": 854,
+  "height": 480,
+  "seconds": 3.333
+ },
+ "videos_real/davis/scooter-black.mp4": {
+  "source": "davis",
+  "frames": 43,
+  "fps": 24.0,
+  "width": 854,
+  "height": 480,
+  "seconds": 1.792
+ },
+ "videos_real/davis/scooter-board.mp4": {
+  "source": "davis",
+  "frames": 91,
+  "fps": 24.0,
+  "width": 854,
+  "height": 480,
+  "seconds": 3.792
+ },
+ "videos_real/davis/scooter-gray.mp4": {
+  "source": "davis",
+  "frames": 75,
+  "fps": 24.0,
+  "width": 854,
+  "height": 480,
+  "seconds": 3.125
+ },
+ "videos_real/davis/sea-turtle.mp4": {
+  "source": "davis",
+  "frames": 90,
+  "fps": 24.0,
+  "width": 854,
+  "height": 480,
+  "seconds": 3.75
+ },
+ "videos_real/davis/seasnake.mp4": {
+  "source": "davis",
+  "frames": 80,
+  "fps": 24.0,
+  "width": 854,
+  "height": 480,
+  "seconds": 3.333
+ },
+ "videos_real/davis/selfie.mp4": {
+  "source": "davis",
+  "frames": 68,
+  "fps": 24.0,
+  "width": 910,
+  "height": 480,
+  "seconds": 2.833
+ },
+ "videos_real/davis/sheep.mp4": {
+  "source": "davis",
+  "frames": 68,
+  "fps": 24.0,
+  "width": 854,
+  "height": 480,
+  "seconds": 2.833
+ },
+ "videos_real/davis/shooting.mp4": {
+  "source": "davis",
+  "frames": 40,
+  "fps": 24.0,
+  "width": 1152,
+  "height": 480,
+  "seconds": 1.667
+ },
+ "videos_real/davis/skate-jump.mp4": {
+  "source": "davis",
+  "frames": 68,
+  "fps": 24.0,
+  "width": 910,
+  "height": 480,
+  "seconds": 2.833
+ },
+ "videos_real/davis/skate-park.mp4": {
+  "source": "davis",
+  "frames": 80,
+  "fps": 24.0,
+  "width": 854,
+  "height": 480,
+  "seconds": 3.333
+ },
+ "videos_real/davis/skydive.mp4": {
+  "source": "davis",
+  "frames": 81,
+  "fps": 24.0,
+  "width": 854,
+  "height": 480,
+  "seconds": 3.375
+ },
+ "videos_real/davis/skydiving-jumping.mp4": {
+  "source": "davis",
+  "frames": 75,
+  "fps": 24.0,
+  "width": 854,
+  "height": 480,
+  "seconds": 3.125
+ },
+ "videos_real/davis/slackline.mp4": {
+  "source": "davis",
+  "frames": 60,
+  "fps": 24.0,
+  "width": 1130,
+  "height": 480,
+  "seconds": 2.5
+ },
+ "videos_real/davis/snowboard-race.mp4": {
+  "source": "davis",
+  "frames": 75,
+  "fps": 24.0,
+  "width": 854,
+  "height": 480,
+  "seconds": 3.125
+ },
+ "videos_real/davis/snowboard-sand.mp4": {
+  "source": "davis",
+  "frames": 55,
+  "fps": 24.0,
+  "width": 854,
+  "height": 480,
+  "seconds": 2.292
+ },
+ "videos_real/davis/snowboard.mp4": {
+  "source": "davis",
+  "frames": 66,
+  "fps": 24.0,
+  "width": 854,
+  "height": 480,
+  "seconds": 2.75
+ },
+ "videos_real/davis/soapbox.mp4": {
+  "source": "davis",
+  "frames": 99,
+  "fps": 24.0,
+  "width": 854,
+  "height": 480,
+  "seconds": 4.125
+ },
+ "videos_real/davis/soccerball.mp4": {
+  "source": "davis",
+  "frames": 48,
+  "fps": 24.0,
+  "width": 854,
+  "height": 480,
+  "seconds": 2.0
+ },
+ "videos_real/davis/speed-skating.mp4": {
+  "source": "davis",
+  "frames": 83,
+  "fps": 24.0,
+  "width": 854,
+  "height": 480,
+  "seconds": 3.458
+ },
+ "videos_real/davis/stroller.mp4": {
+  "source": "davis",
+  "frames": 91,
+  "fps": 24.0,
+  "width": 854,
+  "height": 480,
+  "seconds": 3.792
+ },
+ "videos_real/davis/stunt.mp4": {
+  "source": "davis",
+  "frames": 71,
+  "fps": 24.0,
+  "width": 854,
+  "height": 480,
+  "seconds": 2.958
+ },
+ "videos_real/davis/subway.mp4": {
+  "source": "davis",
+  "frames": 88,
+  "fps": 24.0,
+  "width": 854,
+  "height": 480,
+  "seconds": 3.667
+ },
+ "videos_real/davis/surf.mp4": {
+  "source": "davis",
+  "frames": 55,
+  "fps": 24.0,
+  "width": 854,
+  "height": 480,
+  "seconds": 2.292
+ },
+ "videos_real/davis/surfer.mp4": {
+  "source": "davis",
+  "frames": 80,
+  "fps": 24.0,
+  "width": 854,
+  "height": 480,
+  "seconds": 3.333
+ },
+ "videos_real/davis/swimmer.mp4": {
+  "source": "davis",
+  "frames": 86,
+  "fps": 24.0,
+  "width": 854,
+  "height": 480,
+  "seconds": 3.583
+ },
+ "videos_real/davis/swing-boy.mp4": {
+  "source": "davis",
+  "frames": 70,
+  "fps": 24.0,
+  "width": 854,
+  "height": 480,
+  "seconds": 2.917
+ },
+ "videos_real/davis/swing.mp4": {
+  "source": "davis",
+  "frames": 60,
+  "fps": 24.0,
+  "width": 854,
+  "height": 480,
+  "seconds": 2.5
+ },
+ "videos_real/davis/table-tennis.mp4": {
+  "source": "davis",
+  "frames": 70,
+  "fps": 24.0,
+  "width": 854,
+  "height": 480,
+  "seconds": 2.917
+ },
+ "videos_real/davis/tackle.mp4": {
+  "source": "davis",
+  "frames": 56,
+  "fps": 24.0,
+  "width": 1300,
+  "height": 480,
+  "seconds": 2.333
+ },
+ "videos_real/davis/tandem.mp4": {
+  "source": "davis",
+  "frames": 72,
+  "fps": 24.0,
+  "width": 854,
+  "height": 480,
+  "seconds": 3.0
+ },
+ "videos_real/davis/tennis-vest.mp4": {
+  "source": "davis",
+  "frames": 75,
+  "fps": 24.0,
+  "width": 854,
+  "height": 480,
+  "seconds": 3.125
+ },
+ "videos_real/davis/tennis.mp4": {
+  "source": "davis",
+  "frames": 70,
+  "fps": 24.0,
+  "width": 854,
+  "height": 480,
+  "seconds": 2.917
+ },
+ "videos_real/davis/tractor-sand.mp4": {
+  "source": "davis",
+  "frames": 76,
+  "fps": 24.0,
+  "width": 854,
+  "height": 480,
+  "seconds": 3.167
+ },
+ "videos_real/davis/tractor.mp4": {
+  "source": "davis",
+  "frames": 65,
+  "fps": 24.0,
+  "width": 854,
+  "height": 480,
+  "seconds": 2.708
+ },
+ "videos_real/davis/train.mp4": {
+  "source": "davis",
+  "frames": 80,
+  "fps": 24.0,
+  "width": 854,
+  "height": 480,
+  "seconds": 3.333
+ },
+ "videos_real/davis/tram.mp4": {
+  "source": "davis",
+  "frames": 84,
+  "fps": 24.0,
+  "width": 854,
+  "height": 480,
+  "seconds": 3.5
+ },
+ "videos_real/davis/trucks-race.mp4": {
+  "source": "davis",
+  "frames": 78,
+  "fps": 24.0,
+  "width": 854,
+  "height": 480,
+  "seconds": 3.25
+ },
+ "videos_real/davis/tuk-tuk.mp4": {
+  "source": "davis",
+  "frames": 59,
+  "fps": 24.0,
+  "width": 854,
+  "height": 480,
+  "seconds": 2.458
+ },
+ "videos_real/davis/turtle.mp4": {
+  "source": "davis",
+  "frames": 76,
+  "fps": 24.0,
+  "width": 902,
+  "height": 480,
+  "seconds": 3.167
+ },
+ "videos_real/davis/twist-dance.mp4": {
+  "source": "davis",
+  "frames": 83,
+  "fps": 24.0,
+  "width": 854,
+  "height": 480,
+  "seconds": 3.458
+ },
+ "videos_real/davis/upside-down.mp4": {
+  "source": "davis",
+  "frames": 65,
+  "fps": 24.0,
+  "width": 854,
+  "height": 480,
+  "seconds": 2.708
+ },
+ "videos_real/davis/varanus-cage.mp4": {
+  "source": "davis",
+  "frames": 67,
+  "fps": 24.0,
+  "width": 854,
+  "height": 480,
+  "seconds": 2.792
+ },
+ "videos_real/davis/varanus-tree.mp4": {
+  "source": "davis",
+  "frames": 52,
+  "fps": 24.0,
+  "width": 854,
+  "height": 480,
+  "seconds": 2.167
+ },
+ "videos_real/davis/vietnam.mp4": {
+  "source": "davis",
+  "frames": 66,
+  "fps": 24.0,
+  "width": 910,
+  "height": 480,
+  "seconds": 2.75
+ },
+ "videos_real/davis/volleyball-beach.mp4": {
+  "source": "davis",
+  "frames": 73,
+  "fps": 24.0,
+  "width": 854,
+  "height": 480,
+  "seconds": 3.042
+ },
+ "videos_real/davis/walking.mp4": {
+  "source": "davis",
+  "frames": 72,
+  "fps": 24.0,
+  "width": 854,
+  "height": 480,
+  "seconds": 3.0
+ },
+ "videos_real/davis/water-slide.mp4": {
+  "source": "davis",
+  "frames": 88,
+  "fps": 24.0,
+  "width": 854,
+  "height": 480,
+  "seconds": 3.667
+ },
+ "videos_real/davis/weightlifting.mp4": {
+  "source": "davis",
+  "frames": 90,
+  "fps": 24.0,
+  "width": 854,
+  "height": 480,
+  "seconds": 3.75
+ },
+ "videos_real/davis/wings-turn.mp4": {
+  "source": "davis",
+  "frames": 59,
+  "fps": 24.0,
+  "width": 854,
+  "height": 480,
+  "seconds": 2.458
+ },
+ "videos_real/ego4d/clip_001.mp4": {
+  "source": "ego4d",
+  "frames": 210,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 7.0
+ },
+ "videos_real/ego4d/clip_002.mp4": {
+  "source": "ego4d",
+  "frames": 120,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 4.0
+ },
+ "videos_real/ego4d/clip_003.mp4": {
+  "source": "ego4d",
+  "frames": 150,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 5.0
+ },
+ "videos_real/ego4d/clip_004.mp4": {
+  "source": "ego4d",
+  "frames": 180,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 6.0
+ },
+ "videos_real/ego4d/clip_005.mp4": {
+  "source": "ego4d",
+  "frames": 180,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 6.0
+ },
+ "videos_real/ego4d/clip_006.mp4": {
+  "source": "ego4d",
+  "frames": 210,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 7.0
+ },
+ "videos_real/ego4d/clip_007.mp4": {
+  "source": "ego4d",
+  "frames": 180,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 6.0
+ },
+ "videos_real/ego4d/clip_008.mp4": {
+  "source": "ego4d",
+  "frames": 210,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 7.0
+ },
+ "videos_real/ego4d/clip_009.mp4": {
+  "source": "ego4d",
+  "frames": 150,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 5.0
+ },
+ "videos_real/ego4d/clip_010.mp4": {
+  "source": "ego4d",
+  "frames": 150,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 5.0
+ },
+ "videos_real/ego4d/clip_011.mp4": {
+  "source": "ego4d",
+  "frames": 150,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 5.0
+ },
+ "videos_real/ego4d/clip_012.mp4": {
+  "source": "ego4d",
+  "frames": 150,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 5.0
+ },
+ "videos_real/ego4d/clip_013.mp4": {
+  "source": "ego4d",
+  "frames": 150,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 5.0
+ },
+ "videos_real/ego4d/clip_014.mp4": {
+  "source": "ego4d",
+  "frames": 180,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 6.0
+ },
+ "videos_real/ego4d/clip_015.mp4": {
+  "source": "ego4d",
+  "frames": 210,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 7.0
+ },
+ "videos_real/ego4d/clip_016.mp4": {
+  "source": "ego4d",
+  "frames": 150,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 5.0
+ },
+ "videos_real/ego4d/clip_017.mp4": {
+  "source": "ego4d",
+  "frames": 240,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 8.0
+ },
+ "videos_real/ego4d/clip_018.mp4": {
+  "source": "ego4d",
+  "frames": 210,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 7.0
+ },
+ "videos_real/ego4d/clip_019.mp4": {
+  "source": "ego4d",
+  "frames": 150,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 5.0
+ },
+ "videos_real/ego4d/clip_020.mp4": {
+  "source": "ego4d",
+  "frames": 150,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 5.0
+ },
+ "videos_real/ego4d/clip_021.mp4": {
+  "source": "ego4d",
+  "frames": 150,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 5.0
+ },
+ "videos_real/ego4d/clip_022.mp4": {
+  "source": "ego4d",
+  "frames": 150,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 5.0
+ },
+ "videos_real/ego4d/clip_023.mp4": {
+  "source": "ego4d",
+  "frames": 150,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 5.0
+ },
+ "videos_real/ego4d/clip_024.mp4": {
+  "source": "ego4d",
+  "frames": 150,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 5.0
+ },
+ "videos_real/ego4d/clip_025.mp4": {
+  "source": "ego4d",
+  "frames": 150,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 5.0
+ },
+ "videos_real/ego4d/clip_026.mp4": {
+  "source": "ego4d",
+  "frames": 150,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 5.0
+ },
+ "videos_real/ego4d/clip_027.mp4": {
+  "source": "ego4d",
+  "frames": 150,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 5.0
+ },
+ "videos_real/ego4d/clip_028.mp4": {
+  "source": "ego4d",
+  "frames": 150,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 5.0
+ },
+ "videos_real/ego4d/clip_029.mp4": {
+  "source": "ego4d",
+  "frames": 150,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 5.0
+ },
+ "videos_real/ego4d/clip_030.mp4": {
+  "source": "ego4d",
+  "frames": 210,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 7.0
+ },
+ "videos_real/ego4d/clip_031.mp4": {
+  "source": "ego4d",
+  "frames": 150,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 5.0
+ },
+ "videos_real/ego4d/clip_032.mp4": {
+  "source": "ego4d",
+  "frames": 150,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 5.0
+ },
+ "videos_real/ego4d/clip_033.mp4": {
+  "source": "ego4d",
+  "frames": 150,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 5.0
+ },
+ "videos_real/ego4d/clip_034.mp4": {
+  "source": "ego4d",
+  "frames": 150,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 5.0
+ },
+ "videos_real/ego4d/clip_035.mp4": {
+  "source": "ego4d",
+  "frames": 150,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 5.0
+ },
+ "videos_real/ego4d/clip_036.mp4": {
+  "source": "ego4d",
+  "frames": 150,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 5.0
+ },
+ "videos_real/ego4d/clip_037.mp4": {
+  "source": "ego4d",
+  "frames": 150,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 5.0
+ },
+ "videos_real/ego4d/clip_038.mp4": {
+  "source": "ego4d",
+  "frames": 150,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 5.0
+ },
+ "videos_real/ego4d/clip_039.mp4": {
+  "source": "ego4d",
+  "frames": 150,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 5.0
+ },
+ "videos_real/ego4d/clip_040.mp4": {
+  "source": "ego4d",
+  "frames": 150,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 5.0
+ },
+ "videos_real/ego4d/clip_041.mp4": {
+  "source": "ego4d",
+  "frames": 150,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 5.0
+ },
+ "videos_real/ego4d/clip_042.mp4": {
+  "source": "ego4d",
+  "frames": 180,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 6.0
+ },
+ "videos_real/ego4d/clip_043.mp4": {
+  "source": "ego4d",
+  "frames": 210,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 7.0
+ },
+ "videos_real/ego4d/clip_044.mp4": {
+  "source": "ego4d",
+  "frames": 150,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 5.0
+ },
+ "videos_real/ego4d/clip_045.mp4": {
+  "source": "ego4d",
+  "frames": 450,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 15.0
+ },
+ "videos_real/ego4d/clip_046.mp4": {
+  "source": "ego4d",
+  "frames": 150,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 5.0
+ },
+ "videos_real/ego4d/clip_047.mp4": {
+  "source": "ego4d",
+  "frames": 150,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 5.0
+ },
+ "videos_real/ego4d/clip_048.mp4": {
+  "source": "ego4d",
+  "frames": 150,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 5.0
+ },
+ "videos_real/ego4d/clip_049.mp4": {
+  "source": "ego4d",
+  "frames": 120,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 4.0
+ },
+ "videos_real/ego4d/clip_050.mp4": {
+  "source": "ego4d",
+  "frames": 240,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 8.0
+ },
+ "videos_real/ego4d/clip_051.mp4": {
+  "source": "ego4d",
+  "frames": 120,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 4.0
+ },
+ "videos_real/ego4d/clip_052.mp4": {
+  "source": "ego4d",
+  "frames": 150,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 5.0
+ },
+ "videos_real/ego4d/clip_053.mp4": {
+  "source": "ego4d",
+  "frames": 150,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 5.0
+ },
+ "videos_real/ego4d/clip_054.mp4": {
+  "source": "ego4d",
+  "frames": 120,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 4.0
+ },
+ "videos_real/ego4d/clip_055.mp4": {
+  "source": "ego4d",
+  "frames": 150,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 5.0
+ },
+ "videos_real/ego4d/clip_056.mp4": {
+  "source": "ego4d",
+  "frames": 180,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 6.0
+ },
+ "videos_real/ego4d/clip_057.mp4": {
+  "source": "ego4d",
+  "frames": 150,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 5.0
+ },
+ "videos_real/ego4d/clip_058.mp4": {
+  "source": "ego4d",
+  "frames": 120,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 4.0
+ },
+ "videos_real/ego4d/clip_059.mp4": {
+  "source": "ego4d",
+  "frames": 150,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 5.0
+ },
+ "videos_real/ego4d/clip_060.mp4": {
+  "source": "ego4d",
+  "frames": 150,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 5.0
+ },
+ "videos_real/ego4d/clip_061.mp4": {
+  "source": "ego4d",
+  "frames": 150,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 5.0
+ },
+ "videos_real/ego4d/clip_062.mp4": {
+  "source": "ego4d",
+  "frames": 150,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 5.0
+ },
+ "videos_real/ego4d/clip_063.mp4": {
+  "source": "ego4d",
+  "frames": 150,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 5.0
+ },
+ "videos_real/ego4d/clip_064.mp4": {
+  "source": "ego4d",
+  "frames": 150,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 5.0
+ },
+ "videos_real/ego4d/clip_065.mp4": {
+  "source": "ego4d",
+  "frames": 150,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 5.0
+ },
+ "videos_real/ego4d/clip_066.mp4": {
+  "source": "ego4d",
+  "frames": 180,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 6.0
+ },
+ "videos_real/ego4d/clip_067.mp4": {
+  "source": "ego4d",
+  "frames": 180,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 6.0
+ },
+ "videos_real/ego4d/clip_068.mp4": {
+  "source": "ego4d",
+  "frames": 150,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 5.0
+ },
+ "videos_real/ego4d/clip_069.mp4": {
+  "source": "ego4d",
+  "frames": 150,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 5.0
+ },
+ "videos_real/ego4d/clip_070.mp4": {
+  "source": "ego4d",
+  "frames": 180,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 6.0
+ },
+ "videos_real/ego4d/clip_071.mp4": {
+  "source": "ego4d",
+  "frames": 270,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 9.0
+ },
+ "videos_real/ego4d/clip_072.mp4": {
+  "source": "ego4d",
+  "frames": 120,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 4.0
+ },
+ "videos_real/ego4d/clip_073.mp4": {
+  "source": "ego4d",
+  "frames": 120,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 4.0
+ },
+ "videos_real/ego4d/clip_074.mp4": {
+  "source": "ego4d",
+  "frames": 150,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 5.0
+ },
+ "videos_real/ego4d/clip_075.mp4": {
+  "source": "ego4d",
+  "frames": 150,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 5.0
+ },
+ "videos_real/ego4d/clip_076.mp4": {
+  "source": "ego4d",
+  "frames": 150,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 5.0
+ },
+ "videos_real/ego4d/clip_077.mp4": {
+  "source": "ego4d",
+  "frames": 180,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 6.0
+ },
+ "videos_real/ego4d/clip_078.mp4": {
+  "source": "ego4d",
+  "frames": 300,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 10.0
+ },
+ "videos_real/ego4d/clip_079.mp4": {
+  "source": "ego4d",
+  "frames": 150,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 5.0
+ },
+ "videos_real/ego4d/clip_080.mp4": {
+  "source": "ego4d",
+  "frames": 180,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 6.0
+ },
+ "videos_real/ego4d/clip_081.mp4": {
+  "source": "ego4d",
+  "frames": 240,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 8.0
+ },
+ "videos_real/ego4d/clip_082.mp4": {
+  "source": "ego4d",
+  "frames": 180,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 6.0
+ },
+ "videos_real/ego4d/clip_083.mp4": {
+  "source": "ego4d",
+  "frames": 150,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 5.0
+ },
+ "videos_real/ego4d/clip_084.mp4": {
+  "source": "ego4d",
+  "frames": 120,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 4.0
+ },
+ "videos_real/ego4d/clip_085.mp4": {
+  "source": "ego4d",
+  "frames": 180,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 6.0
+ },
+ "videos_real/ego4d/clip_086.mp4": {
+  "source": "ego4d",
+  "frames": 180,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 6.0
+ },
+ "videos_real/ego4d/clip_087.mp4": {
+  "source": "ego4d",
+  "frames": 150,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 5.0
+ },
+ "videos_real/ego4d/clip_088.mp4": {
+  "source": "ego4d",
+  "frames": 150,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 5.0
+ },
+ "videos_real/ego4d/clip_089.mp4": {
+  "source": "ego4d",
+  "frames": 300,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 10.0
+ },
+ "videos_real/ego4d/clip_090.mp4": {
+  "source": "ego4d",
+  "frames": 150,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 5.0
+ },
+ "videos_real/ego4d/clip_091.mp4": {
+  "source": "ego4d",
+  "frames": 150,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 5.0
+ },
+ "videos_real/ego4d/clip_092.mp4": {
+  "source": "ego4d",
+  "frames": 180,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 6.0
+ },
+ "videos_real/ego4d/clip_093.mp4": {
+  "source": "ego4d",
+  "frames": 180,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 6.0
+ },
+ "videos_real/ego4d/clip_094.mp4": {
+  "source": "ego4d",
+  "frames": 150,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 5.0
+ },
+ "videos_real/ego4d/clip_095.mp4": {
+  "source": "ego4d",
+  "frames": 150,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 5.0
+ },
+ "videos_real/ego4d/clip_096.mp4": {
+  "source": "ego4d",
+  "frames": 150,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 5.0
+ },
+ "videos_real/ego4d/clip_097.mp4": {
+  "source": "ego4d",
+  "frames": 150,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 5.0
+ },
+ "videos_real/ego4d/clip_098.mp4": {
+  "source": "ego4d",
+  "frames": 180,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 6.0
+ },
+ "videos_real/ego4d/clip_099.mp4": {
+  "source": "ego4d",
+  "frames": 150,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 5.0
+ },
+ "videos_real/ego4d/clip_100.mp4": {
+  "source": "ego4d",
+  "frames": 210,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 7.0
+ },
+ "videos_real/ego4d/clip_101.mp4": {
+  "source": "ego4d",
+  "frames": 150,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 5.0
+ },
+ "videos_real/ego4d/clip_102.mp4": {
+  "source": "ego4d",
+  "frames": 120,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 4.0
+ },
+ "videos_real/ego4d/clip_103.mp4": {
+  "source": "ego4d",
+  "frames": 150,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 5.0
+ },
+ "videos_real/ego4d/clip_104.mp4": {
+  "source": "ego4d",
+  "frames": 180,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 6.0
+ },
+ "videos_real/ego4d/clip_105.mp4": {
+  "source": "ego4d",
+  "frames": 150,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 5.0
+ },
+ "videos_real/ego4d/clip_106.mp4": {
+  "source": "ego4d",
+  "frames": 150,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 5.0
+ },
+ "videos_real/ego4d/clip_107.mp4": {
+  "source": "ego4d",
+  "frames": 210,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 7.0
+ },
+ "videos_real/ego4d/clip_108.mp4": {
+  "source": "ego4d",
+  "frames": 150,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 5.0
+ },
+ "videos_real/ego4d/clip_109.mp4": {
+  "source": "ego4d",
+  "frames": 150,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 5.0
+ },
+ "videos_real/ego4d/clip_110.mp4": {
+  "source": "ego4d",
+  "frames": 180,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 6.0
+ },
+ "videos_real/ego4d/clip_111.mp4": {
+  "source": "ego4d",
+  "frames": 120,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 4.0
+ },
+ "videos_real/ego4d/clip_112.mp4": {
+  "source": "ego4d",
+  "frames": 120,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 4.0
+ },
+ "videos_real/ego4d/clip_113.mp4": {
+  "source": "ego4d",
+  "frames": 150,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 5.0
+ },
+ "videos_real/ego4d/clip_114.mp4": {
+  "source": "ego4d",
+  "frames": 150,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 5.0
+ },
+ "videos_real/ego4d/clip_115.mp4": {
+  "source": "ego4d",
+  "frames": 180,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 6.0
+ },
+ "videos_real/ego4d/clip_116.mp4": {
+  "source": "ego4d",
+  "frames": 150,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 5.0
+ },
+ "videos_real/ego4d/clip_117.mp4": {
+  "source": "ego4d",
+  "frames": 300,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 10.0
+ },
+ "videos_real/ego4d/clip_118.mp4": {
+  "source": "ego4d",
+  "frames": 150,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 5.0
+ },
+ "videos_real/ego4d/clip_119.mp4": {
+  "source": "ego4d",
+  "frames": 150,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 5.0
+ },
+ "videos_real/ego4d/clip_120.mp4": {
+  "source": "ego4d",
+  "frames": 150,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 5.0
+ },
+ "videos_real/ego4d/clip_121.mp4": {
+  "source": "ego4d",
+  "frames": 150,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 5.0
+ },
+ "videos_real/ego4d/clip_122.mp4": {
+  "source": "ego4d",
+  "frames": 150,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 5.0
+ },
+ "videos_real/ego4d/clip_123.mp4": {
+  "source": "ego4d",
+  "frames": 180,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 6.0
+ },
+ "videos_real/ego4d/clip_124.mp4": {
+  "source": "ego4d",
+  "frames": 120,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 4.0
+ },
+ "videos_real/ego4d/clip_125.mp4": {
+  "source": "ego4d",
+  "frames": 150,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 5.0
+ },
+ "videos_real/ego4d/clip_126.mp4": {
+  "source": "ego4d",
+  "frames": 90,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 3.0
+ },
+ "videos_real/ego4d/clip_127.mp4": {
+  "source": "ego4d",
+  "frames": 180,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 6.0
+ },
+ "videos_real/ego4d/clip_128.mp4": {
+  "source": "ego4d",
+  "frames": 120,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 4.0
+ },
+ "videos_real/ego4d/clip_129.mp4": {
+  "source": "ego4d",
+  "frames": 120,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 4.0
+ },
+ "videos_real/ego4d/clip_130.mp4": {
+  "source": "ego4d",
+  "frames": 150,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 5.0
+ },
+ "videos_real/ego4d/clip_131.mp4": {
+  "source": "ego4d",
+  "frames": 90,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 3.0
+ },
+ "videos_real/ego4d/clip_132.mp4": {
+  "source": "ego4d",
+  "frames": 180,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 6.0
+ },
+ "videos_real/ego4d/clip_133.mp4": {
+  "source": "ego4d",
+  "frames": 120,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 4.0
+ },
+ "videos_real/ego4d/clip_134.mp4": {
+  "source": "ego4d",
+  "frames": 210,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 7.0
+ },
+ "videos_real/ego4d/clip_135.mp4": {
+  "source": "ego4d",
+  "frames": 120,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 4.0
+ },
+ "videos_real/ego4d/clip_136.mp4": {
+  "source": "ego4d",
+  "frames": 120,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 4.0
+ },
+ "videos_real/ego4d/clip_137.mp4": {
+  "source": "ego4d",
+  "frames": 120,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 4.0
+ },
+ "videos_real/ego4d/clip_138.mp4": {
+  "source": "ego4d",
+  "frames": 150,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 5.0
+ },
+ "videos_real/ego4d/clip_139.mp4": {
+  "source": "ego4d",
+  "frames": 150,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 5.0
+ },
+ "videos_real/ego4d/clip_140.mp4": {
+  "source": "ego4d",
+  "frames": 240,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 8.0
+ },
+ "videos_real/ego4d/clip_141.mp4": {
+  "source": "ego4d",
+  "frames": 120,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 4.0
+ },
+ "videos_real/ego4d/clip_142.mp4": {
+  "source": "ego4d",
+  "frames": 150,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 5.0
+ },
+ "videos_real/ego4d/clip_143.mp4": {
+  "source": "ego4d",
+  "frames": 150,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 5.0
+ },
+ "videos_real/ego4d/clip_144.mp4": {
+  "source": "ego4d",
+  "frames": 150,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 5.0
+ },
+ "videos_real/ego4d/clip_145.mp4": {
+  "source": "ego4d",
+  "frames": 150,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 5.0
+ },
+ "videos_real/ego4d/clip_146.mp4": {
+  "source": "ego4d",
+  "frames": 150,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 5.0
+ },
+ "videos_real/ego4d/clip_147.mp4": {
+  "source": "ego4d",
+  "frames": 150,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 5.0
+ },
+ "videos_real/ego4d/clip_148.mp4": {
+  "source": "ego4d",
+  "frames": 180,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 6.0
+ },
+ "videos_real/ego4d/clip_149.mp4": {
+  "source": "ego4d",
+  "frames": 150,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 5.0
+ },
+ "videos_real/ego4d/clip_150.mp4": {
+  "source": "ego4d",
+  "frames": 150,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 5.0
+ },
+ "videos_real/ego4d/clip_151.mp4": {
+  "source": "ego4d",
+  "frames": 150,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 5.0
+ },
+ "videos_real/ego4d/clip_152.mp4": {
+  "source": "ego4d",
+  "frames": 150,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 5.0
+ },
+ "videos_real/ego4d/clip_153.mp4": {
+  "source": "ego4d",
+  "frames": 150,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 5.0
+ },
+ "videos_real/ego4d/clip_154.mp4": {
+  "source": "ego4d",
+  "frames": 150,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 5.0
+ },
+ "videos_real/ego4d/clip_155.mp4": {
+  "source": "ego4d",
+  "frames": 240,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 8.0
+ },
+ "videos_real/ego4d/clip_156.mp4": {
+  "source": "ego4d",
+  "frames": 150,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 5.0
+ },
+ "videos_real/ego4d/clip_157.mp4": {
+  "source": "ego4d",
+  "frames": 180,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 6.0
+ },
+ "videos_real/ego4d/clip_158.mp4": {
+  "source": "ego4d",
+  "frames": 150,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 5.0
+ },
+ "videos_real/ego4d/clip_159.mp4": {
+  "source": "ego4d",
+  "frames": 180,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 6.0
+ },
+ "videos_real/ego4d/clip_160.mp4": {
+  "source": "ego4d",
+  "frames": 180,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 6.0
+ },
+ "videos_real/ego4d/clip_161.mp4": {
+  "source": "ego4d",
+  "frames": 120,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 4.0
+ },
+ "videos_real/ego4d/clip_162.mp4": {
+  "source": "ego4d",
+  "frames": 120,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 4.0
+ },
+ "videos_real/ego4d/clip_163.mp4": {
+  "source": "ego4d",
+  "frames": 150,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 5.0
+ },
+ "videos_real/ego4d/clip_164.mp4": {
+  "source": "ego4d",
+  "frames": 150,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 5.0
+ },
+ "videos_real/ego4d/clip_165.mp4": {
+  "source": "ego4d",
+  "frames": 150,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 5.0
+ },
+ "videos_real/ego4d/clip_166.mp4": {
+  "source": "ego4d",
+  "frames": 150,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 5.0
+ },
+ "videos_real/ego4d/clip_167.mp4": {
+  "source": "ego4d",
+  "frames": 150,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 5.0
+ },
+ "videos_real/ego4d/clip_168.mp4": {
+  "source": "ego4d",
+  "frames": 150,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 5.0
+ },
+ "videos_real/ego4d/clip_169.mp4": {
+  "source": "ego4d",
+  "frames": 240,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 8.0
+ },
+ "videos_real/ego4d/clip_170.mp4": {
+  "source": "ego4d",
+  "frames": 120,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 4.0
+ },
+ "videos_real/ego4d/clip_171.mp4": {
+  "source": "ego4d",
+  "frames": 150,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 5.0
+ },
+ "videos_real/ego4d/clip_172.mp4": {
+  "source": "ego4d",
+  "frames": 150,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 5.0
+ },
+ "videos_real/ego4d/clip_173.mp4": {
+  "source": "ego4d",
+  "frames": 150,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 5.0
+ },
+ "videos_real/ego4d/clip_174.mp4": {
+  "source": "ego4d",
+  "frames": 150,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 5.0
+ },
+ "videos_real/ego4d/clip_175.mp4": {
+  "source": "ego4d",
+  "frames": 150,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 5.0
+ },
+ "videos_real/ego4d/clip_176.mp4": {
+  "source": "ego4d",
+  "frames": 150,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 5.0
+ },
+ "videos_real/ego4d/clip_177.mp4": {
+  "source": "ego4d",
+  "frames": 150,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 5.0
+ },
+ "videos_real/ego4d/clip_178.mp4": {
+  "source": "ego4d",
+  "frames": 210,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 7.0
+ },
+ "videos_real/ego4d/clip_179.mp4": {
+  "source": "ego4d",
+  "frames": 150,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 5.0
+ },
+ "videos_real/ego4d/clip_180.mp4": {
+  "source": "ego4d",
+  "frames": 150,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 5.0
+ },
+ "videos_real/ego4d/clip_181.mp4": {
+  "source": "ego4d",
+  "frames": 150,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 5.0
+ },
+ "videos_real/ego4d/clip_182.mp4": {
+  "source": "ego4d",
+  "frames": 150,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 5.0
+ },
+ "videos_real/ego4d/clip_183.mp4": {
+  "source": "ego4d",
+  "frames": 150,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 5.0
+ },
+ "videos_real/ego4d/clip_184.mp4": {
+  "source": "ego4d",
+  "frames": 240,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 8.0
+ },
+ "videos_real/ego4d/clip_185.mp4": {
+  "source": "ego4d",
+  "frames": 150,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 5.0
+ },
+ "videos_real/ego4d/clip_186.mp4": {
+  "source": "ego4d",
+  "frames": 150,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 5.0
+ },
+ "videos_real/ego4d/clip_187.mp4": {
+  "source": "ego4d",
+  "frames": 240,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 8.0
+ },
+ "videos_real/ego4d/clip_188.mp4": {
+  "source": "ego4d",
+  "frames": 120,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 4.0
+ },
+ "videos_real/ego4d/clip_189.mp4": {
+  "source": "ego4d",
+  "frames": 150,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 5.0
+ },
+ "videos_real/ego4d/clip_190.mp4": {
+  "source": "ego4d",
+  "frames": 150,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 5.0
+ },
+ "videos_real/ego4d/clip_191.mp4": {
+  "source": "ego4d",
+  "frames": 150,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 5.0
+ },
+ "videos_real/ego4d/clip_192.mp4": {
+  "source": "ego4d",
+  "frames": 120,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 4.0
+ },
+ "videos_real/ego4d/clip_193.mp4": {
+  "source": "ego4d",
+  "frames": 120,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 4.0
+ },
+ "videos_real/ego4d/clip_194.mp4": {
+  "source": "ego4d",
+  "frames": 150,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 5.0
+ },
+ "videos_real/ego4d/clip_195.mp4": {
+  "source": "ego4d",
+  "frames": 150,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 5.0
+ },
+ "videos_real/ego4d/clip_196.mp4": {
+  "source": "ego4d",
+  "frames": 120,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 4.0
+ },
+ "videos_real/ego4d/clip_197.mp4": {
+  "source": "ego4d",
+  "frames": 150,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 5.0
+ },
+ "videos_real/ego4d/clip_198.mp4": {
+  "source": "ego4d",
+  "frames": 150,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 5.0
+ },
+ "videos_real/ego4d/clip_199.mp4": {
+  "source": "ego4d",
+  "frames": 150,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 5.0
+ },
+ "videos_real/ego4d/clip_200.mp4": {
+  "source": "ego4d",
+  "frames": 150,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 5.0
+ },
+ "videos_real/ego4d/clip_201.mp4": {
+  "source": "ego4d",
+  "frames": 120,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 4.0
+ },
+ "videos_real/ego4d/clip_202.mp4": {
+  "source": "ego4d",
+  "frames": 120,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 4.0
+ },
+ "videos_real/ego4d/clip_203.mp4": {
+  "source": "ego4d",
+  "frames": 120,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 4.0
+ },
+ "videos_real/ego4d/clip_204.mp4": {
+  "source": "ego4d",
+  "frames": 150,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 5.0
+ },
+ "videos_real/ego4d/clip_205.mp4": {
+  "source": "ego4d",
+  "frames": 210,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 7.0
+ },
+ "videos_real/ego4d/clip_206.mp4": {
+  "source": "ego4d",
+  "frames": 120,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 4.0
+ },
+ "videos_real/ego4d/clip_207.mp4": {
+  "source": "ego4d",
+  "frames": 150,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 5.0
+ },
+ "videos_real/ego4d/clip_208.mp4": {
+  "source": "ego4d",
+  "frames": 150,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 5.0
+ },
+ "videos_real/ego4d/clip_209.mp4": {
+  "source": "ego4d",
+  "frames": 150,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 5.0
+ },
+ "videos_real/ego4d/clip_210.mp4": {
+  "source": "ego4d",
+  "frames": 150,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 5.0
+ },
+ "videos_real/ego4d/clip_211.mp4": {
+  "source": "ego4d",
+  "frames": 150,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 5.0
+ },
+ "videos_real/ego4d/clip_212.mp4": {
+  "source": "ego4d",
+  "frames": 150,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 5.0
+ },
+ "videos_real/ego4d/clip_213.mp4": {
+  "source": "ego4d",
+  "frames": 150,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 5.0
+ },
+ "videos_real/ego4d/clip_214.mp4": {
+  "source": "ego4d",
+  "frames": 150,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 5.0
+ },
+ "videos_real/ego4d/clip_215.mp4": {
+  "source": "ego4d",
+  "frames": 150,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 5.0
+ },
+ "videos_real/ego4d/clip_216.mp4": {
+  "source": "ego4d",
+  "frames": 210,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 7.0
+ },
+ "videos_real/ego4d/clip_217.mp4": {
+  "source": "ego4d",
+  "frames": 180,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 6.0
+ },
+ "videos_real/ego4d/clip_218.mp4": {
+  "source": "ego4d",
+  "frames": 150,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 5.0
+ },
+ "videos_real/ego4d/clip_219.mp4": {
+  "source": "ego4d",
+  "frames": 120,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 4.0
+ },
+ "videos_real/ego4d/clip_220.mp4": {
+  "source": "ego4d",
+  "frames": 150,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 5.0
+ },
+ "videos_real/ego4d/clip_221.mp4": {
+  "source": "ego4d",
+  "frames": 150,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 5.0
+ },
+ "videos_real/ego4d/clip_222.mp4": {
+  "source": "ego4d",
+  "frames": 120,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 4.0
+ },
+ "videos_real/ego4d/clip_223.mp4": {
+  "source": "ego4d",
+  "frames": 150,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 5.0
+ },
+ "videos_real/ego4d/clip_224.mp4": {
+  "source": "ego4d",
+  "frames": 120,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 4.0
+ },
+ "videos_real/ego4d/clip_225.mp4": {
+  "source": "ego4d",
+  "frames": 150,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 5.0
+ },
+ "videos_real/ego4d/clip_226.mp4": {
+  "source": "ego4d",
+  "frames": 180,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 6.0
+ },
+ "videos_real/ego4d/clip_227.mp4": {
+  "source": "ego4d",
+  "frames": 150,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 5.0
+ },
+ "videos_real/ego4d/clip_228.mp4": {
+  "source": "ego4d",
+  "frames": 120,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 4.0
+ },
+ "videos_real/ego4d/clip_229.mp4": {
+  "source": "ego4d",
+  "frames": 150,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 5.0
+ },
+ "videos_real/ego4d/clip_230.mp4": {
+  "source": "ego4d",
+  "frames": 150,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 5.0
+ },
+ "videos_real/ego4d/clip_231.mp4": {
+  "source": "ego4d",
+  "frames": 180,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 6.0
+ },
+ "videos_real/ego4d/clip_232.mp4": {
+  "source": "ego4d",
+  "frames": 180,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 6.0
+ },
+ "videos_real/ego4d/clip_233.mp4": {
+  "source": "ego4d",
+  "frames": 150,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 5.0
+ },
+ "videos_real/ego4d/clip_234.mp4": {
+  "source": "ego4d",
+  "frames": 180,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 6.0
+ },
+ "videos_real/ego4d/clip_235.mp4": {
+  "source": "ego4d",
+  "frames": 120,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 4.0
+ },
+ "videos_real/ego4d/clip_236.mp4": {
+  "source": "ego4d",
+  "frames": 180,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 6.0
+ },
+ "videos_real/ego4d/clip_237.mp4": {
+  "source": "ego4d",
+  "frames": 180,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 6.0
+ },
+ "videos_real/ego4d/clip_238.mp4": {
+  "source": "ego4d",
+  "frames": 180,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 6.0
+ },
+ "videos_real/ego4d/clip_239.mp4": {
+  "source": "ego4d",
+  "frames": 120,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 4.0
+ },
+ "videos_real/ego4d/clip_240.mp4": {
+  "source": "ego4d",
+  "frames": 150,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 5.0
+ },
+ "videos_real/ego4d/clip_241.mp4": {
+  "source": "ego4d",
+  "frames": 150,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 5.0
+ },
+ "videos_real/ego4d/clip_242.mp4": {
+  "source": "ego4d",
+  "frames": 150,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 5.0
+ },
+ "videos_real/ego4d/clip_243.mp4": {
+  "source": "ego4d",
+  "frames": 120,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 4.0
+ },
+ "videos_real/ego4d/clip_244.mp4": {
+  "source": "ego4d",
+  "frames": 150,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 5.0
+ },
+ "videos_real/ego4d/clip_245.mp4": {
+  "source": "ego4d",
+  "frames": 150,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 5.0
+ },
+ "videos_real/ego4d/clip_246.mp4": {
+  "source": "ego4d",
+  "frames": 120,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 4.0
+ },
+ "videos_real/ego4d/clip_247.mp4": {
+  "source": "ego4d",
+  "frames": 150,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 5.0
+ },
+ "videos_real/ego4d/clip_248.mp4": {
+  "source": "ego4d",
+  "frames": 150,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 5.0
+ },
+ "videos_real/ego4d/clip_249.mp4": {
+  "source": "ego4d",
+  "frames": 150,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 5.0
+ },
+ "videos_real/ego4d/clip_250.mp4": {
+  "source": "ego4d",
+  "frames": 150,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 5.0
+ },
+ "videos_real/ego4d/clip_251.mp4": {
+  "source": "ego4d",
+  "frames": 120,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 4.0
+ },
+ "videos_real/ego4d/clip_252.mp4": {
+  "source": "ego4d",
+  "frames": 150,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 5.0
+ },
+ "videos_real/ego4d/clip_253.mp4": {
+  "source": "ego4d",
+  "frames": 150,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 5.0
+ },
+ "videos_real/ego4d/clip_254.mp4": {
+  "source": "ego4d",
+  "frames": 180,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 6.0
+ },
+ "videos_real/ego4d/clip_255.mp4": {
+  "source": "ego4d",
+  "frames": 180,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 6.0
+ },
+ "videos_real/ego4d/clip_256.mp4": {
+  "source": "ego4d",
+  "frames": 150,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 5.0
+ },
+ "videos_real/ego4d/clip_257.mp4": {
+  "source": "ego4d",
+  "frames": 180,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 6.0
+ },
+ "videos_real/ego4d/clip_258.mp4": {
+  "source": "ego4d",
+  "frames": 150,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 5.0
+ },
+ "videos_real/ego4d/clip_259.mp4": {
+  "source": "ego4d",
+  "frames": 150,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 5.0
+ },
+ "videos_real/ego4d/clip_260.mp4": {
+  "source": "ego4d",
+  "frames": 150,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 5.0
+ },
+ "videos_real/ego4d/clip_261.mp4": {
+  "source": "ego4d",
+  "frames": 180,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 6.0
+ },
+ "videos_real/ego4d/clip_262.mp4": {
+  "source": "ego4d",
+  "frames": 150,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 5.0
+ },
+ "videos_real/ego4d/clip_263.mp4": {
+  "source": "ego4d",
+  "frames": 180,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 6.0
+ },
+ "videos_real/ego4d/clip_264.mp4": {
+  "source": "ego4d",
+  "frames": 90,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 3.0
+ },
+ "videos_real/ego4d/clip_265.mp4": {
+  "source": "ego4d",
+  "frames": 180,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 6.0
+ },
+ "videos_real/ego4d/clip_266.mp4": {
+  "source": "ego4d",
+  "frames": 150,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 5.0
+ },
+ "videos_real/ego4d/clip_267.mp4": {
+  "source": "ego4d",
+  "frames": 150,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 5.0
+ },
+ "videos_real/ego4d/clip_268.mp4": {
+  "source": "ego4d",
+  "frames": 150,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 5.0
+ },
+ "videos_real/ego4d/clip_269.mp4": {
+  "source": "ego4d",
+  "frames": 150,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 5.0
+ },
+ "videos_real/ego4d/clip_270.mp4": {
+  "source": "ego4d",
+  "frames": 150,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 5.0
+ },
+ "videos_real/ego4d/clip_271.mp4": {
+  "source": "ego4d",
+  "frames": 150,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 5.0
+ },
+ "videos_real/ego4d/clip_272.mp4": {
+  "source": "ego4d",
+  "frames": 150,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 5.0
+ },
+ "videos_real/ego4d/clip_273.mp4": {
+  "source": "ego4d",
+  "frames": 150,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 5.0
+ },
+ "videos_real/ego4d/clip_274.mp4": {
+  "source": "ego4d",
+  "frames": 150,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 5.0
+ },
+ "videos_real/ego4d/clip_275.mp4": {
+  "source": "ego4d",
+  "frames": 150,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 5.0
+ },
+ "videos_real/ego4d/clip_276.mp4": {
+  "source": "ego4d",
+  "frames": 180,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 6.0
+ },
+ "videos_real/ego4d/clip_277.mp4": {
+  "source": "ego4d",
+  "frames": 150,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 5.0
+ },
+ "videos_real/ego4d/clip_278.mp4": {
+  "source": "ego4d",
+  "frames": 150,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 5.0
+ },
+ "videos_real/ego4d/clip_279.mp4": {
+  "source": "ego4d",
+  "frames": 150,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 5.0
+ },
+ "videos_real/ego4d/clip_280.mp4": {
+  "source": "ego4d",
+  "frames": 150,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 5.0
+ },
+ "videos_real/ego4d/clip_281.mp4": {
+  "source": "ego4d",
+  "frames": 150,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 5.0
+ },
+ "videos_real/ego4d/clip_282.mp4": {
+  "source": "ego4d",
+  "frames": 150,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 5.0
+ },
+ "videos_real/ego4d/clip_283.mp4": {
+  "source": "ego4d",
+  "frames": 180,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 6.0
+ },
+ "videos_real/ego4d/clip_284.mp4": {
+  "source": "ego4d",
+  "frames": 150,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 5.0
+ },
+ "videos_real/ego4d/clip_285.mp4": {
+  "source": "ego4d",
+  "frames": 150,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 5.0
+ },
+ "videos_real/ego4d/clip_286.mp4": {
+  "source": "ego4d",
+  "frames": 150,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 5.0
+ },
+ "videos_real/ego4d/clip_287.mp4": {
+  "source": "ego4d",
+  "frames": 150,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 5.0
+ },
+ "videos_real/ego4d/clip_288.mp4": {
+  "source": "ego4d",
+  "frames": 150,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 5.0
+ },
+ "videos_real/ego4d/clip_289.mp4": {
+  "source": "ego4d",
+  "frames": 150,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 5.0
+ },
+ "videos_real/ego4d/clip_290.mp4": {
+  "source": "ego4d",
+  "frames": 150,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 5.0
+ },
+ "videos_real/ego4d/clip_291.mp4": {
+  "source": "ego4d",
+  "frames": 150,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 5.0
+ },
+ "videos_real/ego4d/clip_292.mp4": {
+  "source": "ego4d",
+  "frames": 150,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 5.0
+ },
+ "videos_real/ego4d/clip_293.mp4": {
+  "source": "ego4d",
+  "frames": 120,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 4.0
+ },
+ "videos_real/ego4d/clip_294.mp4": {
+  "source": "ego4d",
+  "frames": 150,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 5.0
+ },
+ "videos_real/ego4d/clip_295.mp4": {
+  "source": "ego4d",
+  "frames": 150,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 5.0
+ },
+ "videos_real/ego4d/clip_296.mp4": {
+  "source": "ego4d",
+  "frames": 120,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 4.0
+ },
+ "videos_real/ego4d/clip_297.mp4": {
+  "source": "ego4d",
+  "frames": 180,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 6.0
+ },
+ "videos_real/ego4d/clip_298.mp4": {
+  "source": "ego4d",
+  "frames": 150,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 5.0
+ },
+ "videos_real/ego4d/clip_299.mp4": {
+  "source": "ego4d",
+  "frames": 150,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 5.0
+ },
+ "videos_real/ego4d/clip_300.mp4": {
+  "source": "ego4d",
+  "frames": 150,
+  "fps": 30.0,
+  "width": 720,
+  "height": 540,
+  "seconds": 5.0
+ },
+ "videos_real/youtube-vos/youtube000.mp4": {
+  "source": "youtube-vos",
+  "frames": 180,
+  "fps": 30.0,
+  "width": 1280,
+  "height": 720,
+  "seconds": 6.0
+ },
+ "videos_real/youtube-vos/youtube001.mp4": {
+  "source": "youtube-vos",
+  "frames": 150,
+  "fps": 30.0,
+  "width": 1280,
+  "height": 720,
+  "seconds": 5.0
+ },
+ "videos_real/youtube-vos/youtube002.mp4": {
+  "source": "youtube-vos",
+  "frames": 90,
+  "fps": 30.0,
+  "width": 1280,
+  "height": 720,
+  "seconds": 3.0
+ },
+ "videos_real/youtube-vos/youtube003.mp4": {
+  "source": "youtube-vos",
+  "frames": 95,
+  "fps": 30.0,
+  "width": 1280,
+  "height": 720,
+  "seconds": 3.167
+ },
+ "videos_real/youtube-vos/youtube004.mp4": {
+  "source": "youtube-vos",
+  "frames": 95,
+  "fps": 30.0,
+  "width": 1280,
+  "height": 720,
+  "seconds": 3.167
+ },
+ "videos_real/youtube-vos/youtube005.mp4": {
+  "source": "youtube-vos",
+  "frames": 180,
+  "fps": 30.0,
+  "width": 1280,
+  "height": 720,
+  "seconds": 6.0
+ },
+ "videos_real/youtube-vos/youtube006.mp4": {
+  "source": "youtube-vos",
+  "frames": 100,
+  "fps": 30.0,
+  "width": 1280,
+  "height": 720,
+  "seconds": 3.333
+ },
+ "videos_real/youtube-vos/youtube007.mp4": {
+  "source": "youtube-vos",
+  "frames": 95,
+  "fps": 30.0,
+  "width": 1280,
+  "height": 720,
+  "seconds": 3.167
+ },
+ "videos_real/youtube-vos/youtube008.mp4": {
+  "source": "youtube-vos",
+  "frames": 100,
+  "fps": 30.0,
+  "width": 1280,
+  "height": 720,
+  "seconds": 3.333
+ },
+ "videos_real/youtube-vos/youtube009.mp4": {
+  "source": "youtube-vos",
+  "frames": 95,
+  "fps": 30.0,
+  "width": 1280,
+  "height": 720,
+  "seconds": 3.167
+ },
+ "videos_real/youtube-vos/youtube010.mp4": {
+  "source": "youtube-vos",
+  "frames": 180,
+  "fps": 30.0,
+  "width": 1280,
+  "height": 720,
+  "seconds": 6.0
+ },
+ "videos_real/youtube-vos/youtube011.mp4": {
+  "source": "youtube-vos",
+  "frames": 95,
+  "fps": 30.0,
+  "width": 1280,
+  "height": 720,
+  "seconds": 3.167
+ },
+ "videos_real/youtube-vos/youtube012.mp4": {
+  "source": "youtube-vos",
+  "frames": 45,
+  "fps": 30.0,
+  "width": 1280,
+  "height": 720,
+  "seconds": 1.5
+ },
+ "videos_real/youtube-vos/youtube013.mp4": {
+  "source": "youtube-vos",
+  "frames": 75,
+  "fps": 30.0,
+  "width": 1280,
+  "height": 720,
+  "seconds": 2.5
+ },
+ "videos_real/youtube-vos/youtube014.mp4": {
+  "source": "youtube-vos",
+  "frames": 180,
+  "fps": 30.0,
+  "width": 1280,
+  "height": 720,
+  "seconds": 6.0
+ },
+ "videos_real/youtube-vos/youtube015.mp4": {
+  "source": "youtube-vos",
+  "frames": 140,
+  "fps": 30.0,
+  "width": 1280,
+  "height": 720,
+  "seconds": 4.667
+ },
+ "videos_real/youtube-vos/youtube016.mp4": {
+  "source": "youtube-vos",
+  "frames": 155,
+  "fps": 30.0,
+  "width": 1280,
+  "height": 720,
+  "seconds": 5.167
+ },
+ "videos_real/youtube-vos/youtube017.mp4": {
+  "source": "youtube-vos",
+  "frames": 90,
+  "fps": 30.0,
+  "width": 1280,
+  "height": 720,
+  "seconds": 3.0
+ },
+ "videos_real/youtube-vos/youtube018.mp4": {
+  "source": "youtube-vos",
+  "frames": 180,
+  "fps": 30.0,
+  "width": 1280,
+  "height": 720,
+  "seconds": 6.0
+ },
+ "videos_real/youtube-vos/youtube019.mp4": {
+  "source": "youtube-vos",
+  "frames": 60,
+  "fps": 30.0,
+  "width": 1280,
+  "height": 720,
+  "seconds": 2.0
+ },
+ "videos_real/youtube-vos/youtube020.mp4": {
+  "source": "youtube-vos",
+  "frames": 100,
+  "fps": 30.0,
+  "width": 1920,
+  "height": 1080,
+  "seconds": 3.333
+ },
+ "videos_real/youtube-vos/youtube021.mp4": {
+  "source": "youtube-vos",
+  "frames": 180,
+  "fps": 30.0,
+  "width": 1280,
+  "height": 594,
+  "seconds": 6.0
+ },
+ "videos_real/youtube-vos/youtube022.mp4": {
+  "source": "youtube-vos",
+  "frames": 100,
+  "fps": 30.0,
+  "width": 1280,
+  "height": 720,
+  "seconds": 3.333
+ },
+ "videos_real/youtube-vos/youtube023.mp4": {
+  "source": "youtube-vos",
+  "frames": 100,
+  "fps": 30.0,
+  "width": 1280,
+  "height": 720,
+  "seconds": 3.333
+ },
+ "videos_real/youtube-vos/youtube024.mp4": {
+  "source": "youtube-vos",
+  "frames": 45,
+  "fps": 30.0,
+  "width": 1280,
+  "height": 720,
+  "seconds": 1.5
+ },
+ "videos_real/youtube-vos/youtube025.mp4": {
+  "source": "youtube-vos",
+  "frames": 100,
+  "fps": 30.0,
+  "width": 1280,
+  "height": 720,
+  "seconds": 3.333
+ },
+ "videos_real/youtube-vos/youtube026.mp4": {
+  "source": "youtube-vos",
+  "frames": 100,
+  "fps": 30.0,
+  "width": 1280,
+  "height": 720,
+  "seconds": 3.333
+ },
+ "videos_real/youtube-vos/youtube027.mp4": {
+  "source": "youtube-vos",
+  "frames": 150,
+  "fps": 30.0,
+  "width": 1280,
+  "height": 720,
+  "seconds": 5.0
+ },
+ "videos_real/youtube-vos/youtube028.mp4": {
+  "source": "youtube-vos",
+  "frames": 95,
+  "fps": 30.0,
+  "width": 1280,
+  "height": 720,
+  "seconds": 3.167
+ },
+ "videos_real/youtube-vos/youtube029.mp4": {
+  "source": "youtube-vos",
+  "frames": 150,
+  "fps": 30.0,
+  "width": 960,
+  "height": 720,
+  "seconds": 5.0
+ },
+ "videos_real/youtube-vos/youtube030.mp4": {
+  "source": "youtube-vos",
+  "frames": 45,
+  "fps": 30.0,
+  "width": 1280,
+  "height": 720,
+  "seconds": 1.5
+ },
+ "videos_real/youtube-vos/youtube031.mp4": {
+  "source": "youtube-vos",
+  "frames": 80,
+  "fps": 30.0,
+  "width": 1280,
+  "height": 720,
+  "seconds": 2.667
+ },
+ "videos_real/youtube-vos/youtube032.mp4": {
+  "source": "youtube-vos",
+  "frames": 100,
+  "fps": 30.0,
+  "width": 1280,
+  "height": 720,
+  "seconds": 3.333
+ },
+ "videos_real/youtube-vos/youtube033.mp4": {
+  "source": "youtube-vos",
+  "frames": 180,
+  "fps": 30.0,
+  "width": 1280,
+  "height": 720,
+  "seconds": 6.0
+ },
+ "videos_real/youtube-vos/youtube034.mp4": {
+  "source": "youtube-vos",
+  "frames": 180,
+  "fps": 30.0,
+  "width": 1280,
+  "height": 720,
+  "seconds": 6.0
+ },
+ "videos_real/youtube-vos/youtube035.mp4": {
+  "source": "youtube-vos",
+  "frames": 145,
+  "fps": 30.0,
+  "width": 1280,
+  "height": 720,
+  "seconds": 4.833
+ },
+ "videos_real/youtube-vos/youtube036.mp4": {
+  "source": "youtube-vos",
+  "frames": 90,
+  "fps": 30.0,
+  "width": 640,
+  "height": 480,
+  "seconds": 3.0
+ },
+ "videos_real/youtube-vos/youtube037.mp4": {
+  "source": "youtube-vos",
+  "frames": 180,
+  "fps": 30.0,
+  "width": 960,
+  "height": 720,
+  "seconds": 6.0
+ },
+ "videos_real/youtube-vos/youtube038.mp4": {
+  "source": "youtube-vos",
+  "frames": 95,
+  "fps": 30.0,
+  "width": 1280,
+  "height": 720,
+  "seconds": 3.167
+ },
+ "videos_real/youtube-vos/youtube039.mp4": {
+  "source": "youtube-vos",
+  "frames": 145,
+  "fps": 30.0,
+  "width": 1280,
+  "height": 720,
+  "seconds": 4.833
+ },
+ "videos_real/youtube-vos/youtube040.mp4": {
+  "source": "youtube-vos",
+  "frames": 100,
+  "fps": 30.0,
+  "width": 1280,
+  "height": 720,
+  "seconds": 3.333
+ },
+ "videos_real/youtube-vos/youtube041.mp4": {
+  "source": "youtube-vos",
+  "frames": 150,
+  "fps": 30.0,
+  "width": 1280,
+  "height": 720,
+  "seconds": 5.0
+ },
+ "videos_real/youtube-vos/youtube042.mp4": {
+  "source": "youtube-vos",
+  "frames": 180,
+  "fps": 30.0,
+  "width": 1280,
+  "height": 720,
+  "seconds": 6.0
+ },
+ "videos_real/youtube-vos/youtube043.mp4": {
+  "source": "youtube-vos",
+  "frames": 90,
+  "fps": 30.0,
+  "width": 1280,
+  "height": 720,
+  "seconds": 3.0
+ },
+ "videos_real/youtube-vos/youtube044.mp4": {
+  "source": "youtube-vos",
+  "frames": 40,
+  "fps": 30.0,
+  "width": 1280,
+  "height": 720,
+  "seconds": 1.333
+ },
+ "videos_real/youtube-vos/youtube045.mp4": {
+  "source": "youtube-vos",
+  "frames": 180,
+  "fps": 30.0,
+  "width": 1280,
+  "height": 720,
+  "seconds": 6.0
+ },
+ "videos_real/youtube-vos/youtube046.mp4": {
+  "source": "youtube-vos",
+  "frames": 120,
+  "fps": 30.0,
+  "width": 1280,
+  "height": 720,
+  "seconds": 4.0
+ },
+ "videos_real/youtube-vos/youtube047.mp4": {
+  "source": "youtube-vos",
+  "frames": 95,
+  "fps": 30.0,
+  "width": 1280,
+  "height": 720,
+  "seconds": 3.167
+ },
+ "videos_real/youtube-vos/youtube048.mp4": {
+  "source": "youtube-vos",
+  "frames": 95,
+  "fps": 30.0,
+  "width": 1280,
+  "height": 720,
+  "seconds": 3.167
+ },
+ "videos_real/youtube-vos/youtube049.mp4": {
+  "source": "youtube-vos",
+  "frames": 150,
+  "fps": 30.0,
+  "width": 1280,
+  "height": 720,
+  "seconds": 5.0
+ },
+ "videos_real/youtube-vos/youtube050.mp4": {
+  "source": "youtube-vos",
+  "frames": 180,
+  "fps": 30.0,
+  "width": 1280,
+  "height": 720,
+  "seconds": 6.0
+ },
+ "videos_real/youtube-vos/youtube051.mp4": {
+  "source": "youtube-vos",
+  "frames": 180,
+  "fps": 30.0,
+  "width": 1280,
+  "height": 720,
+  "seconds": 6.0
+ },
+ "videos_real/youtube-vos/youtube052.mp4": {
+  "source": "youtube-vos",
+  "frames": 95,
+  "fps": 30.0,
+  "width": 1280,
+  "height": 720,
+  "seconds": 3.167
+ },
+ "videos_real/youtube-vos/youtube053.mp4": {
+  "source": "youtube-vos",
+  "frames": 180,
+  "fps": 30.0,
+  "width": 1280,
+  "height": 720,
+  "seconds": 6.0
+ },
+ "videos_real/youtube-vos/youtube054.mp4": {
+  "source": "youtube-vos",
+  "frames": 80,
+  "fps": 30.0,
+  "width": 1280,
+  "height": 720,
+  "seconds": 2.667
+ },
+ "videos_real/youtube-vos/youtube055.mp4": {
+  "source": "youtube-vos",
+  "frames": 85,
+  "fps": 30.0,
+  "width": 1280,
+  "height": 720,
+  "seconds": 2.833
+ },
+ "videos_real/youtube-vos/youtube056.mp4": {
+  "source": "youtube-vos",
+  "frames": 150,
+  "fps": 30.0,
+  "width": 1920,
+  "height": 816,
+  "seconds": 5.0
+ },
+ "videos_real/youtube-vos/youtube057.mp4": {
+  "source": "youtube-vos",
+  "frames": 180,
+  "fps": 30.0,
+  "width": 1280,
+  "height": 720,
+  "seconds": 6.0
+ },
+ "videos_real/youtube-vos/youtube058.mp4": {
+  "source": "youtube-vos",
+  "frames": 95,
+  "fps": 30.0,
+  "width": 1280,
+  "height": 720,
+  "seconds": 3.167
+ },
+ "videos_real/youtube-vos/youtube059.mp4": {
+  "source": "youtube-vos",
+  "frames": 100,
+  "fps": 30.0,
+  "width": 960,
+  "height": 720,
+  "seconds": 3.333
+ },
+ "videos_real/youtube-vos/youtube060.mp4": {
+  "source": "youtube-vos",
+  "frames": 150,
+  "fps": 30.0,
+  "width": 1280,
+  "height": 720,
+  "seconds": 5.0
+ },
+ "videos_real/youtube-vos/youtube061.mp4": {
+  "source": "youtube-vos",
+  "frames": 95,
+  "fps": 30.0,
+  "width": 640,
+  "height": 358,
+  "seconds": 3.167
+ },
+ "videos_real/youtube-vos/youtube062.mp4": {
+  "source": "youtube-vos",
+  "frames": 100,
+  "fps": 30.0,
+  "width": 1280,
+  "height": 576,
+  "seconds": 3.333
+ },
+ "videos_real/youtube-vos/youtube063.mp4": {
+  "source": "youtube-vos",
+  "frames": 100,
+  "fps": 30.0,
+  "width": 1280,
+  "height": 720,
+  "seconds": 3.333
+ },
+ "videos_real/youtube-vos/youtube064.mp4": {
+  "source": "youtube-vos",
+  "frames": 150,
+  "fps": 30.0,
+  "width": 1280,
+  "height": 720,
+  "seconds": 5.0
+ },
+ "videos_real/youtube-vos/youtube065.mp4": {
+  "source": "youtube-vos",
+  "frames": 180,
+  "fps": 30.0,
+  "width": 1280,
+  "height": 720,
+  "seconds": 6.0
+ },
+ "videos_real/youtube-vos/youtube066.mp4": {
+  "source": "youtube-vos",
+  "frames": 95,
+  "fps": 30.0,
+  "width": 1280,
+  "height": 720,
+  "seconds": 3.167
+ },
+ "videos_real/youtube-vos/youtube067.mp4": {
+  "source": "youtube-vos",
+  "frames": 95,
+  "fps": 30.0,
+  "width": 1280,
+  "height": 720,
+  "seconds": 3.167
+ },
+ "videos_real/youtube-vos/youtube068.mp4": {
+  "source": "youtube-vos",
+  "frames": 145,
+  "fps": 30.0,
+  "width": 1280,
+  "height": 720,
+  "seconds": 4.833
+ },
+ "videos_real/youtube-vos/youtube069.mp4": {
+  "source": "youtube-vos",
+  "frames": 180,
+  "fps": 30.0,
+  "width": 1280,
+  "height": 720,
+  "seconds": 6.0
+ },
+ "videos_real/youtube-vos/youtube070.mp4": {
+  "source": "youtube-vos",
+  "frames": 145,
+  "fps": 30.0,
+  "width": 1280,
+  "height": 720,
+  "seconds": 4.833
+ },
+ "videos_real/youtube-vos/youtube071.mp4": {
+  "source": "youtube-vos",
+  "frames": 100,
+  "fps": 30.0,
+  "width": 1280,
+  "height": 720,
+  "seconds": 3.333
+ },
+ "videos_real/youtube-vos/youtube072.mp4": {
+  "source": "youtube-vos",
+  "frames": 150,
+  "fps": 30.0,
+  "width": 1280,
+  "height": 720,
+  "seconds": 5.0
+ },
+ "videos_real/youtube-vos/youtube073.mp4": {
+  "source": "youtube-vos",
+  "frames": 100,
+  "fps": 30.0,
+  "width": 1280,
+  "height": 720,
+  "seconds": 3.333
+ },
+ "videos_real/youtube-vos/youtube074.mp4": {
+  "source": "youtube-vos",
+  "frames": 145,
+  "fps": 30.0,
+  "width": 1280,
+  "height": 720,
+  "seconds": 4.833
+ },
+ "videos_real/youtube-vos/youtube075.mp4": {
+  "source": "youtube-vos",
+  "frames": 180,
+  "fps": 30.0,
+  "width": 1280,
+  "height": 720,
+  "seconds": 6.0
+ },
+ "videos_real/youtube-vos/youtube076.mp4": {
+  "source": "youtube-vos",
+  "frames": 180,
+  "fps": 30.0,
+  "width": 1280,
+  "height": 720,
+  "seconds": 6.0
+ },
+ "videos_real/youtube-vos/youtube077.mp4": {
+  "source": "youtube-vos",
+  "frames": 100,
+  "fps": 30.0,
+  "width": 1280,
+  "height": 720,
+  "seconds": 3.333
+ },
+ "videos_real/youtube-vos/youtube078.mp4": {
+  "source": "youtube-vos",
+  "frames": 95,
+  "fps": 30.0,
+  "width": 1280,
+  "height": 720,
+  "seconds": 3.167
+ },
+ "videos_real/youtube-vos/youtube079.mp4": {
+  "source": "youtube-vos",
+  "frames": 95,
+  "fps": 30.0,
+  "width": 1280,
+  "height": 720,
+  "seconds": 3.167
+ },
+ "videos_real/youtube-vos/youtube080.mp4": {
+  "source": "youtube-vos",
+  "frames": 95,
+  "fps": 30.0,
+  "width": 1280,
+  "height": 720,
+  "seconds": 3.167
+ },
+ "videos_real/youtube-vos/youtube081.mp4": {
+  "source": "youtube-vos",
+  "frames": 35,
+  "fps": 30.0,
+  "width": 1280,
+  "height": 720,
+  "seconds": 1.167
+ },
+ "videos_real/youtube-vos/youtube082.mp4": {
+  "source": "youtube-vos",
+  "frames": 95,
+  "fps": 30.0,
+  "width": 640,
+  "height": 360,
+  "seconds": 3.167
+ },
+ "videos_real/youtube-vos/youtube083.mp4": {
+  "source": "youtube-vos",
+  "frames": 180,
+  "fps": 30.0,
+  "width": 960,
+  "height": 720,
+  "seconds": 6.0
+ },
+ "videos_real/youtube-vos/youtube084.mp4": {
+  "source": "youtube-vos",
+  "frames": 180,
+  "fps": 30.0,
+  "width": 1280,
+  "height": 720,
+  "seconds": 6.0
+ },
+ "videos_real/youtube-vos/youtube085.mp4": {
+  "source": "youtube-vos",
+  "frames": 75,
+  "fps": 30.0,
+  "width": 1280,
+  "height": 720,
+  "seconds": 2.5
+ },
+ "videos_real/youtube-vos/youtube086.mp4": {
+  "source": "youtube-vos",
+  "frames": 95,
+  "fps": 30.0,
+  "width": 1280,
+  "height": 720,
+  "seconds": 3.167
+ },
+ "videos_real/youtube-vos/youtube087.mp4": {
+  "source": "youtube-vos",
+  "frames": 180,
+  "fps": 30.0,
+  "width": 1280,
+  "height": 720,
+  "seconds": 6.0
+ },
+ "videos_real/youtube-vos/youtube088.mp4": {
+  "source": "youtube-vos",
+  "frames": 180,
+  "fps": 30.0,
+  "width": 1280,
+  "height": 720,
+  "seconds": 6.0
+ },
+ "videos_real/youtube-vos/youtube089.mp4": {
+  "source": "youtube-vos",
+  "frames": 100,
+  "fps": 30.0,
+  "width": 1280,
+  "height": 720,
+  "seconds": 3.333
+ },
+ "videos_synthetic/synth_001.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_002.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_003.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_004.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_005.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_006.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_007.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_008.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_009.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_010.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_011.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_012.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_013.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_014.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_015.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_016.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_017.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_018.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_019.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_020.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_021.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_022.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_023.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_024.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_025.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_026.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_027.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_028.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_029.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_030.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_031.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_032.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_033.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_034.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_035.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_036.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_037.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_038.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_039.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_040.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_041.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_042.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_043.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_044.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_045.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_046.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_047.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_048.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_049.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_050.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_051.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_052.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_053.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_054.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_055.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_056.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_057.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_058.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_059.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_060.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_061.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_062.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_063.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_064.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_065.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_066.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_067.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_068.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_069.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_070.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_071.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_072.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_073.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_074.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_075.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_076.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_077.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_078.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_079.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_080.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_081.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_082.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_083.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_084.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_085.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_086.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_087.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_088.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_089.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_090.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_091.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_092.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_093.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_094.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_095.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_096.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_097.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_098.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_099.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_100.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_101.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_102.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_103.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_104.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_105.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_106.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_107.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_108.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_109.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_110.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_111.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_112.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_113.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_114.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_115.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_116.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_117.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_118.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_119.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_120.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_121.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_122.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_123.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_124.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_125.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_126.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_127.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_128.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_129.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_130.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_131.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_132.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_133.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_134.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_135.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_136.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_137.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_138.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_139.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_140.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_141.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_142.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_143.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_144.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_145.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_146.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_147.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_148.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_149.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_150.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_151.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_152.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_153.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_154.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_155.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_156.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_157.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_158.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_159.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_160.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_161.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_162.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_163.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_164.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_165.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_166.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_167.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_168.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_169.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_170.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_171.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_172.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_173.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_174.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_175.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_176.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_177.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_178.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_179.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_180.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_181.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_182.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_183.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_184.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_185.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_186.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_187.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_188.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_189.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_190.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_191.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_192.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_193.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_194.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_195.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_196.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_197.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_198.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_199.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_200.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_201.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_202.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_203.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_204.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_205.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_206.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_207.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_208.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_209.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_210.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_211.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_212.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_213.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_214.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_215.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_216.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_217.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_218.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_219.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_220.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_221.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_222.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_223.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_224.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_225.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_226.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_227.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_228.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_229.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_230.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_231.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_232.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_233.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_234.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_235.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_236.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_237.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_238.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_239.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_240.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_241.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_242.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_243.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_244.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_245.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_246.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_247.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_248.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_249.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_250.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_251.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_252.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_253.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_254.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_255.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_256.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_257.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_258.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_259.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_260.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_261.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_262.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_263.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_264.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_265.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_266.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_267.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_268.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_269.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_270.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_271.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_272.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_273.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_274.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_275.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_276.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_277.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_278.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_279.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_280.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_281.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_282.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_283.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_284.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_285.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_286.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_287.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_288.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_289.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_290.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_291.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_292.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_293.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_294.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_295.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_296.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_297.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_298.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_299.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_300.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_301.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_302.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_303.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_304.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_305.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_306.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_307.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_308.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_309.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_310.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_311.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_312.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_313.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_314.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_315.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_316.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_317.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_318.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_319.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_320.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_321.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_322.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_323.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_324.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_325.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_326.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_327.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_328.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_329.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_330.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_331.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_332.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_333.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_334.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_335.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_336.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_337.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_338.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_339.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_340.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_341.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_342.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_343.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_344.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_345.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_346.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_347.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_348.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_349.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_350.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_351.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_352.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_353.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_354.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_355.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_356.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_357.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_358.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_359.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_360.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_361.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_362.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_363.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_364.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_365.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_366.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_367.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_368.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_369.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_370.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_371.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_372.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_373.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_374.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_375.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_376.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_377.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_378.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_379.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_380.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_381.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_382.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_383.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_384.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_385.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_386.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_387.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_388.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_389.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_390.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_391.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_392.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_393.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_394.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_395.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_396.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_397.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_398.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_399.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ },
+ "videos_synthetic/synth_400.mp4": {
+  "source": "synthetic",
+  "frames": 121,
+  "fps": 24.0,
+  "width": 1280,
+  "height": 704,
+  "seconds": 5.042
+ }
+}
