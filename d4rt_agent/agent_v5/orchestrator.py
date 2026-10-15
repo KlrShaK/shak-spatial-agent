@@ -65,6 +65,13 @@ class State:
     measuring_steps: int = 0
     decomposition_ok: bool = True
     notes: list[str] = field(default_factory=list)
+    assessment_text: str | None = None
+    assessment_history: list[dict[str, Any]] = field(default_factory=list)
+    repair_history: list[dict[str, Any]] = field(default_factory=list)
+    schema_recovery: str = "not_needed"
+    final_visual_ids: list[str] = field(default_factory=list)
+    visual_manifest: dict[str, Any] = field(default_factory=dict)
+    omitted_visual_ids: list[str] = field(default_factory=list)
 
 
 class Exhausted(RuntimeError):
