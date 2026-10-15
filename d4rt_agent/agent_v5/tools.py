@@ -1256,3 +1256,14 @@ TOOL_SPECS: dict[str, dict[str, Any]] = {
                     "arguments": {"kind": "a kind from the menu you were shown"}, "required": ["kind"]},
     "done_measuring": {"description": "Stop measuring and move on to answering.", "arguments": {}, "required": []},
 }
+
+# Imported after the legacy tool definitions; the extension has no import-time dependency on tools.
+from d4rt_agent.agent_v5.capabilities import EXTRA_SPECS, EXTRA_TOOLS  # noqa: E402
+from d4rt_agent.agent_v5.spatial_tools import SPATIAL_SPECS, SPATIAL_TOOLS  # noqa: E402
+
+TOOLS.update(EXTRA_TOOLS)
+TOOL_SPECS.update(EXTRA_SPECS)
+TOOLS.update(SPATIAL_TOOLS)
+TOOL_SPECS.update(SPATIAL_SPECS)
+TOOL_SPECS["entity_track"]["arguments"]["anchor_s"] = "body-frame anchor in seconds, default 0"
+TOOL_SPECS["entity_track"]["arguments"]["reference"] = "optional body-frame reference entity, default self"
