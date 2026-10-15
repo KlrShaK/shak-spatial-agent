@@ -1,12 +1,33 @@
 # AgentV5
 
-A 4D spatial-reasoning agent for Dyn-Bench (and still DSI-Bench). It builds on AgentV4's
+A 4D spatial-reasoning agent for DSI-Bench, Dyn-Bench and VLM4D. It builds on AgentV4's
 host-ordered steps and on the decision tree found in
 `dyn_dataset_exploration/testing_decomposition.ipynb`, with one change of principle: **no
 measurement decides an answer**. Tools return numbers, noise floors and descriptive labels;
 Qwen3-VL-8B reads them and chooses.
 
-## Decision flow
+## Compositional candidate
+
+`--stack compositional` enables six families and 21 reusable recipes over shared measurements.
+It reads options during decomposition, makes reference frames and counting units explicit,
+supports additional requirements, and answers from current evidence after bounded repair.
+The compositional stack now defaults to free-form option assessment, one conditional repair
+round, and targeted final context without automatic measurement-answer frames. See
+[WORKFLOW_INTEGRATION.md](WORKFLOW_INTEGRATION.md) for policies, inspection annotations and audit commands.
+No model training or new threshold fitting is involved. The default remains `--stack legacy`
+while the candidate is evaluated. See [COMPOSITION.md](COMPOSITION.md) for the taxonomy,
+contracts, limitations, source snapshots and matched evaluation commands.
+
+```bash
+python -m d4rt_agent.agent_v5.run --stack compositional --bench dynbench --all \
+  --results-dir /tmp/v5-compose-preview --dry-run --limit 3
+```
+
+GPU inference must run through SLURM. `scripts/run_agent_v5_composition_smoke.slurm` checks
+the candidate on three questions per benchmark; `scripts/run_agent_v5_composition_eval.slurm`
+runs diagnostic/full evaluation and controls from frozen source snapshots.
+
+## Legacy decision flow
 
 ```
 QUESTION + OPTIONS + CLIP
@@ -31,7 +52,7 @@ One conversation per question, kept under a token budget (`context.py`): old `sh
 old tool tables, then rejected exchanges are replaced by one-line summaries; the answer turn
 re-renders every result from the host's record.
 
-## Families, kinds, tools
+## Legacy families, kinds, tools
 
 | family | kinds | tools |
 |---|---|---|
@@ -82,11 +103,11 @@ python -m d4rt_agent.agent_v5.run --bench dynbench --results-dir /tmp/x --dry-ru
 
 The default Dyn-Bench set is the decomposition study's 2800-question eval split, and the report
 pairs it question for question with that study's baselines. Use `--all` for the whole benchmark.
-Tests: `python -m pytest d4rt_agent/agent_v5/test_agent_v5.py` (GPU-free).
+Tests: `python -m pytest d4rt_agent/agent_v5` (GPU-free).
 
 ## Not verified yet
 
-Qwen, SAM3, Point4D (or D4RT), DA3 and OAV2 have never been loaded together in one process;
-the smoke job checks this first. The thresholds behind the descriptive labels were fitted on
-Point4D scenes (`thresholds.json`, dev clips only), so with D4RT they are less trustworthy. The
-numbers are always printed next to them.
+The compositional candidate's live integration and benchmark gains still require SLURM results.
+Synthetic and scripted-model tests establish software behavior, not perceptual accuracy.
+Existing descriptive thresholds come from the earlier Point4D study; this change does not fit
+new ones or treat them as answer rules. Their transfer to other scenes/backbones remains uncertain.
