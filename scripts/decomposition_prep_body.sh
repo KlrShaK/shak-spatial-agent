@@ -7,6 +7,7 @@
 #   PART=d4rt      -> D4RT depth vs Point4D depth: a second metres-per-unit per clip
 #   PART=d4rt_scene -> D4RT as the 3D backend: scene pass (clips/<slug>/d4rt/scene.npz) + DA3 metric scale on it
 #   PART=census    -> Qwen3-VL names the kind of every question the rules did not read (text only)
+#   PART=metric_gt -> Point4D / DA3 / D4RT depth against metric ground truth (decomposition/metric_gt_check.py)
 #   PLATFORM=a100|blackwell picks the Python for point4d: envs/point4d (torch cu124, A100 only) or
 #   envs/d4rt_bw_third_party (torch cu128, runs on Blackwell as well; Point4D is added by PYTHONPATH).
 #
@@ -109,6 +110,12 @@ run_part() {   # $1 = shard "i/n"
       export PYTHONPATH="$LOCAL_DEPS:$REPO_ROOT${PYTHONPATH:+:$PYTHONPATH}"
       /cluster/work/igp_psr/spanwar/envs/d4rt_bw_third_party/bin/python \
         -m dyn_dataset_exploration.decomposition.census qwen --qwen-model "$MODEL_DIR" --shard "$1"
+      ;;
+    metric_gt)
+      # windows come from `metric_gt_check prep` (CPU); one process, the stage list is not passed through
+      export PYTHONPATH="$REPO_ROOT:$REPO_ROOT/third-party-tools/Open-D4RT:$POINT4D_REPO${PYTHONPATH:+:$PYTHONPATH}"
+      /cluster/work/igp_psr/spanwar/envs/d4rt_bw_third_party/bin/python \
+        -m dyn_dataset_exploration.decomposition.metric_gt_check run report
       ;;
     *)
       echo "unknown PART=$PART" >&2
