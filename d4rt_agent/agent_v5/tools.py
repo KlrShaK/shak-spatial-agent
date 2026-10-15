@@ -1119,8 +1119,10 @@ def tool_orientation(ws: Workspace, args: Mapping[str, Any]) -> ToolResult:
     positions = list(present[np.unique(np.linspace(0, len(present) - 1, min(8, len(present))).astype(int))])
     rows_f = ws.facing(eid, positions)
     t = scene.t_s
-    rows, bearings = [], []
+    rows, bearings, bearing_positions, bearing_samples, facing_samples = [], [], [], [], []
     first_heading = None
+    previous_heading = None
+    accumulated = 0.0
     for row in rows_f:
         p = row["pos"]
         if not row.get("usable"):
@@ -1129,13 +1131,21 @@ def tool_orientation(ws: Workspace, args: Mapping[str, Any]) -> ToolResult:
             continue
         heading = orientation.heading_deg(row["forward_level"])
         first_heading = heading if first_heading is None else first_heading
-        turn = ((heading - first_heading + 180) % 360) - 180
+        if previous_heading is not None:
+            accumulated += ((heading - previous_heading + 180) % 360) - 180
+        previous_heading = heading
+        turn = accumulated
+        facing_samples.append({"frame": int(scene.gf_index[p]), "time_s": None if t is None else float(t[p]),
+                               "facing_cam": orientation.facing_words(row["forward_cam"]), "turn_deg": float(turn)})
         basis = orientation.subject_basis(row)
         side = "-"
         if basis is not None and np.isfinite(track.smooth[p]).all():
             bearing = orientation.camera_bearing(scene, track.smooth[p], p, basis)
             quadrant, octant, margin = orientation.sector(bearing)
-            bearings.append((render.time_label(t, p), quadrant))
+            bearings.append((render.time_label(t, p, gf_index=scene.gf_index), quadrant))
+            bearing_positions.append(int(p))
+            bearing_samples.append({"frame": int(scene.gf_index[p]), "time_s": None if t is None else float(t[p]),
+                                    "bearing_deg": float(bearing), "side": quadrant})
             side = f"{quadrant} ({octant}, {bearing:+.0f} deg{', near a boundary' if margin < 10 else ''})"
         rows.append([render.time_label(t, p, gf_index=scene.gf_index), orientation.facing_words(row["forward_cam"]), f"{turn:+.0f}", side,
                      f"{row['azimuth_deg']:.0f}"])
@@ -1153,7 +1163,11 @@ def tool_orientation(ws: Workspace, args: Mapping[str, Any]) -> ToolResult:
         "facing is estimated per frame from appearance; check a surprising reading against the frames"]))
     return ToolResult(render.block(title, lines),
                       f"orientation {eid}: camera side " + (" -> ".join(q for _, q in bearings) or "unknown"),
-                      data={"rows": [{k: (v.tolist() if isinstance(v, np.ndarray) else v) for k, v in r.items()}
+                      data={"cumulative_turn_deg": accumulated, "status": "partial", "confidence": "medium",
+                            "bearing_positions": bearing_positions,
+                            "bearings": bearing_samples, "facing_samples": facing_samples,
+                            "sampling_note": "Angular changes above 180 degrees between samples can alias; gaps remain uncertain.",
+                            "rows": [{k: (v.tolist() if isinstance(v, np.ndarray) else v) for k, v in r.items()}
                                      for r in rows_f]})
 
 
