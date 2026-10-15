@@ -48,10 +48,14 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     p.add_argument("--random-sample", type=int, default=200)
     # selection and budgets
     p.add_argument("--only", nargs="*", default=None, help="question ids")
+    p.add_argument("--selection-file", type=Path, default=None, help="answer-blind benchmark -> question ID manifest")
     p.add_argument("--limit", type=int, default=None)
     p.add_argument("--smoke", type=int, default=None, metavar="N",
                    help="smoke test: N questions, one per question group (catalog branch / DSI category) first, "
                         "the rest from the largest groups in proportion; drawn with a fixed seed")
+    p.add_argument("--shuffle-seed", type=int, default=None,
+                   help="process the clips in a seeded random order (a clip's questions stay together), so a run "
+                        "cut short at any point is still an unbiased sample; default: sorted by clip")
     p.add_argument("--shard", default="0/1", help="i/n: this process takes every n-th clip")
     p.add_argument("--force", action="store_true")
     p.add_argument("--stack", choices=["legacy", "compositional"], default="legacy",
@@ -142,6 +146,13 @@ def dsi_entries(args: argparse.Namespace) -> list[dict[str, Any]]:
 
 
 def select(entries: list[dict[str, Any]], args: argparse.Namespace) -> list[dict[str, Any]]:
+    if getattr(args, "selection_file", None):
+        manifest = json.loads(args.selection_file.read_text())
+        wanted = set(manifest["question_ids"][args.bench])
+        missing = wanted - {e["id"] for e in entries}
+        if missing:
+            raise ValueError(f"selection IDs absent from loaded benchmark ({len(missing)}); use --all / full DSI manifest")
+        entries = [e for e in entries if e["id"] in wanted]
     if args.only:
         wanted = set(args.only)
         entries = [e for e in entries if e["id"] in wanted]
@@ -151,7 +162,13 @@ def select(entries: list[dict[str, Any]], args: argparse.Namespace) -> list[dict
     clips = sorted({key(e) for e in entries})
     index, count = (int(v) for v in args.shard.split("/"))
     mine = set(clips[index::count])
-    entries = sorted((e for e in entries if key(e) in mine), key=lambda e: (key(e), e["id"]))  # a clip's questions together
+    order = sorted(mine)
+    if args.shuffle_seed is not None:
+        import random
+
+        random.Random(args.shuffle_seed).shuffle(order)
+    rank = {clip: i for i, clip in enumerate(order)}
+    entries = sorted((e for e in entries if key(e) in mine), key=lambda e: (rank[key(e)], e["id"]))  # a clip's questions together
     return entries[: args.limit] if args.limit is not None else entries
 
 
