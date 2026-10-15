@@ -591,3 +591,194 @@ def group_geometry(ws, args):
     return report("group configuration", {"members": members, "rows": rows}, entities=members,
                   frame="world0", units="scene_scales", status="partial",
                   note="Compare rows with the same visible members; a stationary centroid does not imply a static group.")
+
+
+def event_frame(event, fps, end=False):
+    value = event.end_frame if end else event.start_frame
+    if value is not None:
+        return float(value)
+    seconds = event.end_s if end else event.start_s
+    if fps is None or seconds is None:
+        error("event has no usable temporal coordinate")
+    return float(seconds * fps)
+
+
+def record_event(ws, args):
+    inspections = checked_inspections(ws, args)
+    fps = ws.clip.fps
+    if "start_frame" in args or "end_frame" in args:
+        if "start_frame" not in args or "end_frame" not in args:
+            error("provide both start_frame and end_frame")
+        a, b = float(args["start_frame"]), float(args["end_frame"])
+    else:
+        if fps is None:
+            error("FPS is unknown; localize with start_frame and end_frame instead of seconds")
+        if "start_s" not in args or "end_s" not in args:
+            error("provide a start/end pair in seconds or generator frames")
+        a, b = float(args["start_s"]) * fps, float(args["end_s"]) * fps
+    if not 0 <= a <= b <= ws.clip.length - 1:
+        error("event interval is outside the clip")
+    if not any(r["window"][0] <= a <= b <= r["window"][1] for r in inspections):
+        error("event interval must be covered by a cited inspection")
+    participants = list(args["participants"])
+    if not participants:
+        error("an occurrence needs at least one participant")
+    for entity in participants:
+        if entity not in ("cam", "camera"):
+            ws.entity(split_entity(entity)[0])
+    predicate = str(args["predicate"])
+    declared = args.get("event")
+    description = next((e for e in ws.program.events if e.id == declared), None) if declared else None
+    if declared and description is None:
+        error(f"unknown required event {declared}")
+    if description:
+        predicate = description.text
+    else:
+        description = next((e for e in ws.program.events if e.text == predicate), None)
+    eid = args.get("occurrence_id")
+    for previous_id, entry in ws.occurrences.items():
+        previous = entry["occurrence"]
+        if previous.predicate == predicate and previous.participants == participants and \
+                event_frame(previous, fps) == a and event_frame(previous, fps, True) == b:
+            eid = eid or previous_id
+    eid = str(eid or ws.next_id())
+    if not isinstance(args.get("complete", True), bool):
+        error("complete must be a JSON boolean")
+    occurrence = EventOccurrence(eid, predicate, participants, None if fps is None else a / fps,
+                                 None if fps is None else b / fps, list(args["evidence_ids"]),
+                                 str(args.get("status", "supported")), bool(args.get("complete", True)),
+                                 event_id=description.id if description else None, start_frame=a, end_frame=b)
+    if occurrence.status not in ("supported", "unresolved"):
+        error("event status must be supported or unresolved")
+    samples = np.unique([f for r in inspections for f in r["frames"]])
+    def bracket(t):
+        j = min(int(np.searchsorted(samples, t)), len(samples) - 1)
+        return [float(samples[max(0, j - 1)]), float(samples[j])]
+    occurrence.onset_bracket_frames, occurrence.end_bracket_frames = bracket(a), bracket(b)
+    if fps is not None:
+        occurrence.onset_bracket_s = [f / fps for f in occurrence.onset_bracket_frames]
+        occurrence.end_bracket_s = [f / fps for f in occurrence.end_bracket_frames]
+    dependencies = {split_entity(p)[0] for p in participants if p not in ("cam", "camera")}
+    dependencies.update(e for inspection in inspections for e in inspection["revisions"])
+    ws.occurrences[eid] = {"occurrence": occurrence,
+                           "revisions": {e: ws.revisions.get(e, 0) for e in dependencies}}
+    ws.supersede({"event_reduce", "event_window"})
+    if eid in (ws.program.window.event or "").split(","):
+        ws.program.window = Window("event", event=eid, text="event anchor was revised")
+    for req in ws.program.requirements:
+        if req.window.event and eid in req.window.event.split(","):
+            req.window = Window("event", event=req.window.event, text="event anchor was revised")
+    return report("localized event", asdict(occurrence), status=occurrence.status, entities=participants,
+                  source="vlm_event_localization", window=[a, b], units="generator_frames")
+
+
+def event_reduce(ws, args):
+    predicate = str(args.get("predicate") or "")
+    lo, hi = bounds(ws, args)
+    fps = ws.clip.fps
+    operation = str(args.get("operation", "count"))
+    if operation not in ("count", "repetitions", "order", "duration", "unique_participants"):
+        error("operation must be count, repetitions, order, duration or unique_participants")
+    events = [r["occurrence"] for r in ws.occurrences.values()
+              if all(ws.revisions.get(e, 0) == rev for e, rev in r["revisions"].items())]
+    events = [e for e in events if (not predicate or e.predicate == predicate) and
+              ((event_frame(e, fps, True) >= lo and event_frame(e, fps) <= hi) if operation == "duration"
+               else lo <= event_frame(e, fps) <= hi)]
+    events.sort(key=lambda e: (event_frame(e, fps), event_frame(e, fps, True), e.id))
+    supported = [e for e in events if e.status == "supported"]
+    if operation == "repetitions":
+        supported = [e for e in supported if e.complete and event_frame(e, fps, True) <= hi]
+    if operation == "unique_participants":
+        role = int(args.get("participant_index", -1))
+        value = len({e.participants[role] for e in supported if -len(e.participants) <= role < len(e.participants)})
+    elif operation == "duration":
+        intervals = []
+        for e in supported:
+            a, b = max(lo, event_frame(e, fps)), min(hi, event_frame(e, fps, True))
+            if intervals and a <= intervals[-1][1]:
+                intervals[-1][1] = max(b, intervals[-1][1])
+            else:
+                intervals.append([a, b])
+        value = sum(b - a for a, b in intervals) / (fps if fps is not None else 1)
+    elif operation == "order":
+        value = [e.id for e in supported]
+    else:
+        value = len(supported)
+    ambiguous = [[x.id, y.id] for i, x in enumerate(supported) for y in supported[i + 1:]
+                 if x.onset_bracket_frames and y.onset_bracket_frames and
+                 max(x.onset_bracket_frames[0], y.onset_bracket_frames[0]) <= min(x.onset_bracket_frames[1], y.onset_bracket_frames[1])]
+    unit = ("seconds" if fps is not None else "generator_frames") if operation == "duration" else operation
+    return report("event reduction", {"operation": operation, "result": value, "ambiguous_order_pairs": ambiguous,
+                  "occurrences": [asdict(e) for e in events]}, status="partial", units=unit,
+                  entities=list({p for e in events for p in e.participants}),
+                  note="Only localized occurrences are counted; overlapping onset brackets leave order ambiguous. Duration is the union within the window.")
+
+
+def event_window(ws, args):
+    ids = [args[k] for k in ("start_event", "end_event") if args.get(k)]
+    if not ids:
+        error("name a localized start_event or end_event")
+    events = []
+    for eid in ids:
+        entry = ws.occurrences.get(eid)
+        if entry is None or entry["occurrence"].status != "supported" or any(
+                ws.revisions.get(e, 0) != rev for e, rev in entry["revisions"].items()):
+            error(f"occurrence {eid} is missing, unresolved or stale; use an occurrence ID from record_event/locate_event")
+        events.append(entry["occurrence"])
+    a = event_frame(events[0], ws.clip.fps) if args.get("start_event") else 0.0
+    b = event_frame(events[-1], ws.clip.fps, True) if args.get("end_event") else ws.clip.length - 1
+    if a > b:
+        error("event anchors reverse the requested interval")
+    ws.program.window = Window("frames", a, b, event=",".join(ids), text="localized event anchors")
+    for req in ws.program.requirements:
+        if req.window.kind == "event":
+            req.window = ws.program.window
+    return report("resolved event window", asdict(ws.program.window), units="generator_frames")
+
+
+def locate_event(ws, args):
+    from d4rt_agent.agent_v5 import measure
+    from d4rt_agent.agent_v5.program import Event, Measurement
+    actor, predicate = str(args["actor"]), str(args["predicate"])
+    eid = str(args.get("event") or ws.next_id())
+    existing = next((e for e in ws.program.events if e.id == eid), None)
+    if args.get("event") and existing is None:
+        error(f"unknown required event {eid}")
+    if existing:
+        existing.actor, existing.predicate = actor, predicate
+    else:
+        ws.program.events.append(Event(eid, actor, predicate, str(args.get("text", predicate))))
+    if predicate in ("enters_frame", "becomes_visible", "leaves_frame") and actor not in ("cam", "camera"):
+        _, visible, _, axis = image_series(ws, actor)
+        lo, hi = bounds(ws, args, axis)
+        transitions = visible[:-1] & ~visible[1:] if predicate == "leaves_frame" else ~visible[:-1] & visible[1:]
+        hits = np.flatnonzero(transitions) + 1
+        hits = hits[(hits >= lo) & (hits <= hi)]
+        value = {"actor": actor, "predicate": predicate, "left_censored": bool(visible[lo]),
+                 "occurrences": [{"onset": int(i), "onset_s": None if axis.t_s is None else float(axis.t_s[i]),
+                                  "bracket": [int(i - 1), int(i)]} for i in hits]}
+    else:
+        axis = ws.scene()
+        m = Measurement(ws.next_id(), "onset", [eid], "onset", window=ws.window(args))
+        result = measure.measure_event_onset(axis, ws.program, m, ws.tracks_map(actor))
+        if not result.available:
+            return report("event localization", {}, status="unresolved", note=result.reason)
+        value = dict(result.value)
+        if value.get("onset") is not None:
+            value["onset"] = int(axis.gf_index[value["onset"]])
+    occurrences = []
+    for row in value["occurrences"]:
+        oid = f"{eid}_{row['onset']}"
+        occurrence = EventOccurrence(oid, predicate, [actor], row["onset_s"], row["onset_s"], complete=False)
+        occurrence.start_frame = occurrence.end_frame = float(axis.gf_index[row["onset"]])
+        occurrence.onset_bracket_frames = [float(axis.gf_index[p]) for p in row["bracket"]]
+        occurrence.event_id = eid
+        if axis.t_s is not None:
+            occurrence.onset_bracket_s = [float(axis.t_s[p]) for p in row["bracket"]]
+        base = split_entity(actor)[0]
+        revisions = {} if actor in ("cam", "camera") else {base: ws.revisions.get(base, 0)}
+        ws.occurrences[oid] = {"occurrence": occurrence, "revisions": revisions}
+        occurrences.append(asdict(occurrence))
+    ws.supersede({"event_reduce"})
+    return report("event localization", {**value, "occurrences": occurrences}, status="partial", entities=[actor],
+                  note="Signal transitions are onset proposals; start/end intervals and semantic actions need targeted inspection.")
