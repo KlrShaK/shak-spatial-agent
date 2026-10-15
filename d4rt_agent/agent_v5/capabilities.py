@@ -261,3 +261,100 @@ def evaluate_predicate(ws, args):
     return report("geometric predicate", {"predicate": name, "rows": rows}, status="partial", entities=[base], frame=frame,
                   window=[lo, hi], note="Directions use net displacement during observed visibility; motion uses excursion. "
                   "Combine this predicate with separate semantic qualifiers using count_entities.predicates. Floors are estimated, not truth.")
+
+
+def inspect(ws, args):
+    from d4rt_agent.agent_v5.final_context import register, render_frame
+    explicit = args.get("frame_ids")
+    if explicit is not None:
+        if not isinstance(explicit, list) or not 1 <= len(explicit) <= 8 or any(
+                not isinstance(f, int) or isinstance(f, bool) or not 0 <= f < ws.clip.length for f in explicit):
+            error("frame_ids must list one to eight valid generator-frame integers")
+        frames = np.unique(explicit)
+        lo, hi = int(frames[0]), int(frames[-1])
+    else:
+        lo, hi = bounds(ws, args)
+        frames = np.unique(np.round(np.linspace(lo, hi, min(8, hi - lo + 1))).astype(int))
+    target = args.get("entity")
+    annotation = str(args.get("annotation", "mask" if target else "none"))
+    if annotation not in ("mask", "box", "none"):
+        error("annotation must be mask, box or none")
+    if target:
+        ws.grounding(split_entity(str(target))[0])
+    iid = ws.next_id()
+    images, visual_ids = [], []
+    for f in frames:
+        image, missing = render_frame(ws, target, int(f), annotation, bool(args.get("crop")))
+        vid = f"visual:{iid}:{f}:{annotation}"
+        register(ws, vid, image, [int(f)], entity=target, inspection_id=iid, annotation=annotation,
+                 crop=bool(args.get("crop")), limitations=[missing] if missing else [])
+        visual_ids.append(vid)
+        images.append((vid + ": " + ws.clip.label(int(f)), image))
+    revisions = {split_entity(str(target))[0]: ws.revisions.get(split_entity(str(target))[0], 0)} if target else {}
+    ws.inspections[iid] = {"window": [lo, hi], "frames": frames.tolist(), "entity": target,
+                           "revisions": revisions, "visual_ids": visual_ids}
+    return report("targeted inspection", {"inspection_id": iid, **ws.inspections[iid]}, images=images,
+                  note="Only these sampled frames were inspected; refine the window for short events.",
+                  visual_ids=visual_ids, entities=[] if not target else [split_entity(target)[0]],
+                  frame="image", window=[lo, hi])
+
+
+def checked_inspections(ws, args):
+    ids = args.get("evidence_ids", [])
+    if not isinstance(ids, list) or not ids:
+        error("cite at least one inspection ID")
+    records = []
+    for iid in ids:
+        # An image ID from an inspection (visual:t2:52:mask) stands for that inspection (t2).
+        visual = ws.visuals.get(iid) if isinstance(iid, str) else None
+        if iid not in ws.inspections and visual and visual["inspection_id"] in ws.inspections:
+            iid = visual["inspection_id"]
+        record = ws.inspections.get(iid)
+        if record is None:
+            error(f"unknown inspection {iid}")
+        if any(ws.revisions.get(e, 0) != r for e, r in record["revisions"].items()):
+            error(f"inspection {iid} predates an identity change; inspect again")
+        records.append(record)
+    return records
+
+
+def observe(ws, args):
+    inspections = checked_inspections(ws, args)
+    entity, predicate, value = str(args["entity"]), str(args["predicate"]), str(args["value"])
+    base, _ = split_entity(entity)
+    ws.entity(base)
+    if value not in ("true", "false", "unknown"):
+        error("value must be true, false or unknown")
+    lo, hi = bounds(ws, args)
+    if not any(r["window"][0] <= lo <= hi <= r["window"][1] for r in inspections):
+        error("predicate scope must fit within a cited inspection")
+    oid = ws.next_id()
+    obs = {"entity": entity, "predicate": predicate, "value": value, "window": [lo, hi],
+           "revision": ws.revisions.get(base, 0), "evidence_ids": args["evidence_ids"]}
+    ws.observations[oid] = obs
+    ws.supersede({"count", "count_entities"})
+    return report("visual predicate", {"observation_id": oid, **obs}, status="partial" if value == "unknown" else "supported",
+                  source="vlm_observation", entities=[base], frame="image", window=[lo, hi],
+                  note="A model observation on sampled images, not a geometric or ground-truth label.")
+
+
+def merge_identity(ws, args):
+    checked_inspections(ws, args)
+    base = str(args["entity"])
+    g = ws.grounding(base)
+    indices = list(dict.fromkeys(int(i) for i in args["instances"]))
+    if len(indices) < 2 or any(i < 0 or i >= g.count for i in indices):
+        error("provide at least two valid instance indices")
+    aliases = ws.identity_aliases.setdefault(base, {})
+    roots = {aliases.get(k, k) for k in indices}
+    root = min(roots)
+    for k in range(g.count):
+        if aliases.get(k, k) in roots:
+            aliases[k] = root
+            ws.unverified_instances.get(base, set()).discard(k)
+    chosen = ws.selected.get(base, [])
+    if ws.entity(base).kind == "group" and len({aliases.get(k, k) for k in chosen}) < len(chosen):
+        ws.selected.pop(base)
+    ws.invalidate(base)
+    return report("identity reconciliation", {"entity": base, "aliases": aliases}, entities=[base],
+                  source="vlm_identity_review", note="Merge retains all original SAM IDs; inspect again after this revision.")
