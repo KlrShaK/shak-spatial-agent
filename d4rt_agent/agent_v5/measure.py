@@ -433,6 +433,8 @@ def _operand_track(op: str, tracks: Mapping[str, list[EntityTrack]]) -> EntityTr
 
     if op == "camera" or op == "cam":
         return "camera"
+    if op in tracks:
+        return tracks[op][0] if tracks[op] else None
     if "[" in op:
         eid, k = op[:-1].split("[")
         lst = tracks.get(eid, [])
@@ -587,16 +589,21 @@ def measure_instances(scene: Scene, m: Measurement, tracks: Mapping[str, list[En
     lst = tracks.get(eid)
     if lst is None or not groundings.get(next((e.phrase for e in program.entities if e.id == eid), None)):
         return unavailable(m, "the category was not found by the segmenter")
+    try:
+        lo, hi, note = resolve_window(scene, m.window or program.window)
+    except WindowUnresolved as error:
+        return unavailable(m, str(error))
+    lst = [tr for tr in lst if tr.present[lo:hi + 1].any()]
     fps = effective_fps(scene)
     counts = {}
     for label, seconds in (("0.3s", 0.3), ("0.5s", 0.5), ("1.0s", 1.0)):
         need = max(3, int(round(seconds * fps)))
-        counts[label] = sum(1 for t in lst if int(t.present.sum()) >= need) if lst else 0
+        counts[label] = sum(1 for t in lst if int(t.present[lo:hi + 1].sum()) >= need) if lst else 0
     stable = len(set(counts.values())) == 1
     return Result(m.id, m.signal, m.reduce, value={
         "count": len(lst), "by_min_lifespan": counts, "stable": stable,
         "lifespans": [[t.first, t.last, int(t.present.sum())] for t in lst],
-    }, confidence="high" if stable else "low",
+    }, confidence="high" if stable else "low", window=(lo, hi), window_note=note,
         notes=[] if stable else ["the count changes with the minimum lifespan"])
 
 
