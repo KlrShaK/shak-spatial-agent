@@ -114,7 +114,7 @@ class AgentV5:
             try:
                 name, args = validate_action(extracted.value, allowed)
                 value = check(name, args)
-            except (ActionRejected, ToolError, ValueError) as error:
+            except (ActionRejected, ToolError, ValueError, TypeError) as error:
                 conv.turns[-1].kind = "reject"
                 self._reject(conv, str(error), allowed)
                 record["error"] = str(error)
@@ -137,7 +137,7 @@ class AgentV5:
         try:
             self._decompose(task, clip, conv, trace, state)
             spec = KIND_BY_NAME[state.kind]
-            if spec.route == "measure":
+            if state.program.route == "measure":
                 self._measure(task, conv, trace, state)
             letter, args = self._answer(task, clip, conv, trace, state)
             return self._solution(task, state, conv, trace, letter, args)
@@ -215,9 +215,9 @@ class AgentV5:
                 _, _, window = self._decide(conv, trace, ["choose_window"], "window", check, DECISION_TOKENS)
             except Exhausted as error:
                 state.notes.append(str(error))
-                window = Window("whole")
-        elif window.kind == "event":
-            window = Window("whole")
+        if window.kind == "event" and spec.route == "measure":
+            state.notes.append(f"Could not resolve event window {window.event!r}; whole-clip measurements are fallback context, not event-local evidence.")
+            window = Window("whole", text=f"fallback for unresolved event: {window.event}")
         return QueryProgram(str(task["id"]), state.kind, spec.route, "", entities=entities, events=events,
                             window=window)
 
@@ -269,13 +269,21 @@ class AgentV5:
         state.kind_switches += 1
         state.notes.append(f"switched kind {state.kind} -> {kind}")
         state.kind = kind
+        state.slots = {}
         try:
             self._fill_slots(str(task["question"]), conv, trace, state, kinds_module.LEGACY_KIND_BY_NAME[kind].slots)
         except Exhausted as error:
             state.notes.append(str(error))
-        entities, events = kinds_module.entities_from_slots(kind, state.slots, str(task["question"]))
-        known = {e.id for e in state.program.entities}
-        state.program.entities += [e for e in entities if e.id not in known]
+        entities, events = kinds_module.entities_from_slots(kind, state.slots, str(task["question"]), legacy=True)
+        changed = {e.id for e in entities if state.program.entity(e.id) != e}
+        for eid in changed:
+            state.workspace.invalidate(eid)
+            state.workspace.groundings.pop(eid, None)
+            state.workspace.selected.pop(eid, None)
+        state.program.entities = entities
+        for _, call, result in state.results:
+            if any(str(call.get(k, "")).split("[")[0] in changed for k in ("entity", "a", "b", "landmark")):
+                result.data["superseded"] = True
         state.program.events = events or state.program.events
         state.program.kind = kind
         state.program.route = kinds_module.LEGACY_KIND_BY_NAME[kind].route
@@ -286,7 +294,7 @@ class AgentV5:
 
     def _run_tool(self, conv: Conversation, trace: list[dict[str, Any]], state: State, name: str,
                   args: dict[str, Any]) -> None:
-        call = {k: v for k, v in args.items() if k != "justification"}
+        call = {k: v for k, v in args.items() if k != "justification" and v is not None}
         try:
             result = TOOLS[name](state.workspace, call)
         except ToolError as error:
@@ -296,7 +304,8 @@ class AgentV5:
             return
         except Exception as error:                              # noqa: BLE001 -- a broken tool is evidence too
             result = ToolResult(f"## {name}\nThe tool failed ({type(error).__name__}: {error}). Treat this "
-                                "measurement as unavailable.", f"{name}: failed", data={"error": traceback.format_exc()})
+                                "measurement as unavailable.", f"{name}: failed",
+                                data={"available": False, "status": "unresolved", "error": traceback.format_exc()})
         state.results.append((name, call, result))
         kind = "show" if result.images else "tool"
         conv.add("user", result.text + "\n\nNext: one more tool, or `done_measuring`.", images=result.images,
@@ -310,11 +319,13 @@ class AgentV5:
         options: Mapping[str, str] = task["options"]
         letters = sorted(options)
         if state.results:
-            dossier = "\n\n".join(r.text for _, _, r in state.results)
+            dossier = "\n\n".join(r.text for _, _, r in state.results if not r.data.get("superseded"))
         elif KIND_BY_NAME[state.kind].route == "vlm_only":
             dossier = "(No measurement: this question is decided by what the frames show.)"
         else:
             dossier = "(No measurement could be made; decide from the frames.)"
+        if state.notes:
+            dossier += "\nLimitations: " + "; ".join(state.notes)
         frames = [(clip.label(i) + ":", clip.pil(i, QWEN_LONG_SIDE)) for i in clip.answer_frames]
         # the keyframes of the opening turn are superseded by the full frame set
         for turn in conv.turns:
