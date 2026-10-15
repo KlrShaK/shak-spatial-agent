@@ -358,3 +358,236 @@ def merge_identity(ws, args):
     ws.invalidate(base)
     return report("identity reconciliation", {"entity": base, "aliases": aliases}, entities=[base],
                   source="vlm_identity_review", note="Merge retains all original SAM IDs; inspect again after this revision.")
+
+
+def image_motion(ws, args):
+    eid = str(args["entity"])
+    xy, present, area, axis = image_series(ws, eid)
+    lo, hi = bounds(ws, args, axis)
+    idx = np.flatnonzero(present & np.isfinite(xy).all(1))
+    idx = idx[(idx >= lo) & (idx <= hi)]
+    if len(idx) < 2:
+        return report("image motion", {}, status="unresolved", note="Fewer than two valid image observations.")
+    from d4rt_agent.agent_v5 import render
+    from d4rt_agent.agent_v5.measure import TUNING
+    spans = []
+    for a, b in render.segment_bounds(int(idx[0]), int(idx[-1])):
+        sub = idx[(idx >= a) & (idx <= b)]
+        if len(sub) < 2:
+            continue
+        d = xy[sub[-1]] - xy[sub[0]]
+        words = render.named_axes([d[0], d[1], 0], TUNING["image_move_floor"], TUNING["axis_dominance"])
+        spans.append((render.time_label(axis.t_s, sub[0]), render.time_label(axis.t_s, sub[-1]),
+                      render.primitive(words), float(np.linalg.norm(d))))
+    return report("image motion", {"net": (xy[idx[-1]] - xy[idx[0]]).tolist(), "segments": spans},
+                  note="In time order: " + render.chronological(spans) + ". Image motion includes camera motion; no depth was used.",
+                  entities=[split_entity(eid)[0]], frame="image", units="image_fraction", window=[lo, hi])
+
+
+def view_state(ws, args):
+    eid = str(args["entity"])
+    xy, present, area, axis = image_series(ws, eid)
+    lo, hi = bounds(ws, args, axis)
+    intervals = runs(present[lo:hi + 1])
+    sample = np.unique(np.linspace(lo, hi, min(8, hi - lo + 1)).astype(int))
+    return report("view state", {"visibility_intervals": [[a + lo, b + lo] for a, b in intervals],
+                  "rows": [{"frame": int(i), "centre": xy[i], "area_fraction": area[i],
+                            "detected": bool(present[i])} for i in sample]},
+                  entities=[split_entity(eid)[0]], frame="image", units="image_fraction", window=[lo, hi],
+                  note="Non-detection can be occlusion or segmentation failure; area change alone is not lens zoom.")
+
+
+def position(ws, eid):
+    scene = ws.scene()
+    if eid in ("cam", "camera"):
+        valid = np.isfinite(scene.cam_t).all(1)
+        if scene.pose_valid is not None:
+            valid &= scene.pose_valid
+        return scene.cam_t, valid
+    base, index = split_entity(eid)
+    if index is not None and ws.entity(base).kind == "category":
+        g = ws.grounding(base)
+        if not 0 <= index < g.count:
+            error("instance outside segmentation")
+        tr = lift_instances(scene, g, ws.instance_indices(base, index), entity_id=eid)
+    else:
+        tr = ws.track(eid)
+    if not isinstance(tr, EntityTrack):
+        error(f"{eid} could not be grounded")
+    return tr.smooth, tr.present & np.isfinite(tr.smooth).all(1)
+
+
+def frame_vectors(ws, vectors, idx, args):
+    from d4rt_agent.agent_v5.orientation import subject_basis
+    scene = ws.scene()
+    frame = str(args.get("frame", "scene"))
+    if frame in ("scene", "levelled"):
+        return scene.to_level(vectors)
+    if frame == "world0":
+        return vectors
+    if frame == "camera":
+        return np.einsum("ti,tij->tj", vectors, scene.cam_R[idx])
+    if frame in ("own", "body_initial", "body_current"):
+        reference = str(args.get("reference") or args.get("entity") or args.get("b"))
+        if reference in ("cam", "camera"):
+            if frame == "body_current":
+                return np.einsum("ti,tij->tj", vectors, scene.cam_R[idx])
+            anchor = float(args.get("anchor_s") or 0.0)
+            if scene.t_s is None and anchor != 0:
+                error("a timed camera-frame anchor requires known FPS")
+            p = int(np.argmin(np.abs(scene.t_s - anchor))) if scene.t_s is not None else 0
+            if scene.pose_valid is not None and not scene.pose_valid[p]:
+                error("camera-frame anchor has no valid measured pose")
+            return vectors @ scene.cam_R[p]
+        if frame == "body_current":
+            rows = ws.facing(reference, idx.tolist())
+        else:
+            anchor = float(args.get("anchor_s") or 0.0)
+            if scene.t_s is None and anchor != 0:
+                error("a timed body-frame anchor requires known FPS")
+            p = int(np.argmin(np.abs(scene.t_s - anchor))) if scene.t_s is not None else 0
+            rows = ws.facing(reference, [p]) * len(idx)
+        out = []
+        for vector, row in zip(vectors, rows):
+            basis = subject_basis(row) if row.get("usable") else None
+            out.append(vector @ basis if basis is not None else np.full(3, np.nan))
+        return np.asarray(out)
+    error(f"unsupported geometric frame {frame}; image relations must use image coordinates")
+
+
+def relative_position(ws, args):
+    a, b = str(args["a"]), str(args["b"])
+    frame = args.get("frame", "scene")
+    if frame == "image":
+        pa, va, _, scene = image_series(ws, a)
+        pb, vb, _, _ = image_series(ws, b)
+    else:
+        scene = ws.scene()
+        pa, va = position(ws, a)
+        pb, vb = position(ws, b)
+    lo, hi = bounds(ws, args, scene)
+    idx = np.flatnonzero(va & vb)
+    idx = idx[(idx >= lo) & (idx <= hi)]
+    if not len(idx):
+        return report("relative position", {}, status="unresolved", note="No common supported observations.")
+    idx = idx[np.unique(np.linspace(0, len(idx) - 1, min(8, len(idx))).astype(int))]
+    vectors = pa[idx] - pb[idx]
+    if frame != "image":
+        vectors = frame_vectors(ws, vectors, idx, args) / scene.scale
+    return report("relative position", {"convention": "a minus b; +right, +down, +forward (3D only)",
+                  "rows": [{**frame_stamp(scene, i), "offset": v} for i, v in zip(idx, vectors)]},
+                  status="supported" if np.isfinite(vectors).all() else "partial", entities=[a, b],
+                  frame=frame, window=[int(scene.gf_index[lo]), int(scene.gf_index[hi])],
+                  units="image_fraction" if frame == "image" else "scene_scales")
+
+
+def kinematics(ws, args):
+    eid = str(args["entity"])
+    scene = ws.scene()
+    if scene.t_s is None:
+        return report("kinematics", {}, status="unresolved", note="Seconds require an established frame rate.")
+    p, valid = position(ws, eid)
+    lo, hi = bounds(ws, args, scene)
+    idx = np.arange(lo, hi + 1)
+    good = valid[idx[:-1]] & valid[idx[1:]]
+    dt = np.diff(scene.t_s[idx])
+    velocity = np.diff(p[idx], axis=0) / dt[:, None]
+    velocity[~good] = np.nan
+    factor = scene.metres_per_unit if args.get("units") == "metric" else 1 / scene.scale
+    if factor is None:
+        return report("kinematics", {}, status="unresolved", note="Metric scale is unavailable; use relative units.")
+    velocity *= factor
+    speed = np.linalg.norm(velocity, axis=1)
+    mid = (scene.t_s[idx[:-1]] + scene.t_s[idx[1:]]) / 2
+    accel = np.diff(velocity, axis=0) / np.diff(mid)[:, None]
+    duration = float(dt[good].sum())
+    if not duration:
+        return report("kinematics", {}, status="unresolved", note="No consecutive valid positions.")
+    value = {"path_speed": float(np.nansum(speed * dt) / duration),
+             "net_velocity": (p[hi] - p[lo]) * factor / (scene.t_s[hi] - scene.t_s[lo])
+                 if valid[lo] and valid[hi] and hi > lo else None,
+             "observed_duration_s": duration, "coverage": float(good.mean()),
+             "speed_variance": float(np.nanvar(speed)),
+             "acceleration_variance": float(np.nanvar(accel, axis=0).sum()) if np.isfinite(accel).any() else None,
+             "rows": [{"time_s": float(mid[i]), "speed": speed[i]} for i in
+                      np.unique(np.linspace(0, len(mid) - 1, min(8, len(mid))).astype(int))]}
+    return report("kinematics", value, entities=[eid], frame="world0",
+                  window=[int(scene.gf_index[lo]), int(scene.gf_index[hi])],
+                  units="m/s" if args.get("units") == "metric" else "scene_scales/s",
+                  note="Surface-centre motion is a proxy; inspect track_quality before trusting surprising speeds.")
+
+
+def framed_trajectory(ws, args):
+    scene = ws.scene()
+    eid = str(args["entity"])
+    p, valid = position(ws, eid)
+    lo, hi = bounds(ws, args, scene)
+    idx = np.flatnonzero(valid)
+    idx = idx[(idx >= lo) & (idx <= hi)]
+    if len(idx) < 2:
+        return report("framed trajectory", {}, status="unresolved", note="Fewer than two valid positions.")
+    idx = idx[np.unique(np.linspace(0, len(idx) - 1, min(8, len(idx))).astype(int))]
+    delta = frame_vectors(ws, np.diff(p[idx], axis=0), idx[:-1], args) / scene.scale
+    return report("framed trajectory", {"segments": [{"frames": [int(scene.gf_index[a]), int(scene.gf_index[b])], "displacement": d}
+                  for a, b, d in zip(idx[:-1], idx[1:], delta)]},
+                  status="partial", entities=[eid], frame=args["frame"], units="scene_scales",
+                  window=[int(scene.gf_index[lo]), int(scene.gf_index[hi])],
+                  note="Body-current segments use the body's basis at each segment start. These rotating-frame increments are not a world net vector.")
+
+
+def orbit(ws, args):
+    a, b = str(args["entity"]), str(args["reference"])
+    scene = ws.scene()
+    pa, va = position(ws, a)
+    pb, vb = position(ws, b)
+    lo, hi = bounds(ws, args, scene)
+    relative = scene.to_level(pa - pb)
+    valid = va & vb & (np.linalg.norm(relative[:, [0, 2]], axis=1) > 1e-9)
+    segments = []
+    for x, y in runs(valid[lo:hi + 1]):
+        x, y = x + lo, y + lo
+        if y <= x:
+            continue
+        angle = np.unwrap(np.arctan2(relative[x:y + 1, 0], relative[x:y + 1, 2]))
+        segments.append({"frames": [int(scene.gf_index[x]), int(scene.gf_index[y])],
+                         "signed_degrees": float(np.degrees(angle[-1] - angle[0])),
+                         "angular_path_degrees": float(np.degrees(np.abs(np.diff(angle)).sum()))})
+    return report("relative orbit", {"segments": segments, "reference": b, "positive": "clockwise viewed from above"},
+                  status="supported" if segments else "unresolved", entities=[a, b], frame="levelled", units="degrees",
+                  note="Relative angular motion around the named reference; gaps and angles above pi/sample are unresolved.")
+
+
+def group_geometry(ws, args):
+    members = args.get("members")
+    if not members:
+        base = str(args["entity"])
+        members = [r["id"] for r in census(ws, {"entity": base}).data["value"]["instances"]]
+    if len(members) < 2:
+        error("group configuration needs at least two member identities")
+    scene = ws.scene()
+    lo, hi = bounds(ws, args, scene)
+    tracks = [position(ws, e) for e in members]
+    rows = []
+    for i in np.unique(np.linspace(lo, hi, min(8, hi - lo + 1)).astype(int)):
+        p = np.array([xyz[i] for xyz, ok in tracks if ok[i]])
+        if len(p) < 2:
+            continue
+        distances = np.linalg.norm(p[:, None] - p[None], axis=-1)
+        velocities = []
+        if i > lo:
+            dt = float(scene.t_s[i] - scene.t_s[i - 1]) if scene.t_s is not None else float(scene.gf_index[i] - scene.gf_index[i - 1])
+            velocities = [(xyz[i] - xyz[i - 1]) / dt for xyz, ok in tracks if ok[i] and ok[i - 1]]
+        velocities = np.asarray(velocities)
+        alignment = None
+        if len(velocities) > 1:
+            moving = np.linalg.norm(velocities, axis=1) > 1e-9
+            unit = velocities[moving] / np.linalg.norm(velocities[moving], axis=1)[:, None]
+            if len(unit) > 1:
+                alignment = float((unit @ unit.T)[np.triu_indices(len(unit), 1)].mean())
+        rows.append({**frame_stamp(scene, i), "members_visible": len(p), "centroid": p.mean(0) / scene.scale,
+                     "velocity_alignment": alignment,
+                     "rms_dispersion": float(np.sqrt(((p - p.mean(0)) ** 2).sum(1).mean()) / scene.scale),
+                     "mean_pair_separation": float(distances[np.triu_indices(len(p), 1)].mean() / scene.scale)})
+    return report("group configuration", {"members": members, "rows": rows}, entities=members,
+                  frame="world0", units="scene_scales", status="partial",
+                  note="Compare rows with the same visible members; a stationary centroid does not imply a static group.")
