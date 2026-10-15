@@ -383,8 +383,9 @@ def _first_present(track: EntityTrack, lo: int, hi: int) -> np.ndarray:
 # --------------------------------------------------------------------------- #
 
 def grounding_text(ws: Workspace, base: str) -> str:
+    from d4rt_agent.agent_v5.capabilities import image_axis
     g = ws.grounding(base)
-    scene = ws.scene()
+    scene = image_axis(ws)
     entity = ws.entity(base)
     if g.count == 0:
         return f"{base}: SAM3 found nothing for {entity.phrase!r} (also tried {phrase_ladder(entity.phrase)[1:]})."
@@ -403,11 +404,11 @@ def grounding_text(ws: Workspace, base: str) -> str:
     head = f"{base}: SAM3 found {g.count} instance(s) for {used!r}" + \
         (f" (the full phrase {entity.phrase!r} found none)" if used != entity.phrase else "") + "."
     chosen = ws.selected.get(base)
-    tracks = ws.tracks_of(base)
-    using = chosen if chosen is not None else sorted({k for t in tracks for k in t.instances})
-    tail = (f"Measurements use instance(s) {using}" + (" (your selection)." if chosen is not None else
-            " (chosen automatically: longest-lived and most confident; fragments of one entity merged). "
-            "Use `select` to choose others, `show` to see them."))
+    tail = (f"Selected instance(s): {chosen}." if chosen is not None else
+            "No explicit selection. Category counts retain all candidates; single-entity geometry ranks candidates. "
+            "Use select to pin identity and inspect to check it. No 3D reconstruction was needed for this census.")
+    if entity.kind == "group" and chosen is not None:
+        tail += " Member bindings: " + ", ".join(f"{base}[{i}] = SAM {k}" for i, k in enumerate(chosen)) + "."
     return "\n".join([head, render.table(["inst", "visible", "of frames", "score", "area", "where"], rows), tail])
 
 
@@ -670,6 +671,13 @@ FRAME_CAVEAT = {
 def tool_entity_track(ws: Workspace, args: Mapping[str, Any]) -> ToolResult:
     eid = str(args["entity"])
     frame = str(args.get("frame") or "scene")
+    if frame == "image":
+        from d4rt_agent.agent_v5.capabilities import image_motion
+        return image_motion(ws, args)
+    if frame in ("world0", "body_current", "body_initial") or eid in ("cam", "camera") or \
+            (frame == "own" and args.get("reference") in ("cam", "camera")):
+        from d4rt_agent.agent_v5.capabilities import framed_trajectory
+        return framed_trajectory(ws, {**args, "frame": frame})
     if frame not in FRAME_TEXT:
         raise ToolError(f"`frame` must be one of {list(FRAME_TEXT)}")
     title = f"entity_track {eid} ({frame} frame)"
@@ -1059,31 +1067,8 @@ def tool_speed(ws: Workspace, args: Mapping[str, Any]) -> ToolResult:
 
 
 def tool_count(ws: Workspace, args: Mapping[str, Any]) -> ToolResult:
-    eid = str(args.get("entity") or "c1")
-    entity = ws.entity(eid)
-    title = f"count of {entity.phrase}"
-    g = ws.grounding(eid)
-    scene = ws.scene()
-    tracks = ws.tracks_of(eid)
-    m = Measurement(_measure_id(ws), "instances", [eid], "count")
-    stub = QueryProgram(ws.program.qid, ws.program.kind, "measure", "", entities=[entity])
-    r = measure.measure_instances(scene, m, {eid: tracks}, {entity.phrase: g}, stub)
-    if not r.available:
-        return _unavailable(title, r.reason)
-    t = scene.t_s
-    rows = [[i + 1, render.span_label(t, tr.first, tr.last), f"{tr.present.mean():.0%}",
-             f"{np.median(tr.area_frac[tr.present]):.1%}"] for i, tr in enumerate(tracks)]
-    v = r.value
-    lines = [
-        f"Distinct instances of {entity.phrase!r} the segmenter tracked (fragments of one instance that disappears and "
-        f"comes back are merged; tracklets shorter than about half a second are not counted).",
-        render.table(["#", "visible", "of frames", "size"], rows),
-        f"Count by minimum lifespan: {v['by_min_lifespan']}.",
-        _label(f"{v['count']} instance(s)" + ("" if v["stable"] else " (unstable: depends on the minimum lifespan)")),
-        render.reliability(r.confidence, _common_notes(r) + [
-            "the segmenter can miss small, distant or occluded instances, and can split one instance in two"]),
-    ]
-    return ToolResult(render.block(title, lines), f"count {entity.phrase}: {v['count']}", data=r.to_dict())
+    from d4rt_agent.agent_v5.capabilities import count_entities
+    return count_entities(ws, args)
 
 
 def tool_event_onset(ws: Workspace, args: Mapping[str, Any]) -> ToolResult:
@@ -1244,7 +1229,8 @@ TOOL_SPECS: dict[str, dict[str, Any]] = {
     "speed": {"description": "An entity's average speed, in m/s when a metric scale exists.",
               "arguments": {"entity": "entity id", "window": _WINDOW}, "required": ["entity"]},
     "count": {"description": "How many distinct instances of the counted category appear.",
-              "arguments": {"entity": "category id (default c1)"}, "required": []},
+              "arguments": {"entity": "category id (default c1)", "window": _WINDOW, "at_s": "optional seconds",
+                            "predicate": "optional observed predicate", "aggregation": "unique|at_time|max_simultaneous"}, "required": []},
     "event_onset": {"description": "When one of the named events starts.",
                     "arguments": {"event": "event id", "window": _WINDOW}, "required": ["event"]},
     "orientation": {"description": "Which way an entity faces over time, and which of its sides the camera sees.",
