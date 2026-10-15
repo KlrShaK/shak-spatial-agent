@@ -2,6 +2,7 @@
 
     python -m d4rt_agent.agent_v5.run --bench dynbench --backbone point4d --results-dir <dir> --qwen-model <path>
     python -m d4rt_agent.agent_v5.run --bench dsi --split std --random-sample 200 --backbone d4rt ...
+    python -m d4rt_agent.agent_v5.run --bench vlm4d --backbone point4d --results-dir <dir> ...
 
 Dyn-Bench questions come from a catalog (default: the decomposition study's 2800-question eval
 split, ``dyn_dataset_exploration/outputs/decomposition_eval/catalog.json``) or from the whole
@@ -29,7 +30,7 @@ DEFAULT_QWEN_MODEL = "Qwen/Qwen3-VL-8B-Instruct"
 
 def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    p.add_argument("--bench", choices=["dynbench", "dsi"], default="dynbench")
+    p.add_argument("--bench", choices=["dynbench", "dsi", "vlm4d"], default="dynbench")
     p.add_argument("--backbone", choices=["point4d", "d4rt"], default="point4d")
     p.add_argument("--results-dir", type=Path, required=True)
     p.add_argument("--cache-dir", type=Path, default=None, help="clips, scenes, groundings (default: <results>/cache)")
@@ -38,6 +39,8 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     p.add_argument("--catalog", type=Path, default=DEFAULT_CATALOG)
     p.add_argument("--all", action="store_true", help="every Dyn-Bench VQA row instead of a catalog")
     p.add_argument("--dyn-root", type=Path, default=Path("/cluster/work/igp_psr/spanwar/datasets/Dyn-Bench"))
+    # VLM4D (real + synthetic multiple-choice QA, offline copy; videos are plain mp4)
+    p.add_argument("--vlm4d-root", type=Path, default=Path("/cluster/work/igp_psr/spanwar/datasets/VLM4D"))
     # DSI-Bench
     p.add_argument("--dsi-root", type=Path, default=Path("/cluster/work/igp_psr/spanwar/datasets/DSI-Bench"))
     p.add_argument("--split", default="std")
@@ -76,6 +79,35 @@ def dynbench_entries(args: argparse.Namespace) -> list[dict[str, Any]]:
              # the research pipeline's rule label: reporting only, never shown to the agent
              "group": q.get("branch") or q.get("rule_kind")}
             for q in catalog["questions"]]
+
+
+def vlm4d_entries(args: argparse.Namespace) -> list[dict[str, Any]]:
+    """Every VLM4D question (real 1371 + synthetic 445), from the offline ``QA_local`` files.
+
+    The benchmark stores the answer as the option's TEXT (sometimes a number), so it is mapped to a letter
+    here; if two options carry the same text, either letter counts (``answer_also``). The id is unique only
+    within one file, so the question id is ``vlm4d_<split>_<video>_<n>``: its last ``_`` separates the video,
+    which is the unit the report resamples (several questions share a video)."""
+
+    import re
+
+    root = Path(args.vlm4d_root)
+    out: list[dict[str, Any]] = []
+    for split, name in (("real", "real_mc.json"), ("synthetic", "synthetic_mc.json")):
+        for row in json.loads((root / "QA_local" / name).read_text()):
+            options = {str(k): str(v).strip() for k, v in sorted(row["choices"].items())}
+            letters = [k for k, v in options.items() if v == str(row["answer"]).strip()]
+            if not letters:
+                raise ValueError(f"VLM4D {split} {row['id']}: answer {row['answer']!r} matches no option {options}")
+            video = Path(row["video"])
+            relative = str(video.relative_to(root)) if video.is_relative_to(root) else video.name
+            stem = re.sub(r"[^A-Za-z0-9-]+", "-", relative.rsplit(".", 1)[0].split("/", 1)[-1])
+            source = relative.split("/")[1] if split == "real" else "synthetic"
+            out.append({"id": f"vlm4d_{split}_{stem}_{row['id'].rsplit('_', 1)[-1]}", "question": row["question"],
+                        "options": options, "answer": letters[0], "answer_also": letters[1:],
+                        "relative_path": relative, "video_path": str(video), "task": split, "group": source,
+                        "dataset": f"vlm4d_{split}"})
+    return out
 
 
 def dsi_entries(args: argparse.Namespace) -> list[dict[str, Any]]:
@@ -137,7 +169,7 @@ def smoke_sample(entries: list[dict[str, Any]], n: int, seed: int = 0) -> list[d
 def open_clip(entry: Mapping[str, Any], args: argparse.Namespace, cache: Path) -> Any:
     from d4rt_agent.agent_v5 import clips
 
-    if args.bench == "dsi":
+    if args.bench in ("dsi", "vlm4d"):                      # both are plain videos decoded to a frame folder
         return clips.open_dsi(Path(entry["video_path"]), entry["relative_path"], cache)
     return clips.open_dynbench(args.dyn_root, entry["dataset"], entry["video"], cache)
 
@@ -158,7 +190,7 @@ def run(args: argparse.Namespace) -> int:
     from d4rt_agent.agent_v5.orchestrator import AgentV5
     from d4rt_agent.agent_v5.tools import Workspace
 
-    entries = select(dsi_entries(args) if args.bench == "dsi" else dynbench_entries(args), args)
+    entries = select({"dsi": dsi_entries, "vlm4d": vlm4d_entries}.get(args.bench, dynbench_entries)(args), args)
     cache = args.cache_dir or (args.results_dir / "cache")
     answers = args.results_dir / "answers"
     pending = [e for e in entries if args.force or not (answers / f"{e['id']}.json").exists()]
@@ -193,7 +225,7 @@ def run(args: argparse.Namespace) -> int:
             solution = agent.solve(task)
         solution["reference"] = {"answer": entry["answer"], "options": entry["options"], "task": entry.get("task"),
                                  "group": entry.get("group"), "dataset": entry.get("dataset")}
-        solution["correct"] = solution.get("letter") == entry["answer"]
+        solution["correct"] = solution.get("letter") in (entry["answer"], *entry.get("answer_also", ()))
         solution["wall_seconds"] = round(time.time() - started, 1)
         solution.update(gpu_memory_report())
         write_json(answers / f"{entry['id']}.json", solution)
