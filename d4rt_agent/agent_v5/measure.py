@@ -121,7 +121,7 @@ class Result:
     confidence: str = "high"                 # high | medium | low
     window: tuple[int, int] | None = None
     window_note: str = ""
-    series: dict[str, Any] = field(default_factory=dict)   # plots only; not serialised
+    series: dict[str, Any] = field(default_factory=dict)   # retained for coverage and offline audit
     notes: list[str] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, Any]:
@@ -129,7 +129,7 @@ class Result:
             "id": self.id, "signal": self.signal, "reduce": self.reduce, "available": self.available,
             "reason": self.reason, "value": _jsonable(self.value), "floor": _jsonable(self.floor),
             "confidence": self.confidence, "window": list(self.window) if self.window else None,
-            "window_note": self.window_note, "notes": self.notes,
+            "window_note": self.window_note, "notes": self.notes, "series": _jsonable(self.series),
         }
 
 

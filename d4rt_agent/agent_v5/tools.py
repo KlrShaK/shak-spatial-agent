@@ -257,10 +257,10 @@ def _units_line(scene: Scene) -> str:
     return text
 
 
-def _unavailable(title: str, reason: str) -> ToolResult:
+def _unavailable(title: str, reason: str, result: Result | None = None) -> ToolResult:
     text = render.block(title, [f"Could NOT be measured: {reason}.",
                                 "Answer this part from the frames, and say the measurement was unavailable."])
-    return ToolResult(text, f"{title}: unavailable ({reason})", data={"available": False, "reason": reason})
+    return ToolResult(text, f"{title}: unavailable ({reason})", data=result.to_dict() if result else {"available": False, "reason": reason})
 
 
 def _not_found(ws: Workspace, eid: str, title: str) -> ToolResult | None:
@@ -381,7 +381,7 @@ def tool_camera_motion(ws: Workspace, args: Mapping[str, Any]) -> ToolResult:
     m = Measurement(_measure_id(ws), "camera_motion", ["cam"], "dominant_motion", window=window)
     r = measure.measure_camera_motion(scene, window, m)
     if not r.available:
-        return _unavailable(title, r.reason)
+        return _unavailable(title, r.reason, r)
     lo, hi = r.window
     cam = measure.camera_state(scene)
     t = scene.t_s
@@ -510,7 +510,7 @@ def tool_camera_zoom(ws: Workspace, args: Mapping[str, Any]) -> ToolResult:
     window = ws.window(args)
     r = measure.measure_zoom(scene, window, Measurement(_measure_id(ws), "focal", ["cam"], "verdict", window=window))
     if not r.available:
-        return _unavailable(title, r.reason)
+        return _unavailable(title, r.reason, r)
     lo, hi = r.window
     cam = measure.camera_state(scene)
     fx = scene.K[:, 0, 0]
@@ -543,7 +543,7 @@ def tool_scene_revisit(ws: Workspace, args: Mapping[str, Any]) -> ToolResult:
     r = measure.measure_revisit(scene, window, Measurement(_measure_id(ws), "covisibility", ["cam"], "verdict",
                                                            window=window))
     if not r.available:
-        return _unavailable(title, r.reason)
+        return _unavailable(title, r.reason, r)
     v = r.value
     lines = [
         f"{v['shared_fraction']:.0%} of the first view's 3D points are seen again, at a consistent depth, from the last "
@@ -682,7 +682,7 @@ def tool_distance(ws: Workspace, args: Mapping[str, Any]) -> ToolResult:
                     window=window, metric=at)
     r = measure.measure_range(scene, ws.program, m, ws.tracks_map(a, b))
     if not r.available:
-        return _unavailable(title, r.reason)
+        return _unavailable(title, r.reason, r)
     rng = np.asarray(r.series["range"], float)
     t = scene.t_s
     mpu = scene.metres_per_unit
@@ -753,7 +753,7 @@ def tool_region_relation(ws: Workspace, args: Mapping[str, Any]) -> ToolResult:
     stub = QueryProgram(ws.program.qid, ws.program.kind, "measure", "", entities=[landmark])
     r = measure.measure_region_distance(scene, stub, m, ws.tracks_map(eid), {landmark.phrase: g})
     if not r.available:
-        return _unavailable(title, r.reason)
+        return _unavailable(title, r.reason, r)
     dist = np.asarray(r.series["smooth"], float)
     ok = np.flatnonzero(np.isfinite(dist))
     t = scene.t_s
@@ -788,7 +788,7 @@ def tool_elevation(ws: Workspace, args: Mapping[str, Any]) -> ToolResult:
     m = Measurement(_measure_id(ws), "elevation", [eid], "verdict", window=window)
     r = measure.measure_elevation(scene, ws.program, m, ws.tracks_map(eid))
     if not r.available:
-        return _unavailable(title, r.reason)
+        return _unavailable(title, r.reason, r)
     elev = np.asarray(r.series["elevation"], float)
     ok = np.flatnonzero(np.isfinite(elev))
     t = scene.t_s
@@ -882,7 +882,7 @@ def tool_apparent_size(ws: Workspace, args: Mapping[str, Any]) -> ToolResult:
     m = Measurement(_measure_id(ws), "area", [eid], "shape", window=window)
     r = measure.measure_apparent_size(scene, ws.program, m, ws.tracks_map(eid))
     if not r.available:
-        return _unavailable(title, r.reason)
+        return _unavailable(title, r.reason, r)
     area = np.asarray(r.series["area"], float)
     ok = np.flatnonzero(np.isfinite(area))
     t = scene.t_s
@@ -913,7 +913,7 @@ def tool_motion_profile(ws: Workspace, args: Mapping[str, Any]) -> ToolResult:
     m = Measurement(_measure_id(ws), "speed", [eid], "profile", window=window)
     r = measure.measure_motion_profile(scene, ws.program, m, ws.tracks_map(eid))
     if not r.available:
-        return _unavailable(title, r.reason)
+        return _unavailable(title, r.reason, r)
     speed, moving, at = (np.asarray(r.series[k]) for k in ("speed", "moving", "frames"))
     floor = r.floor["speed_per_s"]
     t = scene.t_s
@@ -949,7 +949,7 @@ def tool_speed(ws: Workspace, args: Mapping[str, Any]) -> ToolResult:
     m = Measurement(_measure_id(ws), "speed_metric", [eid], "value", metric=True, window=window)
     r = measure.measure_metric_speed(scene, ws.program, m, ws.tracks_map(eid))
     if not r.available:
-        return _unavailable(title, r.reason)
+        return _unavailable(title, r.reason, r)
     v = r.value
     if "mps" in v:
         head = (f"{_who(ws, eid)} averages about {v['mps']:.2f} m/s over {v['duration_s']:.1f} s: start-to-end "
@@ -1010,7 +1010,7 @@ def tool_event_onset(ws: Workspace, args: Mapping[str, Any]) -> ToolResult:
     m = Measurement(_measure_id(ws), "onset", [evid], "onset")
     r = measure.measure_event_onset(scene, ws.program, m, ws.tracks_map(ev.actor))
     if not r.available:
-        return _unavailable(title, r.reason)
+        return _unavailable(title, r.reason, r)
     v = r.value
     t = scene.t_s
     when = "was not found in the clip" if v["onset"] is None else f"starts at {render.time_label(t, v['onset'])}"
