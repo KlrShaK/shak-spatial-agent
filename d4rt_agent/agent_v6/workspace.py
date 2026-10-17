@@ -341,3 +341,141 @@ class Workspace:
         self._selected[pending.name] = entity.label
         self.pending_candidates = None
         return entity
+
+    def track_record(self, name: str) -> EntityTrack:
+        entity = self.resolve(name)
+        if entity.is_camera:
+            def camera_track() -> EntityTrack:
+                scene = self.scene()
+                present = np.isfinite(scene.cam_t).all(axis=1)
+                xyz = np.asarray(scene.cam_t, dtype=float).copy()
+                if scene.pose_valid is not None:
+                    present &= scene.pose_valid
+                xyz[~present] = np.nan
+                smooth = smooth_track(scene, xyz)
+                residual = np.linalg.norm(xyz - smooth, axis=1)
+                residual = residual[np.isfinite(residual)]
+                noise = float(np.median(residual)) if len(residual) else 0.0
+                return EntityTrack("camera", "camera", [], present, present.copy(), xyz, smooth,
+                                   np.zeros(scene.length, dtype=int), np.zeros(scene.length),
+                                   np.zeros(scene.length, dtype=bool), np.full((scene.length, 2), np.nan), noise)
+            return self.cached(("track", "camera"), ("camera",), camera_track)
+        group = self._groups[entity.category]
+        return self.cached(("track", entity.label), (entity.category,),
+                           lambda: lift_instances(self.scene(), group.grounding, entity.instances,
+                                                  entity_id=entity.label, policy="selected"))
+
+    def track(self, name: str) -> np.ndarray:
+        return self.track_record(name).smooth
+
+    def masks_at(self, name: str) -> Callable[[int], np.ndarray | None]:
+        entity = self.resolve(name)
+        if entity.is_camera:
+            raise WorkspaceError("The camera has no segmentation mask.")
+        grounding = self._groups[entity.category].grounding
+        scene = self.scene()
+
+        def at(position: int) -> np.ndarray | None:
+            mask = grounding.masks[list(entity.instances), int(scene.gf_index[position])].any(axis=0)
+            return mask if mask.any() else None
+        return at
+
+    def facing(self, name: str, positions: Sequence[int] | None = None) -> list[dict[str, Any]]:
+        entity = self.resolve(name)
+        if entity.is_camera:
+            raise WorkspaceError("Camera rotation is available directly from the scene poses.")
+        positions = tuple(range(self.scene().length)) if positions is None else tuple(int(p) for p in positions)
+        def measure() -> list[dict[str, Any]]:
+            masks = self.masks_at(entity.label)
+            if self._orientation_provider is not None:
+                return self._orientation_provider(self.clip, self.scene(), masks, positions)
+            if self.models is None:
+                return [{"pos": pos, "usable": False, "status": "orientation unavailable"} for pos in positions]
+            return orientation.facing_rows(self.models.orient(), self.clip, self.scene(), masks, positions)
+        return self.cached(("facing", entity.label, positions), (entity.category,), measure)
+
+    def times(self, indices: Sequence[int] | None = None) -> np.ndarray | None:
+        if self.clip.fps is None:
+            return None
+        indices = self.scene().gf_index if indices is None else np.asarray(indices)
+        return np.asarray(indices, dtype=float) / float(self.clip.fps)
+
+    def mark_shown(self, index: int) -> str:
+        """Register a frame whose image the caller is presenting to the agent."""
+        index = int(index)
+        if not 0 <= index < self.clip.length:
+            raise TimeUnavailable("The requested frame lies outside the clip.")
+        if self.clip.fps is not None:
+            return f"{index / float(self.clip.fps):.2f} s"
+        if index not in self._frame_labels:
+            label = f"shown frame {_letter_label(len(self._frame_labels))}"
+            self._frame_labels[index] = label
+            self._shown[label.casefold()] = index
+        return self._frame_labels[index]
+
+    def frame_label(self, index: int) -> str:
+        index = int(index)
+        if not 0 <= index < self.clip.length:
+            raise TimeUnavailable("The requested frame lies outside the clip.")
+        if self.clip.fps is not None:
+            return f"{index / float(self.clip.fps):.2f} s"
+        if index not in self._frame_labels:
+            raise TimeUnavailable("Show this frame before referring to it by a label.")
+        return self._frame_labels[index]
+
+    def time_labels(self, indices: Sequence[int] | None = None) -> list[str]:
+        indices = self.scene().gf_index if indices is None else indices
+        if self.clip.fps is None:
+            if not self._frame_labels:
+                raise TimeUnavailable("Show frames before reporting time spans at an unknown frame rate.")
+            shown = sorted(self._frame_labels)
+            return [self._frame_labels[min(shown, key=lambda frame: abs(frame - int(index)))]
+                    for index in indices]
+        return [self.frame_label(int(index)) for index in indices]
+
+    def frame_index(self, time_or_label: float | str) -> int:
+        if isinstance(time_or_label, str):
+            value = time_or_label.strip().casefold()
+            if value in self._shown:
+                return self._shown[value]
+            if value.startswith("shown frame"):
+                raise TimeUnavailable("Use the label of a frame already shown.")
+            try:
+                time_or_label = float(re.sub(r"\s*(?:seconds?|s)$", "", value))
+            except ValueError as error:
+                raise TimeUnavailable("Use a time in seconds or the label of a frame already shown.") from error
+        if self.clip.fps is None:
+            raise TimeUnavailable("The frame rate is unknown; use the label of a frame already shown.")
+        seconds = float(time_or_label)
+        if not np.isfinite(seconds):
+            raise TimeUnavailable("The requested time must be finite.")
+        return int(np.clip(round(seconds * float(self.clip.fps)), 0, self.clip.length - 1))
+
+    def frame_at(self, time_or_label: float | str) -> FrameView:
+        return self._frame_view(self.frame_index(time_or_label))
+
+    def _frame_view(self, index: int) -> FrameView:
+        seconds = None if self.clip.fps is None else index / float(self.clip.fps)
+        image = self.clip.frame(index)
+        return FrameView(self.mark_shown(index), image, seconds, index)
+
+    def frames(self, *, times: Sequence[float | str] | None = None,
+               range: Sequence[float | str] | None = None, limit: int = 4) -> list[FrameView]:
+        if times is not None and range is not None:
+            raise TimeUnavailable("Give times or a range, not both.")
+        if limit < 1:
+            raise ValueError("frame limit must be positive")
+        if times is not None:
+            if not 1 <= len(times) <= limit:
+                raise TimeUnavailable(f"Request between one and {limit} times.")
+            indices = [self.frame_index(value) for value in times]
+        elif range is not None:
+            if len(range) != 2:
+                raise TimeUnavailable("A range needs its start and end times.")
+            start, end = (self.frame_index(value) for value in range)
+            if end < start:
+                raise TimeUnavailable("The range ends before it starts.")
+            indices = np.rint(np.linspace(start, end, limit)).astype(int).tolist()
+        else:
+            indices = np.rint(np.linspace(0, self.clip.length - 1, min(limit, self.clip.length))).astype(int).tolist()
+        return [self._frame_view(index) for index in indices]
