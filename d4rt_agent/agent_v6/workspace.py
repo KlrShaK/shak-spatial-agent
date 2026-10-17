@@ -215,3 +215,129 @@ class Workspace:
         if existing is None or existing.revisions != revisions:
             self._cache[key] = _Cached(revisions, build())
         return self._cache[key].value
+
+    def ground(self, name: str, *, refresh: bool = False,
+               at: float | str | None = None, phrase: str | None = None) -> EntityGroup:
+        name = normalise_name(name)
+        if name == "camera":
+            raise WorkspaceError("The camera is already available; it needs no segmentation.")
+        if not name:
+            raise WorkspaceError("An entity name is required.")
+        if name in self._labels:
+            name = self._labels[name].category
+        if name in self._groups and not refresh:
+            return self._groups[name]
+        grounder = self._grounder
+        if grounder is None and self.models is not None:
+            grounder = self.models.ground
+        if grounder is None:
+            raise EntityUnavailable(f"Segmentation is unavailable for {name}.")
+        prompt_frame = 0 if at is None else self.frame_index(at)
+        grounding = grounder(self.clip, phrase or name, prompt_frame)
+        if not isinstance(grounding, Grounding):
+            raise TypeError("grounder must return a V5 Grounding")
+        if grounding.masks.shape[1] != self.clip.length:
+            raise ValueError("grounding must cover the clip's complete frame sequence")
+        previous = self._groups.get(name)
+        entities = self._label_instances(name, grounding, previous)
+        self.invalidate(name)
+        self._selected.pop(name, None)
+        for label, entity in tuple(self._labels.items()):
+            if entity.category == name:
+                del self._labels[label]
+        self._labels.update((entity.label, entity) for entity in entities)
+        group = EntityGroup(name, grounding, entities, self.revisions[name])
+        self._groups[name] = group
+        if not entities:
+            self.grounding_misses += 1
+        return group
+
+    def reground(self, name: str, *, phrase: str | None = None,
+                 at: float | str | None = None) -> EntityGroup:
+        return self.ground(name, refresh=True, at=at, phrase=phrase)
+
+    def _label_instances(self, name: str, grounding: Grounding,
+                         previous: EntityGroup | None) -> tuple[Entity, ...]:
+        active = [i for i in range(grounding.count) if grounding.masks[i].any()]
+        matched: dict[int, str] = {}
+        # SAM identifiers are session-local. Reuse a label only when the masks agree,
+        # never merely because a new SAM session reused the same integer.
+        if previous is not None:
+            old_masks = previous.grounding.masks
+            if old_masks.shape[1:] == grounding.masks.shape[1:]:
+                scores = []
+                for i in active:
+                    for old in previous.entities:
+                        mask = old_masks[list(old.instances)].any(axis=0)
+                        union = np.count_nonzero(mask | grounding.masks[i])
+                        iou = np.count_nonzero(mask & grounding.masks[i]) / max(union, 1)
+                        if iou > 0.5:
+                            scores.append((iou, i, old.label))
+                used = set()
+                for _, i, label in sorted(scores, reverse=True):
+                    if i not in matched and label not in used:
+                        matched[i] = label
+                        used.add(label)
+        # Initial labels follow appearance, then image position, not confidence rank.
+        def appearance(i: int) -> tuple:
+            present = np.flatnonzero(grounding.masks[i].any(axis=(1, 2)))
+            first = int(present[0])
+            xs = np.nonzero(grounding.masks[i, first])[1]
+            return first, float(xs.mean()), i
+
+        result = []
+        for i in sorted(active, key=appearance):
+            label = matched.get(i)
+            if label is None:
+                number = self._next_label.get(name, 1)
+                self._next_label[name] = number + 1
+                label = f"{name} {number}"
+            result.append(Entity(label, name, (i,)))
+        return tuple(result)
+
+    def entities(self, category: str) -> tuple[Entity, ...]:
+        return self.ground(category).entities
+
+    def missing_message(self, name: str) -> str:
+        if self.grounding_misses <= 1:
+            return (f"No object found with the name {normalise_name(name)}. "
+                    "Suggest an alternative name: singular, short, descriptive words.")
+        return "Still not found. This is not proof that it is absent: check with get_frames or ask_video."
+
+    def resolve(self, name: str) -> Entity:
+        name = normalise_name(name)
+        if name == "camera":
+            return Entity("camera", "camera", is_camera=True)
+        if name in self._labels:
+            return self._labels[name]
+        # A retired/unknown numbered label must not silently become a fresh noun.
+        match = re.fullmatch(r"(.+) (\d+)", name)
+        if match and match[1] in self._groups:
+            raise EntityUnavailable(f"The label {name} is unavailable; inspect {match[1]} again.")
+        group = self.ground(name)
+        if not group.entities:
+            raise EntityUnavailable(self.missing_message(name))
+        if len(group.entities) == 1:
+            return group.entities[0]
+        if name in self._selected:
+            return self._labels[self._selected[name]]
+        choices = tuple(Candidate(_COLOURS[i] if i < len(_COLOURS) else f"colour {_letter_label(i)}",
+                                  entity.label, entity.instances)
+                        for i, entity in enumerate(group.entities))
+        self.pending_candidates = CandidateSelection(name, self.revisions[name], choices)
+        raise CandidateRequired(self.pending_candidates)
+
+    ensure_selection = resolve
+
+    def choose(self, colour: str) -> Entity:
+        pending = self.pending_candidates
+        if pending is None or self.revisions[pending.name] != pending.revision:
+            raise WorkspaceError("There is no current segmentation choice.")
+        matches = [choice for choice in pending.choices if choice.colour == colour.strip().casefold()]
+        if not matches:
+            raise WorkspaceError("Choose one of these colours: " + ", ".join(c.colour for c in pending.choices))
+        entity = self._labels[matches[0].label]
+        self.invalidate(pending.name)
+        self._selected[pending.name] = entity.label
+        self.pending_candidates = None
+        return entity
