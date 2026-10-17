@@ -203,3 +203,211 @@ def test_resolved_native_facing_does_not_call_visual_fallback():
     qwen = FakeQwen("unknown")
     report = track_orientation(ws, "person", "camera", qwen=qwen)
     assert report.status == "ok" and not qwen.calls
+
+
+def test_missing_interval_is_not_bridged_by_motion_phases():
+    path = constant([0, 0, 4])
+    path[10:20] = np.nan
+    path[20:, 0] = 10
+    ws, labels = workspace({"runner": path})
+    report = track_entity(ws, "runner")
+    segments = report.raw["motions"][labels["runner"]]["segments"]
+    assert len(segments) == 2
+    assert all(segment["majority"] == "still" for segment in segments)
+
+
+def test_question_window_keeps_original_seconds():
+    path = constant([0, 0, 4])
+    path[:, 0] = np.linspace(0, 3, 31)
+    ws, labels = workspace({"runner": path})
+    report = track_entity(ws, "runner", window=(1.0, 2.0))
+    raw = report.raw["motions"][labels["runner"]]
+    assert raw["sample_positions"] == list(range(10, 21))
+    assert raw["times"][0] == 1.0 and raw["times"][-1] == 2.0
+    assert report.raw["window"] == (1.0, 2.0)
+
+
+def test_unknown_fps_reports_only_displayed_frame_labels():
+    ws, _ = workspace({"person": constant([0, 0, 4])}, headings={"person": np.zeros(31)}, fps=None)
+    ws.frames()
+    text = track_entity(ws, "person").render()
+    assert "shown frame" in text
+    assert "Frame 30" not in text and "gf_index" not in text
+    report = track_entity(ws, "person", window=(1, 2))
+    assert report.status == "unavailable" and "frame rate is unknown" in report.reason
+
+
+def test_metric_distances_use_scale_with_named_provenance():
+    ws, _ = workspace({"person": constant([0, 0, 4]), "dog": constant([1, 0, 4])},
+                      headings={"person": np.zeros(31)})
+    ws._scene = replace(ws.scene(), metres_per_unit=2.5, metric_source="da3-nested")
+    report = track_entity(ws, "person", ["dog"], "subject")
+    assert report.raw["relations"][0]["distance"][0] == pytest.approx(2.5)
+    assert "da3-nested" in report.render() and "metres" in report.render()
+
+
+def test_subject_window_keeps_the_clips_starting_facing():
+    path = constant([0, 0, 4])
+    path[:, 2] += np.linspace(0, 3, 31)
+    ws, labels = workspace({"person": path}, headings={"person": np.linspace(0, 180, 31)})
+    report = track_entity(ws, "person", frame_of_reference="subject", window=(1, 2))
+    motion = report.raw["motions"][labels["person"]]
+    assert motion["starting_position"] == 0
+    assert motion["majority"] == "forward"
+
+
+def test_single_facing_observation_cannot_claim_no_turning():
+    angles = np.full(31, np.nan)
+    angles[15] = 90
+    ws, _ = workspace({"person": constant([0, 0, 4])}, headings={"person": angles})
+    report = track_orientation(ws, "person", "own")
+    assert report.status == "unavailable"
+    assert "One facing observation" in report.reason
+
+
+def test_sparse_facing_does_not_claim_continuous_stillness_or_side():
+    angles = np.full(31, np.nan)
+    angles[[0, 30]] = 0
+    ws, _ = workspace({"person": constant([0, 0, 4])}, headings={"person": angles})
+    own = track_orientation(ws, "person", "own")
+    assert own.status == "partial"
+    assert own.raw["cumulative_turn_deg"] is None
+    assert [segment["positions"] for segment in own.raw["segments"]] == [[0], [30]]
+    assert "no turning above" not in own.render()
+    camera = track_orientation(ws, "person", "camera")
+    assert camera.status == "partial"
+    assert len(camera.rows) == 2
+    assert all(row[0] != "0.00 s–3.00 s" for row in camera.rows)
+    assert "between missing observations is unavailable" in camera.headline
+
+
+def test_turning_is_not_accumulated_across_missing_facing():
+    angles = np.r_[np.linspace(0, 180, 15), np.nan, np.linspace(0, 180, 15)]
+    ws, _ = workspace({"person": constant([0, 0, 4])}, headings={"person": angles})
+    report = track_orientation(ws, "person", "own")
+    assert report.raw["cumulative_turn_deg"] is None
+    assert [segment["cumulative_turn_deg"] for segment in report.raw["segments"]] == pytest.approx([180, 180])
+    assert "360" not in report.render()
+
+
+def test_facing_camera_fallback_corrects_the_crop_ray():
+    ws, _ = workspace({"person": constant([4, 0, 4])})
+    ws.scene().K[:] = np.array([[20, 0, 40], [0, 20, 24], [0, 0, 1]])
+    masks = ws.ground("person").grounding.masks
+    masks[:] = False
+    masks[:, :, 20:29, 56:65] = True  # ray (1, 0, 1), matching the subject's location
+    qwen = FakeQwen("facing the camera")
+    rows = facing_rows(ws, "person", qwen=qwen)
+    np.testing.assert_allclose(rows[0]["forward_cam"], [-2**-0.5, 0, -2**-0.5], atol=1e-8)
+    report = track_orientation(ws, "person", "camera", qwen=qwen)
+    assert report.raw["sides"] == ["front", "front", "front"]
+    np.testing.assert_allclose(report.raw["bearing_deg"], 0, atol=1e-8)
+
+
+def test_partial_facing_retains_all_distance_observations_and_midclip_change():
+    main = constant([0, 0, 4])
+    other = main.copy()
+    other[:, 0] = np.r_[np.linspace(2, 0.5, 16), np.linspace(0.5, 2, 16)[1:]]
+    angles = np.full(31, np.nan)
+    angles[[0, 30]] = 0
+    ws, _ = workspace({"person": main, "dog": other}, headings={"person": angles})
+    report = track_entity(ws, "person", ["dog"], "subject")
+    relation = report.raw["relations"][0]
+    assert relation["positions"] == [0, 30]
+    assert relation["distance_positions"] == list(range(31))
+    assert min(relation["distance"]) == pytest.approx(0.5)
+    directions = {phase["label"] for phase in relation["distance_profile"]["phases"]}
+    assert directions == {"closer together", "farther apart"}
+    assert "0.50 at 1.50 s" in report.render()
+
+
+def test_group_spread_reports_convergence_then_spreading_with_timed_extremum():
+    first = constant([0, 0, 4])
+    second = first.copy()
+    second[:, 0] = np.r_[np.linspace(2, 0, 16), np.linspace(0, 2, 16)[1:]]
+    ws, _ = workspace({"first": first, "second": second}, category="car")
+    report = track_multiple_entities(ws, "car")
+    assert {phase["label"] for phase in report.raw["spread_phases"]} == {"converging", "spreading"}
+    assert report.raw["spread_extrema"][0]["minimum_position"] == 15
+    assert "minimum 0.00 at 1.50 s" in report.render()
+    assert "converging" in report.render() and "spreading" in report.render()
+
+
+def test_m4_short_contracts_are_short_and_do_not_repeat_full_contracts():
+    ws, _ = workspace({"person": constant([0, 0, 4]), "dog": constant([1, 0, 4])},
+                      headings={"person": np.zeros(31), "dog": np.zeros(31)})
+    reports = [track_entity(ws, "person"), track_entity(ws, "person", frame_of_reference="camera"),
+               track_entity(ws, "person", ["dog"], "subject"), track_orientation(ws, "person", "own"),
+               track_orientation(ws, "person", "camera")]
+    group, _ = workspace({"first": constant([0, 0, 4]), "second": constant([1, 0, 4])}, category="car")
+    reports.append(track_multiple_entities(group, "car"))
+    for report in reports:
+        assert report.reading_short != report.reading_full
+        assert len(report.reading_short.split()) <= 40
+        assert len(report.render(full=False)) < len(report.render(full=True))
+
+
+def test_composed_and_group_temporal_rows_are_packed_without_losing_phases():
+    frames = 61
+    path = constant([0, 0, 4], frames)
+    path[:, 0] = np.sin(np.linspace(0, 12 * np.pi, frames))
+    ws, _ = workspace({"person": path, "dog": path + [2, 0, 0]},
+                      headings={"person": np.linspace(0, 720, frames), "dog": np.zeros(frames)})
+    report = track_entity(ws, "person", ["dog"])
+    assert len(report.rows) <= 6
+    assert len(report.raw["motions"]["person 1"]["phases"]) > 6
+    assert "left" in report.render() and "right" in report.render()
+    group, _ = workspace({"first": constant([0, 0, 4], frames), "second": path + [2, 0, 0]}, category="car")
+    grouped = track_multiple_entities(group, "car")
+    assert len(grouped.rows) <= 2 + 6
+    assert len(grouped.raw["spread_phases"]) > 6
+    assert "converging" in grouped.render() and "spreading" in grouped.render()
+
+
+def test_subject_fallback_names_the_world_axes_in_the_title():
+    ws, _ = workspace({"person": constant([0, 0, 4])})
+    report = track_entity(ws, "person", frame_of_reference="subject")
+    assert report.title.startswith("World motion")
+    assert "starting-facing motion unavailable" in report.title
+
+
+def test_entity_speed_uses_metric_scale_and_actual_seconds_per_phase():
+    path = constant([0, 0, 4])
+    path[:, 0] = np.linspace(0, 3, 31)
+    ws, labels = workspace({"person": path})
+    ws._scene = replace(ws.scene(), metres_per_unit=2.5, metric_source="da3-nested")
+    report = track_entity(ws, "person")
+    motion = report.raw["motions"][labels["person"]]
+    assert motion["speed"]["duration_s"] == pytest.approx(3)
+    assert motion["speed"]["path_speed"] == pytest.approx(2.5)
+    assert motion["speed"]["net_displacement_rate"] == pytest.approx(2.5)
+    assert motion["speed"]["units"] == "m/s"
+    assert all(phase["path_speed"] == pytest.approx(2.5) for phase in motion["phase_speeds"])
+    assert "Path speed 2.50 m/s" in report.render()
+    assert "path speed 2.50 m/s" in str(report.rows)
+
+
+def test_out_and_back_keeps_path_speed_separate_from_net_displacement_rate():
+    path = constant([0, 0, 4])
+    path[:, 0] = np.r_[np.linspace(0, 1.5, 16), np.linspace(1.5, 0, 16)[1:]]
+    ws, labels = workspace({"person": path})
+    ws._scene = replace(ws.scene(), metres_per_unit=2.0, metric_source="da3-nested")
+    report = track_entity(ws, "person")
+    motion = report.raw["motions"][labels["person"]]
+    assert motion["speed"]["path_speed"] == pytest.approx(2)
+    assert motion["speed"]["net_displacement_rate"] == pytest.approx(0)
+    assert {phase["direction"] for phase in motion["phase_speeds"]} == {"right", "left"}
+    assert "Path speed 2.00 m/s" in report.render()
+    assert "net displacement rate 0.00 m/s" in report.render()
+
+
+def test_unknown_fps_does_not_report_speed_from_sample_order():
+    path = constant([0, 0, 4])
+    path[:, 0] = np.linspace(0, 3, 31)
+    ws, labels = workspace({"person": path}, fps=None)
+    ws.frames()
+    report = track_entity(ws, "person")
+    motion = report.raw["motions"][labels["person"]]
+    assert motion["speed"] is None and motion["phase_speeds"] == []
+    assert "Speed unavailable" in report.render()
+    assert "m/s" not in report.render() and "units/s" not in report.render()
