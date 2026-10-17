@@ -170,3 +170,127 @@ def turn_series(scene, rows) -> dict[str, Any]:
             "segments": segments, "partial": not continuous or len(usable) != len(rows),
             "source": FALLBACK_SOURCE if any(row.get("source") == FALLBACK_SOURCE for row in usable)
             else "Orient-Anything-V2"}
+
+
+def heading_report(ws, name, rows) -> Report:
+    series = turn_series(ws.scene(), rows)
+    if not series["positions"]:
+        return Report.unavailable(f"{name} heading", "No resolvable front.", raw=series)
+    if len(series["positions"]) < 2:
+        return Report.unavailable(f"{name} heading", "One facing observation cannot measure heading change.", raw=series)
+    source = series["source"]
+    turn, path = series["cumulative_turn_deg"], series["angular_path_deg"]
+    if turn is None:
+        headline = f"{name}: turning across missing observations is unavailable."
+    elif path <= 5:
+        headline = f"{name}: heading {turn:+.0f}° over its observed span; no turning above the 5° floor."
+    elif abs(turn) <= 5:
+        headline = f"{name}: heading {turn:+.0f}° net; total turning {path:.0f}°."
+    else:
+        headline = f"{name}: heading {turn:+.0f}°, turning to its {'right' if turn > 0 else 'left'}; total turning {path:.0f}°."
+    output = []
+    for segment in series["segments"]:
+        positions = np.asarray(segment["positions"])
+        turns = np.asarray(segment["turn_deg"])
+        labels = labels_for(ws, positions)
+        if len(positions) == 1:
+            output.append((labels[0], "isolated facing observation; intervening turn unknown",
+                           f"heading {segment['heading_deg'][0]:+.0f}°"))
+            continue
+        angular_path = np.column_stack([turns, np.zeros((len(turns), 2))])
+        phases = segment_motion(ws.times(ws.scene().gf_index[positions]), angular_path, 5.0,
+                                time_labels=labels, axes=(("turns right", "turns left"), ("", ""), ("", "")))
+        output.extend(phase_rows(phases))
+    note = (f"Camera rotation is removed. Positive heading is a turn to the subject's right. Source: {source}. "
+            "Turning is accumulated only within consecutive observed runs; gaps carry no measured turn.")
+    if source == FALLBACK_SOURCE:
+        note += " Three coarse observations cannot resolve turns between observations."
+    short = f"Positive heading means turning to the subject's right; missing intervals have no measured turn. Source: {source}."
+    return Report(f"{name} heading", headline, pack_rows(output), ("time", "turning", "degrees"), note, short,
+                  status="partial" if series["partial"] else "ok",
+                  reason="Facing covers separate observations or only part of the requested span." if series["partial"] else "",
+                  raw=series)
+
+
+def sector_phases(ws, positions, labels, values) -> list[tuple[str, str, str]]:
+    """Merge adjacent side observations; pack excess runs without dropping them."""
+    stamps = labels_for(ws, positions)
+    runs = []
+    for i, label in enumerate(labels):
+        if runs and label == runs[-1][2] and positions[i] == positions[i - 1] + 1:
+            runs[-1][1] = i
+        else:
+            runs.append([i, i, label])
+    packed = []
+    for group in np.array_split(np.arange(len(runs)), min(6, len(runs))) if runs else []:
+        readings = []
+        first, last = runs[int(group[0])][0], runs[int(group[-1])][1]
+        for index in group:
+            a, b, label = runs[int(index)]
+            span = stamps[a] if a == b else f"{stamps[a]}–{stamps[b]}"
+            readings.append(f"{label} ({values[a]:+.0f}° → {values[b]:+.0f}°) at {span}")
+        packed.append((f"{stamps[first]}–{stamps[last]}", "; ".join(readings), ""))
+    return packed
+
+
+def track_orientation(ws, main, frame_of_reference="camera", *, qwen=None, window=None) -> Report:
+    title = f"Facing of {main}, relative to {frame_of_reference}"
+    try:
+        entity = ws.resolve(main)
+        positions = window_positions(ws, window)
+        rows = facing_rows(ws, entity.label, qwen=qwen, positions=positions)
+        heading = heading_report(ws, entity.label, rows)
+        if frame_of_reference == "own":
+            heading.raw["window"] = window
+            return heading
+        scene = ws.scene()
+        reference_rows = {}
+        if frame_of_reference != "camera":
+            reference = ws.resolve(frame_of_reference)
+            reference_rows = {row["pos"]: row for row in facing_rows(ws, reference.label, qwen=qwen, positions=positions)}
+        track = ws.track_record(entity.label)
+        values, labels, used = [], [], []
+        for row in rows:
+            pos = int(row["pos"])
+            basis = basis_for(scene, row)
+            if basis is None:
+                continue
+            if frame_of_reference == "camera":
+                if not np.isfinite(track.smooth[pos]).all() or (scene.pose_valid is not None and not scene.pose_valid[pos]):
+                    continue
+                angle = geometry.camera_bearing(scene, track.smooth[pos], pos, basis)
+            else:
+                other_basis = basis_for(scene, reference_rows.get(pos, {}))
+                if other_basis is None:
+                    continue
+                vector = row["forward_world"] @ other_basis
+                angle = float(np.degrees(np.arctan2(vector[0], vector[2])))
+            quadrant, octant, _ = geometry.sector(angle)
+            values.append(angle)
+            labels.append(octant)
+            used.append(pos)
+        if not used:
+            return Report.unavailable(title, "No common observations with a resolvable front.", raw={"window": window})
+        phases = sector_phases(ws, used, labels, values)
+        route = " → ".join(label for i, label in enumerate(labels) if i == 0 or label != labels[i - 1])
+        if frame_of_reference == "camera":
+            headline = f"{entity.label} shows its {route} side to the camera."
+        else:
+            headline = f"{entity.label} faces {route} in {reference.label}'s current facing."
+        partial = len(used) != len(positions) or any(b - a != 1 for a, b in zip(used, used[1:]))
+        if partial:
+            headline = "At observed times: " + headline + " Facing between missing observations is unavailable."
+        source = heading.raw.get("source", "Orient-Anything-V2")
+        note = load_contract("orient_camera_subject_frame") + f" Facing source: {source}."
+        short = f"Sides follow the subject's current facing; missing observations do not establish a continuous side. Source: {source}."
+        return Report(title, headline, phases, ("time", "facing", ""), note, short,
+                      status="partial" if partial else "ok",
+                      reason="Facing is measured only at the listed observations." if partial else "",
+                      raw={"positions": used, "bearing_deg": values, "sides": labels,
+                           "heading": heading.raw, "source": source, "window": window})
+    except WorkspaceError as error:
+        # Ambiguity must reach the dispatcher so it can present candidate colours.
+        from d4rt_agent.agent_v6.workspace import CandidateRequired
+        if isinstance(error, CandidateRequired):
+            raise
+        return Report.unavailable(title, str(error), raw={"window": window})
