@@ -144,3 +144,109 @@ def test_motion_does_not_require_resolvable_facing():
     assert not any(row["usable"] for row in facing)
     np.testing.assert_allclose(ws.track("car"), np.tile([-1.0, 0, 4.0], (31, 1)), atol=1e-5)
     assert ws.track_record("car").id == "car 1"
+
+
+def test_failed_grounding_prompts_for_name_then_visual_check():
+    ws, g, _, responses = fixture_workspace()
+    responses.append(replace(g, **{
+        key: getattr(g, key)[:0] for key in ("obj_ids", "masks", "probs", "boxes", "area_frac", "border")
+    }))
+    with pytest.raises(EntityUnavailable, match="Suggest an alternative name"):
+        ws.resolve("skier")
+    with pytest.raises(EntityUnavailable, match="not proof that it is absent"):
+        ws.resolve("person on skis")
+    assert ws.grounding_misses == 2
+    ws.begin_question()
+    assert ws.grounding_misses == 0
+
+
+def test_seconds_nearest_frames_ranges_and_scene_sampling():
+    ws, _, calls, _ = fixture_workspace()
+    assert ws.frame_index(1.2) == 7
+    assert ws.frame_at("1.2 s").label == "1.17 s"
+    assert ws.frame_index(-20) == 0
+    assert ws.frame_index(100) == 30
+    assert [view.index for view in ws.frames(range=[0, 5])] == [0, 10, 20, 30]
+    assert [view.label for view in ws.frames(times=[0, 5])] == ["0.00 s", "5.00 s"]
+    ws.ground("car", at=1.2)
+    assert calls[0][2] == 7
+    ws._scene = replace(ws.scene(), gf_index=np.array([0, 6, 30]))
+    np.testing.assert_array_equal(ws.times(), [0, 1, 5])
+    assert ws.time_labels() == ["0.00 s", "1.00 s", "5.00 s"]
+    with pytest.raises(TimeUnavailable):
+        ws.frames(times=[0], range=[0, 5])
+    with pytest.raises(TimeUnavailable):
+        ws.frames(range=[5, 0])
+    with pytest.raises(TimeUnavailable):
+        ws.frame_index(float("nan"))
+
+
+def test_unknown_fps_uses_shown_labels_without_generator_integers():
+    ws, _, calls, _ = fixture_workspace(fps=None)
+    views = ws.frames()
+    assert [v.label for v in views] == [f"shown frame {c}" for c in "ABCD"]
+    assert ws.times() is None
+    assert ws.frame_at("shown frame C").index == 20
+    assert ws.frame_at("shown frame C").label == "shown frame C"
+    assert ws.time_labels([0, 10, 20, 30]) == [v.label for v in views]
+    assert "20" not in repr(views[2])
+    with pytest.raises(TimeUnavailable, match="frame rate is unknown"):
+        ws.frame_at(20)
+    with pytest.raises(TimeUnavailable, match="already shown"):
+        ws.frame_at("shown frame Z")
+    assert [v.index for v in ws.frames(range=["shown frame A", "shown frame D"])] == [0, 10, 20, 30]
+    ws.ground("car", at="shown frame C")
+    assert calls[0][2] == 20
+
+
+def test_metric_scale_requires_estimator_provenance():
+    ws, _, _, _ = fixture_workspace()
+    ws._scene = replace(ws.scene(), metres_per_unit=2.5, metric_source="da3-nested", metric_iqr=0.1)
+    assert ws.metric.units == "metres"
+    assert ws.metric.source == "da3-nested"
+    assert ws.metric.relative_spread == 0.1
+    np.testing.assert_allclose(ws.metric.convert([1, 2]), [2.5, 5])
+    for source in (None, "d4rt-native", "point4d-raw", "d4rt-raw"):
+        ws._scene = replace(ws.scene(), metric_source=source)
+        assert not ws.metric.available
+        assert ws.metric.units == "scene-relative units"
+    ws._scene = replace(ws.scene(), metric_source="da3-nested", metres_per_unit=float("nan"))
+    assert not ws.metric.available
+
+
+def test_runtime_adapter_loads_scene_and_models_only_when_requested(monkeypatch, tmp_path):
+    fixture, g, _, _ = fixture_workspace(instances=1)
+    ws = Workspace.from_runtime(fixture.clip, tmp_path, backbone="point4d")
+    assert ws.models.backbone_name == "point4d"
+    assert ws.models._sam3 is None and ws.models._scenes is None and ws.models._orient is None
+    scene_calls = []
+    ground_calls = []
+
+    def scene(clip):
+        scene_calls.append(clip)
+        return fixture.scene()
+
+    monkeypatch.setattr(ws.models, "scenes", lambda: SimpleNamespace(scene=scene))
+    monkeypatch.setattr(ws.models, "ground", lambda clip, name, prompt: ground_calls.append(name) or g)
+    ws.track("car")
+    ws.track("car")
+    assert len(scene_calls) == 1
+    assert ground_calls == ["car"]
+    assert ws.models._orient is None
+    alternative = Workspace.from_runtime(fixture.clip, tmp_path, backbone="d4rt")
+    assert alternative.models.backbone_name == "d4rt"
+
+
+def test_unknown_time_reports_never_register_unseen_images():
+    ws, _, _, _ = fixture_workspace(fps=None)
+    with pytest.raises(TimeUnavailable, match="Show frames"):
+        ws.time_labels([0, 15, 30])
+    with pytest.raises(TimeUnavailable, match="Show this frame"):
+        ws.frame_label(15)
+    assert not ws._shown
+    assert ws.mark_shown(0) == "shown frame A"
+    assert ws.mark_shown(30) == "shown frame B"
+    assert ws.time_labels([0, 10, 20, 30]) == ["shown frame A", "shown frame A", "shown frame B", "shown frame B"]
+    assert len(ws._shown) == 2
+    with pytest.raises(TimeUnavailable, match="already shown"):
+        ws.frame_index("shown frame C")
