@@ -213,3 +213,96 @@ def track_camera(workspace, *, window=None):
                            "jitter": jitter, "units": metric.units, "metric_source": metric.source})
     except (ValueError, FloatingPointError, np.linalg.LinAlgError) as error:
         return Report.unavailable(title, str(error))
+
+
+def track_camera_zoom(workspace, *, window=None):
+    title = "track_camera_zoom — focal change and camera forward motion"
+    try:
+        scene = _scene(workspace, window)
+        if not np.isfinite(scene.K[:, 0, 0]).all() or np.any(scene.K[:, 0, 0] <= 0):
+            return Report.unavailable(title, "focal estimates are missing or invalid")
+        if not np.isfinite(scene.scale) or scene.scale <= 0:
+            return Report.unavailable(title, "the scene scale is invalid")
+        measured = measure_zoom(scene, None, Measurement("zoom", "focal", ["camera"], "profile"))
+        if not measured.available:
+            return Report.unavailable(title, measured.reason)
+        times, clock, labels = _time(workspace, scene)
+        focal = np.asarray(measured.series["focal"])
+        phases = _scalar_phases(times, np.log(focal / focal[0]), ZOOM_LOG_FLOOR, labels, "zoom in", "zoom out")
+        durations = {label: sum(p.duration for p in phases if p.label == label) for label in {p.label for p in phases}}
+        majority = max(durations, key=durations.get)
+        label = "FOCAL LENGTH UNCHANGED" if majority == "still" else majority.upper()
+        headline = (f"{label} for the largest time share; end/start focal ratio {focal[-1] / focal[0]:.3f} "
+                    f"(relative noise floor {np.expm1(ZOOM_LOG_FLOOR):.0%}).")
+        for phase in phases:
+            if phase.label != majority:
+                headline += f" {phase.label.upper()} at {phase.span} (focal ratio {np.exp(phase.displacement[0]):.3f})."
+        cam = camera_state(scene)
+        valid_motion = np.isfinite(cam["trans"]).all() and (scene.pose_valid is None or scene.pose_valid.all())
+        forward = None
+        forward_phases = []
+        if valid_motion:
+            forward = float(workspace.metric.convert(cam["trans"][-1, 2] - cam["trans"][0, 2]))
+            noise = float(workspace.metric.convert(displacement_noise(cam["trans"], cam["trans_smooth"], TRANSLATION_FLOOR_SCALES * scene.scale)))
+            motion = "FORWARD" if forward > noise else "BACKWARD" if forward < -noise else "NO NET FORWARD MOTION"
+            headline += f" Camera {motion}: {forward:+.3f} {workspace.metric.units} (noise {noise:.3f})."
+            forward_phases = _scalar_phases(times, workspace.metric.convert(cam["trans"][:, 2]), noise,
+                                            labels, "forward", "backward")
+            changes = [p for p in forward_phases if p.label != "still"]
+            if changes:
+                headline += " Dolly profile: " + "; ".join(
+                    f"{p.label.upper()} at {p.span} ({p.displacement[0]:+.3f}; noise {noise:.3f})" for p in changes) + "."
+        else:
+            headline += " Camera translation unavailable."
+        rows = [(p.span, "unchanged" if p.label == "still" else p.label, f"{np.exp(p.displacement[0]):.3f}") for p in phases]
+        notes = ("Increasing focal length narrows the field of view (zoom in); decreasing it widens the view (zoom out). "
+                 "Dolly motion changes camera position and is reported separately; focal and position estimates alone "
+                 "can be coupled by the reconstruction. The table gives end/start focal ratio within each phase. " + _unit_note(workspace))
+        return Report(title, headline, rows=_pack(rows), columns=("time", "focal change", "focal ratio"),
+                      reading_full=notes, reading_short="Focal change is zoom; forward displacement is dolly motion. " + _unit_note(workspace),
+                      status="ok" if valid_motion else "partial", reason="Camera poses unavailable." if not valid_motion else "",
+                      raw={"focal": focal.tolist(), "focal_ratio_end": float(focal[-1] / focal[0]),
+                           "phases": [asdict(p) for p in phases], "forward": forward,
+                           "forward_phases": [asdict(p) for p in forward_phases], "log_noise": ZOOM_LOG_FLOOR})
+    except (ValueError, FloatingPointError, np.linalg.LinAlgError) as error:
+        return Report.unavailable(title, str(error))
+
+
+def check_scene_revisit(workspace, *, window=None):
+    title = "check_scene_revisit — start view visible again at the end"
+    try:
+        scene = _scene(workspace, window)
+        if scene.length < 3:
+            return Report.unavailable(title, "too few views for a revisit measurement")
+        if scene.pose_valid is not None and not scene.pose_valid[[0, -1]].all():
+            return Report.unavailable(title, "the start or end camera pose is unavailable")
+        if not all(np.isfinite(values[[0, -1]]).all() for values in (scene.cam_R, scene.cam_t, scene.K)):
+            return Report.unavailable(title, "the start or end camera calibration is invalid")
+        if np.any(scene.K[[0, -1], 0, 0] <= 0) or np.any(scene.K[[0, -1], 1, 1] <= 0):
+            return Report.unavailable(title, "the start or end focal calibration is invalid")
+        for endpoint in (0, -1):
+            usable = np.isfinite(scene.points[endpoint]).all(axis=-1)
+            if not usable.any():
+                return Report.unavailable(title, "the start or end view has no usable depth points")
+        measured = measure_revisit(scene, None, Measurement("revisit", "covisibility", ["camera"], "value"))
+        if not measured.available:
+            return Report.unavailable(title, measured.reason)
+        fraction = float(measured.value["shared_fraction"])
+        if not np.isfinite(fraction):
+            return Report.unavailable(title, "shared view could not be measured")
+        times, clock, labels = _time(workspace, scene)
+        word = "MOST" if fraction > .5 else "SOME" if fraction > 0 else "NONE"
+        headline = (f"{word} of the start view is visible again: {fraction:.0%} of its usable points project "
+                    "inside the final image with consistent depth (depth tolerance 15%).")
+        notes = ("The fraction counts start-view 3D points that project into the end view and match its depth "
+                 "within 15%; it does not require the camera to return to its starting position. Missing depth "
+                 "and occlusion reduce the overlap. This reports shared view, not a visual scene identity judgement.")
+        return Report(title, headline,
+                      rows=[(_span(clock[0], clock[-1], clock, labels, times is not None), f"{fraction:.0%}",
+                             f"{measured.value['in_view_fraction']:.0%}")],
+                      columns=("time", "depth-consistent overlap", "inside final image"),
+                      reading_full=notes, reading_short="Overlap is geometric shared visibility; depth agreement tolerance is 15%.",
+                      raw={"shared_fraction": fraction, "in_view_fraction": measured.value["in_view_fraction"],
+                           "depth_relative_tolerance": .15})
+    except (ValueError, FloatingPointError, np.linalg.LinAlgError) as error:
+        return Report.unavailable(title, str(error))
