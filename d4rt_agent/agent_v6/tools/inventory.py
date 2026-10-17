@@ -168,3 +168,92 @@ def get_segmentation_mask(workspace, entities, times=None):
         views = workspace.frames(times=times, limit=8)
         report.images = [(view.label, _overlay(workspace, view.index, observations)) for view in views]
     return report
+
+
+def _inventory_frames(workspace, observations):
+    if not observations:
+        return []
+    presence = np.stack([mask.any(axis=(1, 2)) for _, mask in observations])
+    occupancy = presence.sum(axis=0)
+    # Start at peak occupancy, then cover instances absent from that frame.
+    selected, unseen = [], np.ones(len(observations), dtype=bool)
+    while unseen.any() and len(selected) < 8:
+        coverage = presence[unseen].sum(axis=0)
+        if not coverage.max():
+            break
+        candidates = np.flatnonzero(coverage == coverage.max())
+        index = int(candidates[np.argmax(occupancy[candidates])])
+        selected.append(index)
+        unseen &= ~presence[:, index]
+    return [(workspace.mark_shown(index), _overlay(workspace, index, observations)) for index in sorted(selected)]
+
+
+def detect_all_entities(workspace, qwen, question, options, caption):
+    instruction = (Path(__file__).parent.parent / "prompts" / "inventory.md").read_text().strip()
+    context = {"question": question, "options": options, "caption": caption}
+    response = qwen.generate([{"role": "system", "content": instruction},
+                              {"role": "user", "content": json.dumps(context)}], max_new_tokens=256)
+    try:
+        nouns = parse_object(response)["entities"]
+        if not isinstance(nouns, list) or not all(valid_entity(noun) for noun in nouns):
+            raise ValueError("Invalid inventory noun list.")
+    except (ValueError, KeyError, TypeError) as error:
+        raise WorkspaceError("The inventory viewer did not return a list of short entity names.") from error
+    nouns = list(dict.fromkeys(workspace.canonical_name(noun) for noun in nouns))
+    nouns = [noun for noun in nouns if noun != "camera"]
+    observations, missing = _observations(workspace, nouns)
+    images = _inventory_frames(workspace, observations)
+    report = _mask_report(workspace, observations, missing, title="Entity inventory")
+    counts = {noun: sum(entity.category == noun for entity, _ in observations) for noun in nouns}
+    report.headline = "; ".join(f"{noun}: {count} segmented instance{'s' if count != 1 else ''}"
+                               for noun, count in counts.items())
+    report.images = images
+    report.raw.update(nouns=nouns, counts=counts)
+    return report
+
+
+def candidate_report(workspace, selection):
+    group = workspace.ground(selection.name)
+    entities = {entity.label: entity for entity in group.entities}
+    observations = [(entities[choice.label], group.grounding.masks[list(choice.instances)].any(axis=0))
+                    for choice in selection.choices]
+    occupancy = sum((mask.any(axis=(1, 2)).astype(int) for _, mask in observations),
+                    np.zeros(workspace.clip.length, dtype=int))
+    colours = [choice.colour for choice in selection.choices]
+    present = np.stack([mask.any(axis=(1, 2)) for _, mask in observations])
+    indices, unseen = [], np.ones(len(observations), dtype=bool)
+    while unseen.any():
+        index = int(np.argmax(present[unseen].sum(axis=0)))
+        if not present[unseen, index].any():
+            raise WorkspaceError("A segmentation candidate has no visible frame.")
+        indices.append(index)
+        unseen &= ~present[:, index]
+    tiles, labels = [], []
+    for index in sorted(indices):
+        tile = _overlay(workspace, index, observations, colours, legend=True)
+        tile.thumbnail((480, 480))
+        tiles.append(tile)
+        labels.append(workspace.mark_shown(index))
+    columns = min(3, len(tiles))
+    width = max(tile.width for tile in tiles)
+    height = max(tile.height for tile in tiles) + 20
+    image = Image.new("RGB", (columns * width, ((len(tiles) + columns - 1) // columns) * height), "white")
+    draw = ImageDraw.Draw(image)
+    for number, (label, tile) in enumerate(zip(labels, tiles)):
+        x, y = (number % columns) * width, (number // columns) * height
+        draw.text((x + 2, y + 2), label, fill="black")
+        image.paste(tile, (x, y + 20))
+    return Report("Choose a segmentation candidate",
+                  headline=f"Choose the intended {selection.name} by colour; every candidate is visible in this image.",
+                  status="partial", reason="An instance choice is needed before measuring.",
+                  images=[("; ".join(labels), image)],
+                  raw={"name": selection.name, "frame_index": indices[0], "frame_indices": indices,
+                       "candidates": [{"label": choice.label, "colour": choice.colour,
+                                       "rgb": _colour(i, choice.colour)}
+                                      for i, choice in enumerate(selection.choices)]})
+
+
+def choose_segmentation_candidate(workspace, colour):
+    entity = workspace.choose(colour)
+    return Report("Segmentation choice", headline=f"Selected {entity.label}.",
+                  raw={"label": entity.label, "category": entity.category})
