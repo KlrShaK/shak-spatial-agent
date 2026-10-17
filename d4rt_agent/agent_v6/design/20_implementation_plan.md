@@ -5,30 +5,96 @@ How to turn the design into code without handing an agent everything at once. Th
 Each milestone below names the few sections and decision numbers it needs, the V4/V5 code to reuse,
 what to build, GPU-free tests, and when it is done.
 
-## Reading order
+## One-run hand-off (M0–M8)
 
-**To understand the agent** (about 30 minutes):
+M0–M8 are handed to one implementing agent in a single run. Shak reviews all the code together
+after M8; there are no review stops between milestones (#80).
 
-1. [README](README.md), "AgentV6 at a glance": the flow and the tools in one screen.
-2. [12_planning](12_planning.md): what happens turn by turn.
-3. [11_toolset](11_toolset.md): the tools and how question types map onto them.
-4. [10_tool_reports](10_tool_reports.md): what every tool returns.
-5. [14_answering](14_answering.md), then [13_tool_calls](13_tool_calls.md), then
-   [15_evaluation](15_evaluation.md).
-6. [Assumptions](Assumptions.md).
+### Where to start reading
 
-Context files 01–03 and 06 explain *why* a decision was made. Open them only when a decision's
-reason matters. 04 and 05 are the historical record of our discussion.
+1. [README](README.md), "AgentV6 at a glance": the whole agent on one screen.
+2. This file: the reading order and the build plan.
+3. To understand the agent in depth, read the theme files in this order:
+   [12_planning](12_planning.md) (turn by turn), [11_toolset](11_toolset.md),
+   [10_tool_reports](10_tool_reports.md), [14_answering](14_answering.md),
+   [13_tool_calls](13_tool_calls.md), [15_evaluation](15_evaluation.md). Each is about a page and
+   ends in implementation notes.
 
-**To build:** follow the milestones below, in order.
+The context files (01–03, 06) are only for when you need the reason behind a decision.
+
+### How the build is split
+
+| Milestone | What it builds | GPU |
+|---|---|---|
+| M0 | Package skeleton, runner with a dry run, answer-file format | no |
+| M1 | Report layer: headline, phases, reading notes | no |
+| M2 | Workspace: entities by name, instance labels, seconds, caches | no |
+| M3 / M4 / M5 | Camera tools / entity, orientation and group tools / masks, frames, `ask_video`, captioner (any order) | no |
+| M6 | Normaliser, doctor, grounding retries, answer recovery | no |
+| M7 | Controller: phases, plan, reminders, budget, answer turn | no |
+| M8 | Evaluation harness: quick-check set, metrics, paired comparisons, flip audit | no |
+
+Each milestone below lists the sections and decision numbers to read, the V4/V5 functions to import
+(checked to exist), what to build, the GPU-free tests, and when it is done. M0–M8 run without a GPU;
+models are mocked or replayed from scripts.
+
+### Rules for the run
+
+1. **Logs instead of silent choices.** The agent appends to two files in this design folder:
+   - `PROGRESS.md`: per milestone, what was built, which tests, and any deviations from the design;
+   - `QUESTIONS.md`: anything ambiguous, with a provisional, reversible choice marked as such.
+
+   It never changes a numbered decision (#N). On a blocker it records the question and continues
+   with an independent milestone (M3, M4 and M5 do not depend on each other).
+2. **A review pass per milestone.** Before moving on, a fresh reviewer (a subagent, GPT 6.1 Sol at
+   medium effort) reads that milestone's design sections against the diff, and the agent fixes or
+   logs what it finds. This is the cheapest guard against plausible-but-wrong geometry.
+3. **Hard limits.** No GPU jobs (M9 stays with Shak). No edits to `agent_v4/` or `agent_v5/`; import
+   from them. Work only in the worktree on `feat/agent-v6`; never switch the main checkout.
+4. **Quick tests can run on the login node (#81).** GPU-free unit tests that finish in seconds with
+   little memory may run there. Anything that reads datasets, caches or many clips goes through a
+   SLURM CPU job (`sbatch scripts/run_cpu_task.slurm …`).
+5. **Two provisional choices**, logged in `QUESTIONS.md` and reversible by configuration:
+   - **backbone:** build both Point4D and D4RT behind V5's backbone interface, Point4D as the
+     default (see "Before M0");
+   - **quick-check set:** the selection code takes the pools and counts proposed in
+     [15](15_evaluation.md) as parameters; the actual set is generated only after Shak's OK.
+6. **Commits** follow CLAUDE.md and CONTRIBUTING.md: `[type]agent-v6: …`, about 150–200 lines each,
+   code separate from tests and docs, no agent attribution.
+
+### Prompt for the run
+
+```text
+Implement AgentV6 milestones M0 to M8 in one run, in a new worktree:
+  git worktree add ../shak-spatial-agent-v6 -b feat/agent-v6 feat/agentv6-draft
+Never switch the main checkout; work only in that worktree.
+
+Read first: d4rt_agent/agent_v6/design/README.md ("AgentV6 at a glance"), then
+d4rt_agent/agent_v6/design/20_implementation_plan.md in full. For each milestone, read only
+the sections and decision numbers its "Read" line names. Numbered decisions (#N) are binding.
+
+Follow "Rules for the run" in 20_implementation_plan.md: PROGRESS.md and QUESTIONS.md in the
+design folder; a fresh reviewer subagent (GPT 6.1 Sol, medium) per milestone; no GPU jobs;
+no edits to agent_v4/ or agent_v5/; quick tests on the login node, dataset-reading work via
+SLURM; the provisional backbone and quick-check choices. Start by writing a short plan for all
+milestones into PROGRESS.md, then build. Do not stop between milestones; Shak reviews all the
+code after M8.
+
+Commits: "[type]agent-v6: ...", about 150-200 lines each, code separate from tests and docs,
+no agent attribution. Done when M0-M8 are built, every milestone's tests pass, and PROGRESS.md
+has a section per milestone.
+```
+
+**After the run:** read `PROGRESS.md` and `QUESTIONS.md` first, then review the diff milestone by
+milestone in build order.
 
 ## Before M0: three things to settle
 
 | Item | Status | Needed by |
 |---|---|---|
-| **Commit the design docs** on `feat/agentv6-draft`, so the implementation worktree contains them | waiting for your OK | M0 |
-| **Backbone**: never decided. My recommendation: Point4D by default through V5's backbone interface, since A1's metric scale assumes Point4D × DA3 and Dyn showed a tie (58.8 vs 58.1). Keep D4RT selectable, and compare both on the DSI part of the quick-check set as ablation 8, because V4's DSI win used D4RT and V5's camera gap on DSI (45% vs 78%) is confounded with the backbone. | to decide | M2 |
-| **Quick-check selection** (#70) | waiting for your OK | M8 |
+| **Commit the design docs** on `feat/agentv6-draft`, so the implementation worktree contains them | done, 2026-10-17 | M0 |
+| **Backbone**: never decided. My recommendation: Point4D by default through V5's backbone interface, since A1's metric scale assumes Point4D × DA3 and Dyn showed a tie (58.8 vs 58.1). Keep D4RT selectable, and compare both on the DSI part of the quick-check set as ablation 8, because V4's DSI win used D4RT and V5's camera gap on DSI (45% vs 78%) is confounded with the backbone. | to decide; provisional for the run (rule 5) | M2 |
+| **Quick-check selection** (#70) | waiting for your OK; code is parameterised for the run (rule 5) | M8 |
 
 ## Where the code goes
 
@@ -179,9 +245,9 @@ full runs: DSI 200 × 4, then Dyn 2,800, then VLM4D 1,000. GPU queue at most 2 r
 the A100/Blackwell race is allowed (#73); every running job is watched with Monitor, with an update
 to you every 30 minutes (#78).
 
-## How to hand a milestone to an agent
+## Alternative: one milestone per session
 
-One milestone per session. Start the agent in plan mode, so it proposes files, functions and tests
+If a run is split up instead, use one milestone per session. Start the agent in plan mode, so it proposes files, functions and tests
 before writing code, and approve the plan before it builds. Paste this, filled in:
 
 ```text
@@ -195,8 +261,8 @@ then <files and sections from the milestone's "Read" line>. The decision numbers
 Reuse, by importing (never edit agent_v4/ or agent_v5/): <the milestone's "Reuse" line>.
 Build: <the milestone's "Build" line>.
 Tests: GPU-free pytest in d4rt_agent/agent_v6/test_*.py covering <the milestone's "Tests"
-line>. Run them as a CPU job: sbatch scripts/run_cpu_task.slurm -m pytest d4rt_agent/agent_v6 -q
-— not on the login node.
+line>. Quick GPU-free tests may run on the login node; anything reading datasets or
+caches goes through sbatch scripts/run_cpu_task.slurm.
 
 Rules: follow CLAUDE.md and CONTRIBUTING.md (commits "[type]agent-v6: …", about 150–200
 lines each, code separate from docs, no agent attribution). Local Qwen3-VL-8B only. No GPU

@@ -5,7 +5,7 @@ All six themes are settled; nothing is implemented yet. Context files record wha
 deciding. Theme files record what we decided and why. Each file should be readable on its own.
 
 **Start here:** read the glance below, then [20_implementation_plan.md](20_implementation_plan.md),
-which gives the reading order and hands the build to an agent one milestone at a time.
+which gives the reading order and hands M0–M8 to one implementing agent in a single run.
 
 ## AgentV6 at a glance
 
@@ -49,7 +49,7 @@ main agent: system prompt + caption + question + options + 8 keyframes
 | [13_tool_calls.md](13_tool_calls.md) | Theme 4: calling tools reliably (design, normaliser, doctor, perception fallbacks) | settled 2026-10-17 |
 | [14_answering.md](14_answering.md) | Theme 5: from measurement to answer (the final-step flip) | settled 2026-10-17 |
 | [15_evaluation.md](15_evaluation.md) | Theme 6: comparisons, question sets, gate, ablations, metrics, run hygiene | settled 2026-10-17; quick-check selection to confirm |
-| [20_implementation_plan.md](20_implementation_plan.md) | Reading order, build milestones M0–M9, what to reuse, tests, and a prompt to hand each milestone to an agent | live |
+| [20_implementation_plan.md](20_implementation_plan.md) | Reading order, the one-run hand-off of M0–M8 (rules and prompt), milestones M0–M9 with reuse and tests | live |
 | [Assumptions.md](Assumptions.md) | What V6 relies on but cannot check while answering (A1 metric scale, A2 default frame) | live |
 | [analysis/](analysis/) | Small scripts behind numbers quoted in these notes | as needed |
 
@@ -146,10 +146,11 @@ These have held since v1 or were set by you explicitly. Changing one is a decisi
 | 77 | 2026-10-17 | `get_frames` is the final name of the plain-frame tool (#41) | Says what it does | [11](11_toolset.md) |
 | 78 | 2026-10-17 | The 2-job limit is for GPU jobs only (CPU-only jobs exempt); no heavy work on login nodes; Monitor every running test, eval or job and update you every 30 minutes | Your working rules for runs; also in your global CLAUDE.md | [15](15_evaluation.md) |
 | 79 | 2026-10-17 | Tool visibility is limited by phase only: no calls in the entity and plan turns (the plan turn sees the tool list), all tools in act turns, `choose_segmentation_candidate` only after an ambiguity image, only the final answer at the end; no gating by plan category | V5's kind-scoped menus locked the model out of the right tool after a wrong routing choice | [12](12_planning.md) |
+| 80 | 2026-10-17 | M0–M8 are handed to one implementing agent in a single run, with PROGRESS.md and QUESTIONS.md logs, a fresh reviewer subagent (GPT 6.1 Sol, medium) per milestone, and hard limits (no GPU jobs, no edits to V4/V5, worktree only); Shak reviews all code after M8 | One run, kept honest by logs and per-milestone review | [20](20_implementation_plan.md) |
+| 81 | 2026-10-17 | Quick GPU-free tests may run on the login node; anything reading datasets, caches or many clips goes through SLURM | Avoids hour-long queue waits for second-long tests | [20](20_implementation_plan.md) |
 
 ## Open items
 
 - **Quick-check selection** (#70): pools and counts proposed in [15](15_evaluation.md), awaiting your OK.
 - **Assumptions A1 and A2** are checked by the first full runs ([Assumptions](Assumptions.md)).
 - **Backbone** (Point4D, D4RT, or both): never decided; recommendation in [20](20_implementation_plan.md).
-- **Commit the design docs** before the implementation worktree is created.
