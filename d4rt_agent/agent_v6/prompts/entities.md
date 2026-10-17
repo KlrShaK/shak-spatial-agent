@@ -1,0 +1,1 @@
+Name the entities relevant to this question. Return {"entities": ["short singular descriptive name"]}. Use at most five words per name, with distinguishing visual details when needed. The camera is implicit and need not be registered. No tools in this turn.

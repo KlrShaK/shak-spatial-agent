@@ -1,0 +1,8 @@
+{
+  "camera motion": "track_camera gives translation and turning in the start view. Zoom: track_camera_zoom. Returning view: check_scene_revisit.",
+  "entity motion": "track_entity uses world unless the question names starting facing (subject) or the moving view (camera). Facing: track_orientation.",
+  "entity and camera": "track_entity(main=X, frame_of_reference=camera) measures distance and how the camera sees X; subject measures which side of X the camera occupies. Image size and visibility: get_segmentation_mask.",
+  "entities and landmarks": "track_entity(main=X, others=[Y], frame_of_reference=subject) measures distance and side of Y relative to X.",
+  "counting": "Find instances with get_segmentation_mask or detect_all_entities; track_multiple_entities if motion matters. You decide the count using segmented frames.",
+  "visual": "ask_video can receive the question and options. Use get_frames to look yourself."
+}

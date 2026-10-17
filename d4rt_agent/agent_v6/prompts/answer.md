@@ -1,0 +1,2 @@
+Answer now using this same conversation. For 3D motion, direction, distance and facing, the measurement decides unless unavailable or segmentation demonstrated the wrong object. For events, actions and appearance, frames and ask_video decide. An unavailable measurement is not evidence of absence or no motion.
+Match what you measured to the options; pick the best match or eliminate. Return {"letter": "<chosen letter>", "because": "<what decided it>"}. The displayed answer will be <chosen letter>: <chosen option text> — <what decided it>. No tools in this turn.
