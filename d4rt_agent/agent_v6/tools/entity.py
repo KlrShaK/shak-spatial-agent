@@ -164,3 +164,96 @@ def _relative_report(ws, main, other, positions, rows) -> Report:
                        "distance_positions": positions.tolist(), "distance": metric_distances.tolist(),
                        "distance_profile": distance_report.raw, "bearing_deg": bearings,
                        "vertical_angle_deg": elevations, "sides": sides, "other": other, "main": main})
+
+
+def track_entity(ws, main, others=None, frame_of_reference="world", *, qwen=None, window=None) -> Report:
+    title = f"Motion of {main} in the {frame_of_reference} frame"
+    if frame_of_reference not in ("world", "camera", "subject"):
+        raise WorkspaceError("frame_of_reference must be world, camera, or subject")
+    try:
+        main = ws.resolve(main).label
+        others = [ws.resolve(name).label for name in (others or [])]
+        positions = window_positions(ws, window)
+        scene = ws.scene()
+        pieces, motion, headings, relations = [], {}, {}, []
+        rows_by_name = {}
+        names = list(dict.fromkeys([main, *others]))
+        if frame_of_reference != "camera":
+            for name in names if frame_of_reference == "world" else [main]:
+                rows = facing_rows(ws, name, qwen=qwen, positions=None if frame_of_reference == "subject" else positions)
+                rows_by_name[name] = rows
+                heading = heading_report(ws, name, [row for row in rows if row["pos"] in positions])
+                headings[name] = heading.raw
+                pieces.append(heading)
+        if frame_of_reference == "subject":
+            track = ws.track_record(main)
+            good = np.flatnonzero(track.present & np.isfinite(track.smooth).all(1))
+            by_position = {row["pos"]: row for row in rows_by_name[main]}
+            basis = basis_for(scene, by_position.get(int(good[0]), {})) if len(good) else None
+            if basis is None:
+                own = Report.unavailable(f"{main} in its starting facing", "No resolvable front at the starting position.")
+                pieces.append(own)
+                title = f"World motion of {main}; starting-facing motion unavailable"
+                path = scene.to_level(track.smooth)
+                reading = "World motion uses the gravity-levelled starting view; forward is where the camera first looked."
+            else:
+                path = (track.smooth - track.smooth[good[0]]) @ basis
+                reading = load_contract("traj_subject_own_frame")
+            profile = motion_profile(ws, main, path, positions, 3 * track.noise, reading=reading)
+            profile.raw["frame_of_reference"] = "world" if basis is None else "subject"
+            profile.raw["starting_position"] = int(good[0]) if len(good) else None
+            motion[main] = profile.raw
+            pieces.insert(0, profile)
+            for other in others or ["camera"]:
+                relation = _relative_report(ws, main, other, positions, rows_by_name[main])
+                pieces.append(relation)
+                relations.append(relation.raw)
+        else:
+            for name in names:
+                track = ws.track_record(name)
+                if frame_of_reference == "world":
+                    path = scene.to_level(track.smooth)
+                    reading = "World motion uses the gravity-levelled starting view; forward is where the camera first looked. Camera motion is removed."
+                    axes = AXES
+                else:
+                    path = np.einsum("ti,tij->tj", track.smooth - scene.cam_t, scene.cam_R)
+                    if scene.pose_valid is not None:
+                        path[~scene.pose_valid] = np.nan
+                    reading = "Positions are in the camera's view at each moment, including apparent motion caused by camera movement."
+                    axes = CAMERA_AXES
+                profile = motion_profile(ws, name, path, positions, 3 * track.noise, axes=axes, reading=reading)
+                profile.raw["frame_of_reference"] = frame_of_reference
+                motion[name] = profile.raw
+                pieces.insert(0, profile)
+                if frame_of_reference == "camera":
+                    distance = np.linalg.norm(track.smooth - scene.cam_t, axis=1)
+                    radial = np.column_stack([distance, np.zeros((scene.length, 2))])
+                    radial[~np.isfinite(path).all(1)] = np.nan
+                    ranges = motion_profile(ws, f"{name} distance to camera", radial, positions, 3 * track.noise,
+                                            axes=RANGE_AXES, reading=load_contract("sub_obs_distance_change"), include_speed=False)
+                    pieces.append(ranges)
+                    relations.append(ranges.raw)
+        available = [piece for piece in pieces if piece.status != "unavailable"]
+        if not available:
+            return Report.unavailable(title, "; ".join(piece.reason for piece in pieces), raw={"window": window})
+        missing = [f"{piece.title}: {piece.reason}" for piece in pieces if piece.status == "unavailable"]
+        output = [(row[0], piece.title, "; ".join(str(v) for v in row[1:] if v != ""))
+                  for piece in available for row in piece.rows]
+        notes = "\n".join(dict.fromkeys(piece.reading_full for piece in available if piece.reading_full))
+        if frame_of_reference == "camera":
+            short = "Coordinates follow the moving camera; range is straight-line distance. Missing observations are not bridged."
+        elif frame_of_reference == "world":
+            short = "World motion uses the gravity-levelled starting view; positive heading means turning right. Position and facing have separate coverage."
+        elif basis is None:
+            short = "Displayed motion uses world axes because starting facing is unavailable. Distance remains available independently of facing."
+        else:
+            short = "Main motion uses its starting facing; others use its facing at each moment. Missing facing does not erase distance measurements."
+        return Report(title, " ".join(f"{piece.title}: {piece.headline}" for piece in available),
+                      pack_rows(output), ("time", "quantity", "reading"), notes, short,
+                      status="partial" if missing or any(p.status == "partial" for p in available) else "ok",
+                      reason="; ".join(missing), raw={"motions": motion, "headings": headings,
+                                                    "relations": relations, "window": window})
+    except CandidateRequired:
+        raise
+    except WorkspaceError as error:
+        return Report.unavailable(title, str(error), raw={"window": window})
