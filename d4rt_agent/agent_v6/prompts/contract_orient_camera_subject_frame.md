@@ -1,0 +1,3 @@
+Sides belong to the subject as it faces at each moment. Bearing zero places the observer in front of the subject, +90 degrees on its right, -90 degrees on its left, and +180 or -180 degrees behind it. These are the subject's sides, which need not match image left and right.
+
+Quadrants are 90 degrees wide and centred on those bearings. Octants describe diagonal sides. A small margin to the nearest sector boundary means the neighbouring label is also plausible. The chronological phases preserve the route between opposite sides; first and last labels alone do not identify that route. Missing facing makes this subject-relative bearing unavailable while position can still be measured.

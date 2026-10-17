@@ -1,0 +1,3 @@
+This is straight-line distance between the two named entities. Shrinking distance means they get closer; growing distance means they get farther apart. It carries no direction and cannot identify which entity moved.
+
+A change at or below the stated noise floor is not a measurable distance change. Read all chronological phases: a distance that grows and then shrinks can have little net change despite substantial motion. Distances are comparable within this clip only unless a metric scale source is explicitly named. Unavailable means the quantity could not be measured; unchanged means it was measured below the noise floor.

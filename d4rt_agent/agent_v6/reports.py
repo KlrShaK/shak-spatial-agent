@@ -198,3 +198,94 @@ def segment_motion(
         phases[weak].label = phases[target].label
         phases = _merge(phases)
     return phases
+
+
+def majority_direction(phases: Sequence[Phase]) -> str:
+    """Largest total duration; distance and first occurrence resolve a tie."""
+    totals: dict[str, list[float]] = {}
+    for phase in phases:
+        item = totals.setdefault(phase.label, [0.0, 0.0])
+        item[0] += phase.duration
+        item[1] += phase.distance
+    return max(totals, key=lambda label: totals[label])
+
+
+def phase_rows(phases: Sequence[Phase], max_rows: int = MAX_PHASE_ROWS) -> list[tuple[str, str, str]]:
+    """Pack long profiles without losing a strong phase or its time span."""
+    if max_rows < 1:
+        raise ValueError("max_rows must be positive")
+    if not phases:
+        return []
+    groups = np.array_split(np.arange(len(phases)), min(max_rows, len(phases)))
+    rows = []
+    for indices in groups:
+        group = [phases[int(i)] for i in indices]
+        first, last = group[0], group[-1]
+        span = Phase(first.start, last.end, "", [], 0, first.start_label, last.end_label).span
+        direction = group[0].label if len(group) == 1 else "; ".join(
+            f"{p.label} at {p.span} ({p.distance:.2f})" for p in group)
+        rows.append((span, direction, f"{sum(p.distance for p in group):.2f}"))
+    return rows
+
+
+def motion_headline(
+    phases: Sequence[Phase], noise: float, *, axes: Sequence[Sequence[str]] = AXES,
+) -> str:
+    majority = majority_direction(phases)
+    net = np.sum([p.displacement for p in phases], axis=0)
+    if axes == AXES:
+        components = rank_components(net)
+    else:
+        components = ", ".join(f"{abs(value):.3f} {pair[0] if value >= 0 else pair[1]}"
+                               for value, pair in sorted(zip(net, axes), key=lambda x: -abs(x[0])))
+    duration = sum(p.duration for p in phases)
+    share = sum(p.duration for p in phases if p.label == majority) / duration
+    if majority == "still":
+        lead = "STILL throughout" if len(phases) == 1 else "Mostly STILL"
+    else:
+        when = "most of the clip" if share > 0.5 else f"the largest time share ({share:.0%})"
+        lead = f"Moves {majority.upper()} for {when}"
+    moved = sum(p.distance for p in phases if p.label == majority)
+    magnitude = f"moved {moved:.3f}; " if majority != "still" else ""
+    text = f"{lead}: {magnitude}net {components} (noise {noise:.3f})."
+    minority = [f"{p.label.upper()} at {p.span} (moved {p.distance:.3f}; noise {noise:.3f})"
+                for p in phases if p.label != majority]
+    return text + (" " + "; ".join(minority) + "." if minority else "")
+
+
+def motion_report(
+    title: str,
+    times: Sequence[float] | None,
+    positions: Sequence[Sequence[float]],
+    noise: float,
+    *,
+    time_labels: Sequence[str] | None = None,
+    units: str = "scene-relative units",
+    metric_source: str | None = None,
+    reading_full: str = "",
+    reading_short: str = "",
+    axes: Sequence[Sequence[str]] = AXES,
+    max_rows: int = MAX_PHASE_ROWS,
+    **segmentation: Any,
+) -> Report:
+    phases = segment_motion(times, positions, noise, time_labels=time_labels, axes=axes, **segmentation)
+    if units in {"m", "metres", "meters"}:
+        if not metric_source:
+            raise ValueError("metres require the metric scale source")
+        unit_note = f"Distances are metres; scale source: {metric_source}."
+    else:
+        unit_note = f"Distances are {units}, comparable within this clip only."
+    still_note = ('The noise floor applies to Euclidean displacement over a coherent phase. '
+                  '"Still" means no sustained motion above that floor; brief weak phases may be absorbed.')
+    if times is None:
+        still_note += " Time spans use shown-frame labels; duration is compared by sample order."
+    return Report(
+        title=title, headline=motion_headline(phases, noise, axes=axes),
+        rows=phase_rows(phases, max_rows), columns=("time", "direction", "moved"),
+        reading_full=" ".join(filter(None, [reading_full, still_note, unit_note])),
+        reading_short=" ".join(filter(None, [reading_short, still_note, unit_note])),
+        raw={"times": None if times is None else np.asarray(times).tolist(),
+             "positions": np.asarray(positions).tolist(), "noise": float(noise),
+             "phases": [asdict(p) for p in phases], "majority": majority_direction(phases),
+             "units": units, "metric_source": metric_source},
+    )
