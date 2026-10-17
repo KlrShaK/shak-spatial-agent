@@ -182,3 +182,113 @@ def test_unknown_fps_uses_shown_images_without_fabricated_video_clock():
     assert not any(item["type"] == "video" for item in content)
     assert any(item.get("text") == "shown frame A" for item in content)
     assert "frame rate is unknown" in content[0]["text"]
+
+
+@pytest.mark.parametrize("frame_indices,expected_budget", [
+    ([0, 7, 13, 20], VIDEO_MAX_PIXELS),
+    ([0, 5, 10, 15, 20], int(VIDEO_MAX_PIXELS * 5 / 6)),
+])
+def test_video_adapter_passes_metadata_budget_and_deterministic_generation(frame_indices, expected_budget):
+    captured = {}
+
+    class Batch(dict):
+        input_ids = np.ones((1, 3), dtype=int)
+
+        def to(self, device):
+            return self
+
+    def process(messages, **kwargs):
+        captured["processor"] = kwargs
+        return Batch(input_ids=Batch.input_ids)
+
+    def generate(**kwargs):
+        captured["generation"] = kwargs
+        return np.array([[1, 1, 1, 9]])
+
+    base = SimpleNamespace(
+        processor=SimpleNamespace(apply_chat_template=process, batch_decode=lambda values, **kw: ["caption"]),
+        model=SimpleNamespace(device="cpu", generate=generate), seed=42, max_new_tokens=768,
+        torch=SimpleNamespace(manual_seed=lambda seed: None, cuda=SimpleNamespace(is_available=lambda: False),
+                              inference_mode=nullcontext),
+    )
+    qwen = VideoQwen(base)
+    metadata = [{"total_num_frames": 21, "fps": 10, "frames_indices": frame_indices}]
+    assert qwen.generate([], video_metadata=metadata, max_new_tokens=160) == "caption"
+    settings = captured["processor"]["videos_kwargs"]
+    assert settings["video_metadata"] == metadata
+    assert settings["do_sample_frames"] is False
+    assert settings["size"]["longest_edge"] == expected_budget
+    assert captured["generation"]["do_sample"] is False
+    assert captured["generation"]["max_new_tokens"] == 160
+    assert qwen.processor is base.processor
+
+
+def test_coherent_single_pixel_size_growth_is_not_discarded_as_jitter():
+    workspace, _ = visual_workspace()
+    group = workspace.ground("car")
+    for index in range(21):
+        group.grounding.masks[0, index] = False
+        group.grounding.masks[0, index, 5:15, 5:15] = np.arange(100).reshape(10, 10) < 24 + index
+    report = get_segmentation_mask(workspace, ["car 1"])
+    assert report.rows[0][2] == "6% → 11%"
+
+
+def test_unknown_fps_mask_table_reuses_only_labels_of_images_already_shown():
+    workspace, _ = visual_workspace(fps=None)
+    get_frames(workspace)
+    existing = dict(workspace._frame_labels)
+    report = get_segmentation_mask(workspace, ["car"])
+    assert workspace._frame_labels == existing
+    assert report.rows[0][0] == "shown frame A–shown frame D"
+    assert "seconds" not in report.render()
+    assert "4.00" not in report.render()
+
+
+def test_caption_cache_survives_a_fresh_workspace_and_invalidates_for_model_change(tmp_path):
+    workspace, _ = visual_workspace()
+    workspace.models = SimpleNamespace(cache=tmp_path, qwen_model="model-one", seed=42)
+    qwen = Qwen("A red car and a blue car beside a road.")
+    caption = caption_clip(workspace, qwen)
+    fresh = Workspace(workspace.clip, models=workspace.models)
+    assert caption_clip(fresh, qwen) == caption
+    assert len(qwen.calls) == 1
+    assert (tmp_path / "clips" / "synthetic" / "v6_caption.json").is_file()
+    changed = Workspace(workspace.clip, models=SimpleNamespace(cache=tmp_path, qwen_model="model-two", seed=42))
+    caption_clip(changed, qwen)
+    assert len(qwen.calls) == 2
+
+
+def test_unknown_fps_video_helpers_use_the_same_keyframes_as_main_agent():
+    workspace, _ = visual_workspace(fps=None)
+    content, metadata = video_input(workspace, Qwen("caption"))
+    assert metadata is None
+    assert len([item for item in content if item["type"] == "image"]) == len(workspace.clip.keyframes(8))
+    assert set(workspace._frame_labels) == set(workspace.clip.keyframes(8))
+
+
+def test_candidate_montage_shows_disjoint_candidates_in_one_image():
+    workspace, _ = visual_workspace()
+    group = workspace.ground('car')
+    group.grounding.masks[0, 8:] = False
+    with pytest.raises(CandidateRequired) as error:
+        workspace.resolve('car')
+    report = candidate_report(workspace, error.value.selection)
+    assert len(report.images) == 1
+    assert len(report.raw['frame_indices']) == 2
+    for entity in group.entities:
+        assert any(group.grounding.masks[list(entity.instances), index].any()
+                   for index in report.raw['frame_indices'])
+    assert report.status == 'partial'
+
+
+def test_mask_table_rejects_unknown_instance_labels_before_sam():
+    workspace, calls = visual_workspace()
+    workspace.ground('car')
+    with pytest.raises(WorkspaceError, match='unavailable'):
+        get_segmentation_mask(workspace, ['car 99'])
+    assert len(calls) == 1
+
+
+def test_successful_mask_table_has_a_headline():
+    workspace, _ = visual_workspace()
+    assert get_segmentation_mask(workspace, ['car']).headline
