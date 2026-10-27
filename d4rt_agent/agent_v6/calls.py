@@ -43,7 +43,7 @@ def parse_object(raw):
                         value = loader(candidate)
                         if isinstance(value, dict):
                             return value
-                    except (ValueError, SyntaxError):
+                    except (ValueError, SyntaxError, TypeError):
                         pass
                 # Repair trailing commas outside strings, retaining all values.
                 clean, inside, escape = [], False, False
@@ -248,6 +248,10 @@ class CallProcessor:
             context = dict(raw=raw, errors=errors, plan=plan, last_turns=list(last_turns)[-2:], schema=selected)
             reply = self.generate([{'role': 'system', 'content': instruction},
                                         {'role': 'user', 'content': json.dumps(context, default=str)}])
+            if isinstance(reply, str) and re.match(r'\s*To the agent:', reply, re.I):
+                self.counts['sent_back'] += 1
+                trace.append({'stage': 'doctor_guidance', 'value': reply})
+                return CallResult(None, reply.strip(), trace)
             try:
                 repaired, _ = normalize(reply, names)
                 failure = validate(repaired, pending)
@@ -318,6 +322,29 @@ def _declared_letters(raw, options, extended=False):
         else:
             letters.add(letter)
     return None if ambiguous else letters
+
+
+def is_answer_declaration(raw, action=None):
+    """Recognize the act-to-answer phase change without asking the call doctor."""
+    if action is None:
+        try:
+            action = parse_object(raw)
+        except (ValueError, TypeError):
+            action = {}
+    verb = action.get('tool', action.get('action', action.get('name', '')))
+    if isinstance(verb, str) and re.sub(r'[\s_-]', '', verb).casefold() in ('answer', 'finalanswer'):
+        return True
+    if verb:
+        return False
+    if action:
+        return any(_answer_key(key) and value is not False and value is not None
+                   for key, value in action.items())
+    text = str(raw).strip()
+    if _declared_letters(text, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', extended=True):
+        return True
+    return bool(re.match(r'(?i)(?:(?:my|the|final)\s+)*(?:answer|choice)\s*(?:is\b|:|=)', text)
+                or re.match(r'(?i)(?:```(?:json)?\s*)?\{\s*["\'](?:answer|letter|final[_ ]?answer)["\']\s*:', text)
+                or re.search(r'(?i)\bI (?:(?:can|will) (?:now )?answer|am ready to (?:answer|give (?:my|the) answer))\b', text))
 
 
 def _doctor_answer_evidence(raw, recovered, candidate, options):

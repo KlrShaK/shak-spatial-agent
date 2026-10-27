@@ -6,7 +6,7 @@ from pathlib import Path
 import re
 import time
 
-from .calls import CallProcessor, parse_object, recover_answer, valid_entity
+from .calls import CallProcessor, is_answer_declaration, parse_object, recover_answer, valid_entity
 from .context import Conversation
 from .schemas import DESCRIPTIONS, schema, visible_tools
 
@@ -133,13 +133,13 @@ class AgentV6:
                 continue
             try:
                 action = parse_object(response)
-            except ValueError:
+            except (ValueError, TypeError):
                 action = {}
             completed = action.get('completed_plan_items', [])
             if isinstance(completed, list):
                 executed_items.update(i for i in completed if isinstance(i, int) and not isinstance(i, bool) and 1 <= i <= len(items))
                 active_item = next((i for i in range(len(items)) if i + 1 not in executed_items), max(0, len(items) - 1))
-            if action.get('answer') is True or action.get('action') in ('answer', 'final_answer') or 'letter' in action:
+            if is_answer_declaration(response, action):
                 # A phase change always gives the model the answer precedence and format instructions.
                 break
             processed = doctor.process(response, names=workspace.known_names, pending=pending, plan=plan,
@@ -153,8 +153,10 @@ class AgentV6:
             tool = processed.call['tool']
             workspace.begin_tool_call(tool)
             report = toolset.call(tool, **processed.call['arguments'])
-            rendered = report.render(full=tool not in seen_tools)
-            seen_tools.add(tool)
+            full = tool not in seen_tools
+            rendered = report.render(full=full)
+            if full and report.status != 'unavailable' and report.reading_full.strip():
+                seen_tools.add(tool)
             conversation.add('user', rendered, kind='report')
             if report.images:
                 conversation.add('user', 'Requested views from ' + tool, images=report.images, kind='requested')

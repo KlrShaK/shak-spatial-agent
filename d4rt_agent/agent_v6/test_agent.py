@@ -150,3 +150,61 @@ def test_plan_revision_resets_completion_and_retains_prior_plan_in_context():
     assert result['process']['executed_items'] == 0
     assert result['process']['planned_items'] == 1
     assert 'translation' in str(qwen.calls[-1])
+@pytest.mark.parametrize('declaration', [
+    '{"answer":"B"}', '{"final_answer":"B"}', '{"Letter":"B"}',
+    '{"action":"answer"}', '{"tool":"answer"}', '{"answer": B}',
+    'The answer is B.', 'B: right', 'I can now answer.',
+])
+def test_act_answer_declarations_go_to_answer_instructions_without_a_doctor(declaration):
+    ws, *_ = fixture_workspace()
+    qwen = Scripted('{"entities":[]}', '1. Inspect the visible evidence.', declaration,
+                    '{"letter":"B","because":"measured"}')
+    tools = RecordingTools()
+    result = AgentV6(qwen=qwen, dispatcher=tools, captioner=lambda *a: 'scene').solve(
+        {'id': 'q', 'question': 'Direction?', 'options': {'A': 'left', 'B': 'right'}}, workspace=ws)
+    assert result['letter'] == 'B'
+    assert result['process']['doctor_calls'] == 0 and not tools.calls
+    assert len(qwen.calls) == 4
+    assert 'No tools in this turn' in str(qwen.calls[-1][-1])
+
+
+@pytest.mark.parametrize('first', [
+    Report.unavailable('runner motion', 'No usable positions.'),
+    Report('Choose a segmentation candidate', 'Choose red or blue.', status='partial',
+           reason='An instance choice is needed before measuring.', images=[Image.new('RGB', (16, 16))]),
+])
+def test_full_contract_is_delivered_on_first_measurement_after_failed_or_candidate_report(first):
+    class Reports:
+        def __init__(self):
+            self.replies = iter([first, Report('motion', 'Moves right.', reading_full='Full motion contract.',
+                                               reading_short='Short motion notes.'),
+                                 Report('motion', 'Moves right.', reading_full='Full motion contract.',
+                                        reading_short='Short motion notes.')])
+
+        def call(self, *args, **kwargs):
+            return next(self.replies)
+
+    ws, *_ = fixture_workspace()
+    qwen = Scripted('{"entities":["runner"]}', '1. Measure runner motion.',
+                    *(['{"tool":"track_entity","arguments":{"main":"runner"}}'] * 3),
+                    '{"answer":true}', '{"letter":"B","because":"measured"}')
+    result = AgentV6(qwen=qwen, dispatcher=Reports(), captioner=lambda *a: 'scene').solve(
+        {'id': 'q', 'question': 'Direction?', 'options': {'A': 'left', 'B': 'right'}}, workspace=ws)
+    assert 'Full motion contract.' in result['reports'][1]['rendered']
+    assert 'Short motion notes.' in result['reports'][2]['rendered']
+    assert sum('Full motion contract.' in report['rendered'] for report in result['reports']) == 1
+    assert 'Full motion contract.' in str(qwen.calls[-1])
+
+
+def test_doubled_braces_in_act_are_recoverable_and_doctor_guidance_is_visible():
+    ws, *_ = fixture_workspace()
+    advice = 'To the agent: Remove the extra outer braces.'
+    qwen = Scripted('{"entities":[]}', '1. Measure the camera.',
+                    '{{"tool":"track_camera","arguments":{}}}', advice,
+                    '{"tool":"track_camera","arguments":{}}', '{"answer":true}',
+                    '{"letter":"B","because":"measured"}')
+    result = AgentV6(qwen=qwen, dispatcher=RecordingTools(), captioner=lambda *a: 'scene').solve(
+        {'id': 'q', 'question': 'Direction?', 'options': {'A': 'left', 'B': 'right'}}, workspace=ws)
+    assert result['letter'] == 'B' and result['tool_calls'] == 1
+    assert result['process']['doctor_calls'] == 1
+    assert advice in str(qwen.calls[-1])

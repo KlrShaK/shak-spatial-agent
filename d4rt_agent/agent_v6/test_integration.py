@@ -112,6 +112,7 @@ def test_real_ambiguity_choice_then_measurement_uses_the_chosen_instance():
     assert sum(part["type"] == "image" for message in qwen.calls[4][0]
                for part in message["content"] if isinstance(message["content"], list)) == 9
     assert motion["rendered"] in text(qwen.calls[-1][0])
+    assert 'The noise floor applies to Euclidean displacement' in motion['rendered']
     assert result["model_calls"] == len(qwen.calls) == 8 and not qwen.responses
 
 

@@ -1,5 +1,5 @@
 import pytest
-from .calls import CallProcessor, normalize, recover_answer, validate
+from .calls import CallProcessor, is_answer_declaration, normalize, parse_object, recover_answer, validate
 
 
 class Scripted:
@@ -169,3 +169,23 @@ def test_doctor_cannot_fabricate_or_truncate_an_ambiguous_decision(raw, evidence
     import json
     doctor = Scripted(json.dumps({'letter': 'A' if 'A' in raw else 'B', 'evidence': evidence}))
     assert recover_answer(raw, {'A': 'away', 'B': 'closer'}, doctor) is None
+
+
+def test_doctor_guidance_reaches_the_agent_without_a_parse_error():
+    advice = 'To the agent: Name the subject.\nUse a short descriptive noun.'
+    processor = CallProcessor(Scripted(advice))
+    result = processor.process({'tool': 'track_entity', 'arguments': {}})
+    assert result.call is None and result.message == advice
+    assert result.trace[-1] == {'stage': 'doctor_guidance', 'value': advice}
+    assert processor.counts['sent_back'] == processor.doctor_calls == 1
+    assert processor.counts['doctor_fixes'] == 0
+
+
+def test_doubled_braces_report_a_parse_error_instead_of_raising_type_error():
+    with pytest.raises(ValueError, match='Malformed outer JSON'):
+        parse_object('{{"tool":"track_camera","arguments":{}}}')
+
+
+@pytest.mark.parametrize('raw', ['{"answer":false}', '{"tool":"ask_video","arguments":{"question":"Is the answer B?"}}'])
+def test_tool_contents_or_a_negative_answer_flag_do_not_change_phase(raw):
+    assert not is_answer_declaration(raw)
