@@ -5,6 +5,7 @@ import json
 import pytest
 
 from .evaluation.campaign import BENCHES, check_records, next_task, verify_inputs
+from .evaluation.prepare_campaign import normalize_prediction, paper_reference_mismatches
 
 
 def completed_quick():
@@ -95,6 +96,47 @@ def test_recovery_smoke_runs_failed_selected_question_first_without_changing_sel
     assert all('--only' not in command for command in calls[1:])
     assert all(command[-2:] == ['--limit', '2'] for command in calls[1:])
     assert json.loads(selection.read_text()) == {'question_ids': {'dsi': ['selected']}}
+
+
+def test_existing_baseline_reference_cannot_silently_change():
+    entry = {'id': 'q', 'answer': 'B', 'options': {'A': 'left', 'B': 'right'},
+             'question': 'Which way?', 'relative_path': 'std/clip.mp4', 'quantity_group': 'motion'}
+    baseline = {'correct': True, 'answered': True, 'letter': 'B',
+                'reference': {'answer': 'B', 'options': entry['options'], 'question': entry['question']}}
+    row = normalize_prediction(baseline, entry, 'dsi', 'std')
+    assert row['correct'] and row['clip']['relative_path'] == entry['relative_path']
+    baseline['reference']['answer'] = 'A'
+    with pytest.raises(ValueError, match='reference mismatch'):
+        normalize_prediction(baseline, entry, 'dsi', 'std')
+
+
+def test_paper_id_reuse_cannot_match_a_different_question_or_reference():
+    entry = {'question': 'Which way is it rotating?', 'options': {'A': 'clockwise', 'B': 'still'}, 'answer': 'A'}
+    row = {'question': entry['question'], 'choices': entry['options'], 'ground_truth_answer': 'clockwise'}
+    assert paper_reference_mismatches(row, entry) == []
+    assert paper_reference_mismatches({**row, 'question': 'Which way is it moving?'}, entry) == ['question']
+    assert paper_reference_mismatches({**row, 'ground_truth_answer': 'still'}, entry) == ['ground_truth_answer']
+    assert paper_reference_mismatches({**row, 'choices': {'A': 'still', 'B': 'clockwise'}}, entry) == ['choices']
+
+
+def test_paper_numeric_options_match_the_benchmark_loader_text_options():
+    entry = {'question': 'How many?', 'options': {'A': '1', 'B': '2'}, 'answer': 'A'}
+    row = {'question': 'How many?', 'choices': {'A': 1, 'B': 2}, 'ground_truth_answer': 1}
+    assert paper_reference_mismatches(row, entry) == []
+    assert paper_reference_mismatches({**row, 'ground_truth_answer': 2}, entry) == ['ground_truth_answer']
+
+
+@pytest.mark.parametrize('baseline', [
+    {'answer_text': 'B: right', 'answered': True},
+    {'parsed_letter': 'B', 'gt': 'B', 'options': {'A': 'left', 'B': 'right'}},
+    {'prediction': 'B. right', 'answer': 'B', 'options': ['A. left', 'B. right'], 'accuracy': 1.0},
+    {'prediction': 'B. right', 'answer': 'b', 'options': ['A. left', 'B. right'], 'accuracy': 1.0},
+])
+def test_existing_v4_control_and_official_predictions_keep_their_actual_scores(baseline):
+    entry = {'id': 'q', 'answer': 'B', 'options': {'A': 'left', 'B': 'right'},
+             'question': 'Which way?', 'relative_path': 'clip.mp4'}
+    row = normalize_prediction(baseline, entry, 'dsi', 'std')
+    assert row['letter'] == 'B' and row['correct'] and row['answered']
 
 
 def test_completed_job_falls_back_to_accounting_when_queue_forgets_id(monkeypatch):
