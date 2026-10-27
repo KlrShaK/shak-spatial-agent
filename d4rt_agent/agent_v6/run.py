@@ -11,6 +11,7 @@ import sys
 from pathlib import Path
 import tempfile
 import time
+import traceback
 
 from d4rt_agent.agent_v5.run import (
     DEFAULT_CATALOG, DEFAULT_QWEN_MODEL, dsi_entries, dynbench_entries,
@@ -48,6 +49,7 @@ def parse_args(argv=None):
     parser.add_argument('--shard', default='0/1')
     parser.add_argument('--force', action='store_true')
     parser.add_argument('--dry-run', action='store_true')
+    parser.add_argument('--fail-fast', action='store_true', help='Stop after recording an infrastructure error')
     parser.add_argument('--max-steps', type=int, default=14)
     parser.add_argument('--token-budget', type=int, default=32000)
     parser.add_argument('--max-new-tokens', type=int, default=512)
@@ -185,12 +187,16 @@ def run_live(entries, args):
             solution = agent.solve({'id': entry['id'], 'question': entry['question'],
                                     'options': entry['options']}, workspace=workspace)
         except Exception as error:
+            traceback.print_exc()
             solution = dict(status='error', answered=False, letter=None, error=f'{type(error).__name__}: {error}')
         record = answer_record(entry, args, solution, time.monotonic() - started)
         record.update(gpu_memory_report())
         write_json(target, record)
         archive.flush()
         print(f"{entry['id']}: {record.get('letter')} ({record['status']})", flush=True)
+        if args.fail_fast and record['status'] == 'error':
+            archive.close()
+            raise RuntimeError(f"{entry['id']}: {record['error']}")
     archive.close()
     return 0
 

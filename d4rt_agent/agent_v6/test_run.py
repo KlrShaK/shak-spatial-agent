@@ -89,3 +89,29 @@ def test_live_reexecutes_frozen_source_before_importing_models(tmp_path, monkeyp
                                                     '/external/point4d', str(tmp_path / 'external/relative')]
     model = command[command.index('--qwen-model') + 1]
     assert model == (str(tmp_path / 'models/qwen') if model_arg.startswith('./') else model_arg)
+
+
+def test_fail_fast_records_first_runtime_error_before_stopping(tmp_path, monkeypatch, capsys):
+    from types import SimpleNamespace
+    from d4rt_agent.agent_v5 import models
+    (tmp_path / 'source_manifest.json').write_text('{}')
+    monkeypatch.setattr(run, 'ROOT', tmp_path)
+    monkeypatch.setattr(models, 'Models', lambda **kwargs: SimpleNamespace(qwen=lambda: object()))
+    monkeypatch.setattr(models, 'gpu_memory_report', lambda: {})
+    monkeypatch.setenv('SHAK_THIRD_PARTY', str(tmp_path))
+    opened = []
+    def unavailable(entry, *args):
+        opened.append(entry['id'])
+        raise RuntimeError('fixture video cannot open')
+    monkeypatch.setattr(run, 'open_clip', unavailable)
+    args = run.parse_args(['--fail-fast', '--results-dir', str(tmp_path / 'results')])
+    args._dataset_sha256 = 'fixture'
+    entries = [dict(id=f'q{i}', video_path=f'clip{i}', question='Where?',
+                    options={'A': 'left'}, answer='A') for i in range(2)]
+    with pytest.raises(RuntimeError, match='fixture video cannot open'):
+        run.run_live(entries, args)
+    assert opened == ['q0']
+    saved = json.loads((args.results_dir / 'answers/q0.json').read_text())
+    assert saved['status'] == 'error' and not saved['answered']
+    assert not (args.results_dir / 'answers/q1.json').exists()
+    assert 'raise RuntimeError' in capsys.readouterr().err
