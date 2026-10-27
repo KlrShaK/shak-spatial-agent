@@ -270,23 +270,86 @@ class CallProcessor:
         return CallResult(None, 'To the agent: ' + ' '.join(errors), trace)
 
 
+_ANSWER_KEYS = ('letter', 'answer', 'choice', 'option', 'answerletter', 'optionletter',
+                'finalanswer', 'selectedoption', 'selectedanswer')
+
+
+def _answer_key(key):
+    clean = re.sub(r'[\s_-]', '', str(key)).casefold()
+    return close_match(clean, _ANSWER_KEYS) in _ANSWER_KEYS
+
+
+def _choice_letter(value):
+    """Normalize an option token, never an option's meaning or an ordinary word."""
+    if not isinstance(value, str):
+        return None
+    match = re.fullmatch(
+        r'\s*(?:(?i:option|choice|letter)\s+)?[\[\("\']?([A-Za-z])\b[\]\)"\']?'
+        r'\s*(?:[.:\-–—](?:\s.*)?|(?i:because)\b.*)?\s*', value)
+    return match[1].upper() if match else None
+
+
+def _ambiguous_tail(tail):
+    return bool(re.match(
+        r'\s*["\'\]\)]?\s*(?:(?i:or|and|/)\s*(?:(?i:option)\s*)?[A-Za-z]\b'
+        r'|\?|(?i:(?:is\s+)?(?:wrong|incorrect|not)\b))', tail))
+
+
+def _negated_prefix(text, start):
+    clause = re.split(r'(?i)[.!?;,\n]|\b(?:but|however|instead)\b', text[:start])[-1]
+    return bool(re.search(r"(?i)(?:\b(?:not|never|cannot|no)|n['’]t)(?:\s+\w+){0,3}\s*$", clause))
+
+
 def _declared_letters(raw, options, extended=False):
     text = str(raw)
-    noun = r'(?:answer|choice|letter' + (r'|selected alternative' if extended else '') + r')'
-    pattern = (r'(?im)(?:^\s*|\b' + noun + r'\s*(?:is|was|:|=)\s*)'
-               r'["\']?([A-Z])["\']?(?=\b)')
+    noun = r'answer|choice|letter' + (r'|selected alternative|selection' if extended else '')
+    # Only the cue words are case-insensitive. A line beginning "a car" or
+    # "A car" is not a bare option declaration.
+    pattern = (r'(?m)(?:^[ \t]*["\']?([A-Z])\b["\']?(?=[ \t]*(?:$|[:.)\-–—?]|(?i:because|or|and)\b))'
+               r'|\b(?i:' + noun + r')\s*(?i:is|was|:|=)\s*'
+               r'(?:(?i:option|choice)\s+)?["\']?([A-Z])\b["\']?)')
     letters = set()
     ambiguous = False
     for match in re.finditer(pattern, text):
-        letter = match[1].upper()
+        letter = match[1] or match[2]
         tail = text[match.end():]
-        if letter not in options:
-            continue
-        if re.match(r'\s*(?:(?:or|and|/)\s*(?:option\s*)?[A-Z]\b|\?|(?:is\s+)?(?:wrong|incorrect|not)\b)', tail, re.I):
+        if _ambiguous_tail(tail) or _negated_prefix(text, match.start()) or letter not in options:
             ambiguous = True
         else:
             letters.add(letter)
     return None if ambiguous else letters
+
+
+def _doctor_answer_evidence(raw, recovered, candidate, options):
+    declarations = _declared_letters(raw, options, extended=True)
+    if declarations is None or declarations and declarations != {candidate}:
+        return False
+    if declarations == {candidate}:
+        return True
+    # For unusual prose the doctor supplies a verbatim decision span. The host
+    # checks the letter in that span; the doctor cannot introduce a new letter.
+    evidence = recovered.get('evidence', str(raw))
+    if not isinstance(evidence, str) or not evidence or evidence not in str(raw):
+        return False
+    if _negated_prefix(str(raw), str(raw).index(evidence)):
+        return False
+    token = r'[\[\("\']?' + re.escape(candidate) + r'\b[\]\)"\']?'
+    cue = (r'(?i:\bI\s+(?:choose|chose|select|selected|pick|picked|prefer|favour|favor|settle(?:d)?\s+on|go\s+with)'
+           r'|\b(?:my|the|final)\s+(?:answer|choice|selection|pick)\s*(?:is|was|:|=|->))'
+           r'\s*(?:(?i:option|letter)\s+)?')
+    ending = r'(?=\s*(?:$|[.,;:!?\-–—])|\s+(?i:because|since|based)\b)'
+    if not (re.search(cue + token + ending, evidence) or
+            re.search(token + r'\s+(?i:is|was)\s+(?i:my|the)\s+(?i:answer|choice|selection|pick)\b', evidence)):
+        return False
+    if re.search(r'(?i)\b(?:not|wrong|incorrect|maybe|might|could|would|if|unsure)\b|\?', evidence):
+        return False
+    tokens = {m[0] for m in re.finditer(r'\b[A-Z]\b', evidence) if m[0] in options}
+    if tokens != {candidate}:
+        return False
+    for match in re.finditer(r'\b' + re.escape(candidate) + r'\b', str(raw)):
+        if _ambiguous_tail(str(raw)[match.end():]):
+            return False
+    return True
 
 
 def recover_answer(raw, options, doctor=None):
@@ -295,24 +358,21 @@ def recover_answer(raw, options, doctor=None):
         value = parse_object(raw)
     except (ValueError, TypeError):
         value = {}
-    letter = value.get('letter')
-    if isinstance(letter, str) and letter.strip().upper() in options:
-        declarations = _declared_letters(raw, options, extended=True)
-        if declarations is None or (declarations and declarations != {letter.strip().upper()}):
-            return None
-        return {'letter': letter.strip().upper(), 'because': str(value.get('because', ''))}
-    letters = _declared_letters(raw, options)
-    if letters and len(letters) == 1:
-        return {'letter': letters.pop(), 'because': str(raw)}
-    if doctor and letters == set():
-        reply = doctor.generate([{'role': 'system', 'content': 'Recover an explicitly stated answer only. Return its letter and because as JSON, or null. Never choose or infer an answer.'},
+    structured = {_choice_letter(item) for key, item in value.items() if _answer_key(key)} - {None}
+    declarations = _declared_letters(raw, options, extended=True)
+    if declarations is None or not structured <= set(options) or len(structured | declarations) > 1:
+        return None
+    letters = structured | _declared_letters(raw, options)
+    if len(letters) == 1:
+        return {'letter': next(iter(letters)), 'because': str(value.get('because', raw if not structured else ''))}
+    if doctor:
+        reply = doctor.generate([{'role': 'system', 'content': 'Recover an explicitly stated answer only. Return letter, because, and evidence (the exact quoted decision span from the input) as JSON, or null. Never choose or infer an answer.'},
                                  {'role': 'user', 'content': str(raw)}])
         try:
             recovered = parse_object(reply)
         except (ValueError, TypeError):
             return None
-        candidate = recovered.get('letter')
-        evidence = _declared_letters(raw, options, extended=True)
-        if candidate in options and evidence == {candidate}:
+        candidate = _choice_letter(recovered.get('letter'))
+        if candidate in options and _doctor_answer_evidence(raw, recovered, candidate, options):
             return {'letter': candidate, 'because': str(recovered.get('because', ''))}
     return None

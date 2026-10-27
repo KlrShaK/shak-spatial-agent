@@ -113,3 +113,59 @@ def test_conflicting_aliases_cannot_let_doctor_change_valid_main():
 
 def test_json_answer_with_contradicting_tail_remains_unanswered():
     assert recover_answer('{"letter":"A"} Actually, the answer is B.', {'A':'left','B':'right'}) is None
+
+
+@pytest.mark.parametrize('prefix', ['a car moves closer.\n', 'A car moves closer.\n', ''])
+def test_an_article_does_not_create_or_veto_an_answer_letter(prefix):
+    options = {'A': 'away', 'B': 'closer'}
+    assert recover_answer(prefix + '{"letter":"B","because":"a car approaches"}', options)['letter'] == 'B'
+    if prefix:
+        doctor = Scripted('{"letter":"A","because":"recovered","evidence":"a car"}')
+        assert recover_answer(prefix, options, doctor) is None
+
+
+@pytest.mark.parametrize('raw', ['{"Letter":"b"}', '{"answer":"B"}', '{"final_answer":"option b"}',
+                                  '{"leter":"B."}', '{"letter":" B: closer "}'])
+def test_answer_field_and_value_normalization_preserves_the_explicit_letter(raw):
+    assert recover_answer(raw, {'A': 'away', 'B': 'closer'})['letter'] == 'B'
+
+
+@pytest.mark.parametrize('raw', ['{"letter":"A", "answer":"B"}', '{"letter":"Z"}',
+                                  '{"answer":"a car moves"}', '{"letter":"A or B"}'])
+def test_answer_normalization_never_chooses_between_letters_or_from_words(raw):
+    doctor = Scripted('{"letter":"B","because":"closer"}')
+    assert recover_answer(raw, {'A': 'away', 'B': 'closer'}, doctor) is None
+
+
+def test_answer_doctor_can_recover_an_unusual_explicit_decision_from_a_quote():
+    raw = 'After checking the measurements, I settle on [B].'
+    doctor = CallProcessor(Scripted('{"letter":"b","because":"stated", "evidence":"I settle on [B]."}'), doctor_limit=1)
+    assert recover_answer(raw, {'A': 'away', 'B': 'closer'}, doctor)['letter'] == 'B'
+    assert doctor.doctor_calls == 1
+
+
+def test_answer_doctor_can_recover_a_positive_decision_without_echoing_evidence():
+    doctor = CallProcessor(Scripted('{"letter":"B","because":"stated"}'))
+    assert recover_answer('I settle on option B.', {'A': 'away', 'B': 'closer'}, doctor)['letter'] == 'B'
+    assert doctor.doctor_calls == 1
+
+
+def test_answer_doctor_cannot_turn_an_option_description_into_a_decision():
+    raw = 'We must choose between the options. A is leftward.'
+    doctor = Scripted('{"letter":"A","evidence":"choose between the options. A is leftward."}')
+    assert recover_answer(raw, {'A': 'left', 'B': 'right'}, doctor) is None
+
+
+@pytest.mark.parametrize('raw,evidence', [
+    ('I settle on [A].', 'I settle on [B].'),
+    ('I could choose B.', 'I could choose B.'),
+    ('Option A is wrong.', 'Option A is wrong.'),
+    ('I settle on A or B.', 'I settle on A'),
+    ('Do not choose A.', 'choose A.'),
+    ("I wouldn't pick A.", 'pick A.'),
+    ('Not my answer: A.', 'answer: A.'),
+])
+def test_doctor_cannot_fabricate_or_truncate_an_ambiguous_decision(raw, evidence):
+    import json
+    doctor = Scripted(json.dumps({'letter': 'A' if 'A' in raw else 'B', 'evidence': evidence}))
+    assert recover_answer(raw, {'A': 'away', 'B': 'closer'}, doctor) is None
