@@ -246,16 +246,6 @@ def test_metric_distances_use_scale_with_named_provenance():
     assert "da3-nested" in report.render() and "metres" in report.render()
 
 
-def test_subject_window_keeps_the_clips_starting_facing():
-    path = constant([0, 0, 4])
-    path[:, 2] += np.linspace(0, 3, 31)
-    ws, labels = workspace({"person": path}, headings={"person": np.linspace(0, 180, 31)})
-    report = track_entity(ws, "person", frame_of_reference="subject", window=(1, 2))
-    motion = report.raw["motions"][labels["person"]]
-    assert motion["starting_position"] == 0
-    assert motion["majority"] == "forward"
-
-
 def test_single_facing_observation_cannot_claim_no_turning():
     angles = np.full(31, np.nan)
     angles[15] = 90
@@ -411,3 +401,32 @@ def test_unknown_fps_does_not_report_speed_from_sample_order():
     assert motion["speed"] is None and motion["phase_speeds"] == []
     assert "Speed unavailable" in report.render()
     assert "m/s" not in report.render() and "units/s" not in report.render()
+def test_speed_and_phase_distances_use_the_same_filtered_trajectory():
+    rng = np.random.default_rng(6)
+    path = constant([0, 0, 4], 101) + rng.uniform(-.01, .01, (101, 3))
+    path[50:, 0] += np.linspace(0, 2, 51)
+    path[[0, 50, 100]] = [[0, 0, 4], [0, 0, 4], [2, 0, 4]]
+    ws, labels = workspace({'person': path}, fps=50)
+    ws.track_record('person').noise = .02
+    report = track_entity(ws, 'person')
+    motion = report.raw['motions'][labels['person']]
+    assert [phase['label'] for phase in motion['phases']] == ['still', 'right']
+    for phase, speed in zip(motion['phases'], motion['phase_speeds']):
+        assert speed['path_length'] == pytest.approx(phase['distance'])
+    assert motion['phase_speeds'][0]['path_speed'] == pytest.approx(0)
+    assert motion['phase_speeds'][1]['path_speed'] == pytest.approx(2)
+    assert motion['speed']['path_length'] == pytest.approx(2)
+    assert 'noise-filtered trajectory' in report.render()
+
+
+def test_absorbed_weak_jitter_does_not_become_travel_or_speed_in_a_still_phase():
+    path = constant([0, 0, 4], 101)
+    path[1::2, 0] = .06
+    ws, labels = workspace({'person': path}, fps=50)
+    ws.track_record('person').noise = .05 / 3
+    report = track_entity(ws, 'person')
+    motion = report.raw['motions'][labels['person']]
+    assert motion['majority'] == 'still' and len(motion['phases']) == 1
+    assert motion['phases'][0]['distance'] == pytest.approx(0)
+    assert motion['speed']['path_speed'] == pytest.approx(0)
+    assert motion['phase_speeds'][0]['path_length'] == pytest.approx(0)

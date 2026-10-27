@@ -175,3 +175,28 @@ def test_slow_drift_with_small_position_noise_stays_motion():
     points[:, 2] += np.linspace(0, .8, 101)
     report = motion_report("runner", np.linspace(0, 2, 101), points, .05)
     assert report.raw["majority"] == "forward"
+
+
+@pytest.mark.parametrize('endpoint, direction', [(-.06, 'left'), (.02, 'still')])
+def test_absorbing_weak_phase_relabels_the_combined_displacement(endpoint, direction):
+    points = np.zeros((21, 3))
+    points[:-1, 0] = np.linspace(0, .06, 20)
+    points[-1, 0] = endpoint
+    report = motion_report('runner', np.arange(21), points, .05)
+    assert len(report.raw['phases']) == 1
+    assert report.raw['majority'] == direction
+    assert report.raw['phases'][0]['displacement'][0] == pytest.approx(endpoint)
+    assert 'Moves RIGHT' not in report.headline
+
+
+@pytest.mark.parametrize('still_steps, phrase', [(8, 'largest time share (40%)'), (10, 'largest time share (50%)'),
+                                                (12, 'Mostly STILL')])
+def test_still_plurality_does_not_claim_a_majority(still_steps, phrase):
+    moving_steps = (20 - still_steps) // 2
+    points = trajectory([[0, 0, 0]] * still_steps + [[.2, 0, 0]] * moving_steps
+                        + [[-.2, 0, 0]] * moving_steps)
+    report = motion_report('runner', np.arange(21), points, .01)
+    assert report.raw['majority'] == 'still'
+    assert phrase in report.headline
+    if still_steps <= 10:
+        assert 'Mostly STILL' not in report.headline

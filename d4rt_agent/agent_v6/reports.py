@@ -135,6 +135,17 @@ def _merge(phases: Sequence[Phase]) -> list[Phase]:
     return merged
 
 
+def _relabel_and_merge(phases: Sequence[Phase], noise: float, axes: Sequence[Sequence[str]]) -> list[Phase]:
+    """Every combined phase gets its direction from its combined displacement."""
+    while True:
+        for phase in phases:
+            phase.label = _direction(np.asarray(phase.displacement), noise, axes)
+        merged = _merge(phases)
+        if len(merged) == len(phases):
+            return merged
+        phases = merged
+
+
 def segment_motion(
     times: Sequence[float] | None,
     positions: Sequence[Sequence[float]],
@@ -184,9 +195,7 @@ def segment_motion(
               float(np.linalg.norm(delta)), labels[i], labels[i + 1])
         for i, (a, b, delta) in enumerate(zip(edges[:-1], edges[1:], steps))
     ])
-    for phase in phases:
-        phase.label = _direction(np.asarray(phase.displacement), noise, axes)
-    phases = _merge(phases)
+    phases = _relabel_and_merge(phases, noise, axes)
     minimum = float(clock[-1] - clock[0]) * min_phase_fraction
     while len(phases) > 1:
         weak = next((i for i, p in enumerate(phases)
@@ -196,7 +205,12 @@ def segment_motion(
         neighbours = [i for i in (weak - 1, weak + 1) if 0 <= i < len(phases)]
         target = max(neighbours, key=lambda i: phases[i].duration)
         phases[weak].label = phases[target].label
-        phases = _merge(phases)
+        phases = _relabel_and_merge(_merge(phases), noise, axes)
+    for phase in phases:
+        if phase.label == "still":
+            # Discarded weak excursions are not resolved travel. Retain only
+            # endpoint drift below the displacement floor in a still phase.
+            phase.distance = float(np.linalg.norm(phase.displacement))
     return phases
 
 
@@ -241,7 +255,8 @@ def motion_headline(
     duration = sum(p.duration for p in phases)
     share = sum(p.duration for p in phases if p.label == majority) / duration
     if majority == "still":
-        lead = "STILL throughout" if len(phases) == 1 else "Mostly STILL"
+        lead = ("STILL throughout" if len(phases) == 1 else "Mostly STILL" if share > 0.5
+                else f"STILL for the largest time share ({share:.0%})")
     else:
         when = "most of the clip" if share > 0.5 else f"the largest time share ({share:.0%})"
         lead = f"Moves {majority.upper()} for {when}"
@@ -276,7 +291,8 @@ def motion_report(
     else:
         unit_note = f"Distances are {units}, comparable within this clip only."
     still_note = ('The noise floor applies to Euclidean displacement over a coherent phase. '
-                  '"Still" means no sustained motion above that floor; brief weak phases may be absorbed.')
+                  '"Still" means no sustained motion above that floor; brief weak phases may be absorbed. '
+                  'Distances in still phases are unresolved endpoint drift below the floor.')
     if times is None:
         still_note += " Time spans use shown-frame labels; duration is compared by sample order."
     return Report(

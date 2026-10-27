@@ -13,13 +13,12 @@ CAMERA_AXES = (("right", "left"), ("down", "up"), ("away from camera", "towards 
 RANGE_AXES = (("farther apart", "closer together"), ("", ""), ("", ""))
 
 
-def _speed_summary(times, points, start, end, units):
-    """Path and endpoint rates over a real time interval, including its boundaries."""
-    knots = np.r_[start, times[(times > start) & (times < end)], end]
-    sampled = np.column_stack([np.interp(knots, times, points[:, axis]) for axis in range(3)])
+def _speed_summary(phases, units):
+    """Rates from the same noise-filtered trajectory used to label the phases."""
+    start, end = phases[0]["start"], phases[-1]["end"]
     duration = float(end - start)
-    path = float(np.linalg.norm(np.diff(sampled, axis=0), axis=1).sum())
-    net = float(np.linalg.norm(sampled[-1] - sampled[0]))
+    path = sum(phase["distance"] for phase in phases)
+    net = float(np.linalg.norm(np.sum([phase["displacement"] for phase in phases], axis=0)))
     return {"start_s": float(start), "end_s": float(end), "duration_s": duration,
             "path_length": path, "net_displacement": net,
             "path_speed": path / duration, "net_displacement_rate": net / duration, "units": units}
@@ -32,16 +31,14 @@ def _add_speed(report):
     if report.raw["times"] is None:
         report.headline += " Speed unavailable: the frame rate is unknown."
         return
-    times = np.asarray(report.raw["times"], dtype=float)
-    points = np.asarray(report.raw["positions"], dtype=float)
     units = "m/s" if report.raw["units"] == "metres" else "scene-relative units/s"
-    overall = _speed_summary(times, points, times[0], times[-1], units)
+    overall = _speed_summary(report.raw["phases"], units)
     report.raw["speed"] = overall
     report.headline += (f" Path speed {overall['path_speed']:.2f} {units}; "
                         f"net displacement rate {overall['net_displacement_rate']:.2f} {units} over the observed span.")
     rows = []
     for phase in report.raw["phases"]:
-        speed = _speed_summary(times, points, phase["start"], phase["end"], units)
+        speed = _speed_summary([phase], units)
         report.raw["phase_speeds"].append({**speed, "direction": phase["label"]})
         span = phase["start_label"][:-2] + "–" + phase["end_label"]
         rows.append((span, phase["label"],
@@ -50,7 +47,8 @@ def _add_speed(report):
                      f"net displacement rate {speed['net_displacement_rate']:.2f} {units}"))
     report.rows = pack_rows(rows)
     report.columns = ("time", "direction", "movement and speed")
-    report.reading_full += (" Path speed divides the measured trajectory length by elapsed seconds; "
+    report.reading_full += (" Path speed uses the same noise-filtered trajectory as the phase directions and distances, "
+                            "divided by elapsed seconds; "
                             "net displacement rate divides endpoint separation by the same duration. "
                             "Rates use the report's stated coordinate frame.")
 
