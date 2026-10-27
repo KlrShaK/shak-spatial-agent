@@ -63,15 +63,37 @@ class AgentV6:
         images = [(workspace.mark_shown(i), workspace.clip.pil(i, long_side=448))
                   for i in workspace.clip.keyframes(8)]
         question = task['question'] + '\nOptions: ' + json.dumps(task['options'])
+        answer_instruction = prompt('answer.md') + '\n' + question
         conversation.add('user', 'Caption: ' + caption + '\n' + question, images=images, kind='opening')
         trace, reports = [], []
+        context_budget_stop = None
+        peak_generated_tokens = 0
         doctor = CallProcessor(self.qwen)
 
         def generate(phase, instruction):
+            nonlocal context_budget_stop, peak_generated_tokens
             conversation.add('user', instruction, kind=phase)
-            used = conversation.fit(reserve=self.max_new_tokens)
+            reserve = self.max_new_tokens
+            if phase == 'act':
+                # UTF-8 bytes conservatively bound the answer prompt's tokens.
+                # Reserve both this reply and the final answer before acting.
+                reserve += len(answer_instruction.encode('utf-8')) + 4 + self.max_new_tokens
+            used = conversation.fit(reserve=reserve)
+            if phase == 'act' and used + reserve > self.token_budget:
+                conversation.turns.pop()  # This instruction was never sent.
+                trace.append({'phase': 'context_budget', 'message': 'Answer now with the retained evidence.'})
+                return None
             if used + self.max_new_tokens > self.token_budget:
+                if phase == 'answer':
+                    context_budget_stop = {'stage': phase, 'tokens': used,
+                                           'reserve': self.max_new_tokens, 'budget': self.token_budget,
+                                           'reason': 'Retained evidence does not fit the final-answer context; no letter was generated.'}
+                    trace.append({'phase': 'context_budget', **context_budget_stop,
+                                  'turns': [{'kind': t.kind, 'role': t.role, 'characters': len(t.text),
+                                             'images': len(t.images)} for t in conversation.turns]})
+                    return None
                 raise ValueError('Protected evidence exceeds the context budget; no evidence was discarded.')
+            peak_generated_tokens = max(peak_generated_tokens, used)
             response = self.qwen.generate(conversation.messages(), max_new_tokens=self.max_new_tokens)
             conversation.add('assistant', response, kind=phase)
             trace.append({'phase': phase, 'response': response})
@@ -123,7 +145,10 @@ class AgentV6:
                     menu_text += '\n' + json.dumps(schema('choose_segmentation_candidate'))
             response = generate('act', reminder + '\n' + menu_text +
                                 '\nWhen a planned quantity is established, include completed_plan_items: [item numbers] in your next JSON. Auxiliary calls alone do not complete a quantity. Continue with one {"tool": "<name>", "arguments": {...}}; revise the plan, or return {"answer": true}.')
+            if response is None:
+                break
             if response.lstrip().lower().startswith('revised plan:'):
+                conversation.turns[-1].kind = 'plan'
                 plan = response
                 items = plan_items(plan)
                 active_item = 0
@@ -167,8 +192,8 @@ class AgentV6:
                           'call_number': used, 'plan_item': active_item + 1, 'plan_revision': plan_revision})
             if used >= self.max_steps - 2:
                 conversation.add('user', f'WARNING: call {used}/{self.max_steps} used; {self.max_steps - used} remain.', kind='budget')
-        final = generate('answer', prompt('answer.md') + '\n' + question)
-        answer = recover_answer(final, task['options'], doctor if doctor.doctor_calls < 5 else None)
+        final = generate('answer', answer_instruction)
+        answer = recover_answer(final, task['options'], doctor if doctor.doctor_calls < 5 else None) if final is not None else None
         letter = answer['letter'] if answer else None
         because = answer['because'] if answer else ''
         return {'question_id': task['id'], 'status': 'ok' if answer else 'unanswered', 'answered': bool(answer),
@@ -177,7 +202,8 @@ class AgentV6:
                 'caption': caption, 'entities': entities, 'plan': plan, 'reports': reports, 'trace': trace,
                 'tool_calls': used, 'model_calls': self.qwen.calls - calls_before,
                 'output_tokens': self.qwen.output_tokens - tokens_before,
-                'peak_context_tokens': conversation.peak_tokens, 'trims': conversation.trims,
+                'peak_context_tokens': peak_generated_tokens, 'trims': conversation.trims,
+                'context_budget_stop': context_budget_stop,
                 'process': dict(doctor.counts, doctor_calls=doctor.doctor_calls,
                                 planned_items=len(items), executed_items=len(executed_items)),
                 'wall_seconds': time.monotonic() - started}

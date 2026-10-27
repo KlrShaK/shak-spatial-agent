@@ -124,6 +124,122 @@ def test_generation_reserve_trims_requested_images_before_rejecting():
     assert not requested.images
 
 
+def test_context_pressure_removes_old_control_turns_and_protects_evidence_and_schemas():
+    context = Conversation('system', 2500)
+    opening = context.add('user', 'question', images=[Image.new('RGB', (448, 448))] * 8, kind='opening')
+    plan = context.add('assistant', '1. Keep this plan.', kind='plan')
+    schema_menu = context.add('user', 'Full tool schemas.', kind='act')
+    call = context.add('assistant', '{"tool":"track_camera","arguments":{}}', kind='act')
+    report = context.add('user', 'Keep every measurement. ' * 20, kind='report')
+    obsolete = context.add('user', 'Repeated tool menu and reminder. ' * 150, kind='act')
+    context.add('assistant', '{"tool":"track_camera","arguments":{}}', kind='act')
+    revised = context.add('assistant', 'Revised plan:\n1. Keep this revision.', kind='plan')
+    current = context.add('user', 'Current instructions.', kind='answer')
+    assert context.fit(reserve=512) + 512 <= context.budget
+    assert obsolete.trimmed and not call.trimmed
+    assert len(opening.images) == 8
+    assert plan.text == '1. Keep this plan.' and revised.text.startswith('Revised plan:')
+    assert report.text == 'Keep every measurement. ' * 20
+    assert schema_menu.text == 'Full tool schemas.' and current.text == 'Current instructions.'
+
+
+def test_context_pressure_can_remove_old_call_replies_but_not_plan_revisions():
+    context = Conversation('system', 600)
+    context.add('user', 'Full tool schemas.', kind='act')
+    old_call = context.add('assistant', 'malformed call ' * 200, kind='act')
+    revised = context.add('assistant', 'Revised plan:\n1. Keep this revision.', kind='plan')
+    report = context.add('user', 'Measured evidence.', kind='report')
+    context.add('user', 'Answer now.', kind='answer')
+    assert context.fit(reserve=100) <= 500
+    assert old_call.trimmed and revised.text.startswith('Revised plan:')
+    assert report.text == 'Measured evidence.'
+
+
+def test_context_pressure_answers_before_another_act_and_keeps_all_reports():
+    class MeasuringQwen:
+        def __init__(self):
+            self.calls = []
+
+        def generate(self, messages, **kwargs):
+            self.calls.append(messages)
+            instruction = messages[-1]['content'][-1]['text']
+            if 'No tools in this turn' in instruction:
+                return '{"letter":"B","because":"measured"}'
+            if len(self.calls) == 1:
+                return '{"entities":[]}'
+            if len(self.calls) == 2:
+                return '1. [camera motion] Measure camera motion.'
+            return '{"tool":"track_camera","arguments":{}}'
+
+    class LargeReports:
+        def __init__(self):
+            self.calls = 0
+
+        def call(self, *args, **kwargs):
+            self.calls += 1
+            return Report('motion', f'Moves right; observation {self.calls}.', [('Measured distance 2 m.',)] * 150,
+                          columns=('Measurement',), reading_full='Full measurement contract.')
+
+    ws, *_ = fixture_workspace()
+    qwen = MeasuringQwen()
+    ws.clip.record['sampled16'] = list(range(0, 31, 2))
+    result = AgentV6(qwen=qwen, token_budget=10000, dispatcher=LargeReports(),
+                     captioner=lambda *a: 'scene').solve(
+        {'id': 'q', 'question': 'Direction?', 'options': {'A': 'left', 'B': 'right'}}, workspace=ws)
+    assert result['letter'] == 'B' and 0 < result['tool_calls'] < 14
+    assert any(step['phase'] == 'context_budget' for step in result['trace'])
+    final = '\n'.join(part['text'] for m in qwen.calls[-1] for part in m['content'] if part['type'] == 'text')
+    assert 'Full measurement contract.' in final
+    assert all(report['rendered'] in final for report in result['reports'])
+    assert sum(p['type'] == 'image' for m in qwen.calls[-1] for p in m['content']) == 8
+    for messages in qwen.calls:
+        context = Conversation('', 10000)
+        context.turns = []
+        for message in messages:
+            text = message['content'][-1]['text']
+            images = [part['image'] for part in message['content'] if part['type'] == 'image']
+            context.add(message['role'], text, images=images)
+        assert context.tokens() + 512 <= 10000
+
+
+def test_repeated_report_readings_keep_one_complete_copy_under_context_pressure():
+    context = Conversation('system', 900)
+    reading = 'Measured distance fell from 5 m to 2 m. ' * 50
+    original = context.add('user', reading, kind='report')
+    duplicates = [context.add('user', reading, kind='report') for _ in range(4)]
+    context.add('user', 'Answer now.', kind='answer')
+    assert context.fit(reserve=100) <= 800
+    assert original.text == reading and not original.trimmed
+    assert all(t.summary == reading and 'Same report as turn 1' in t.text for t in duplicates)
+    assert context.fit(reserve=100) <= 800
+    assert original.text == reading
+
+
+def test_unique_evidence_that_exceeds_final_context_is_explicitly_unanswered_and_retained():
+    from .evaluation.campaign import check_records
+    from .evaluation.metrics import accuracy
+
+    class OversizedReport:
+        def call(self, *args, **kwargs):
+            return Report('motion', 'Measured evidence.', reading_full='Unique measured evidence. ' * 5000)
+
+    ws, *_ = fixture_workspace()
+    qwen = Scripted('{"entities":[]}', '1. Measure motion.', '{"tool":"track_camera","arguments":{}}')
+    result = AgentV6(qwen=qwen, token_budget=10000, dispatcher=OversizedReport(),
+                     captioner=lambda *a: 'scene').solve(
+        {'id': 'q', 'question': 'Direction?', 'options': {'A': 'left', 'B': 'right'}}, workspace=ws)
+    assert result['status'] == 'unanswered' and result['letter'] is None
+    assert not result['answered'] and 'error' not in result
+    assert result['context_budget_stop']['tokens'] > 10000
+    assert result['peak_context_tokens'] + 512 <= 10000
+    assert len(qwen.calls) == 3 and result['process']['doctor_calls'] == 0
+    assert ('Unique measured evidence. ' * 5000).strip() in result['reports'][0]['rendered']
+    assert result['plan'] == '1. Measure motion.'
+    assert any(t['phase'] == 'context_budget' for t in result['trace'])
+    check_records({'q': result})
+    assert accuracy([{**result, 'reference': {'answer': 'B'}}])['accuracy'] == 0
+
+
 def test_auxiliary_calls_do_not_advance_plan_without_explicit_completion():
     ws, *_ = fixture_workspace()
     qwen = Scripted('{"entities":["car"]}',
@@ -150,6 +266,8 @@ def test_plan_revision_resets_completion_and_retains_prior_plan_in_context():
     assert result['process']['executed_items'] == 0
     assert result['process']['planned_items'] == 1
     assert 'translation' in str(qwen.calls[-1])
+
+
 @pytest.mark.parametrize('declaration', [
     '{"answer":"B"}', '{"final_answer":"B"}', '{"Letter":"B"}',
     '{"action":"answer"}', '{"tool":"answer"}', '{"answer": B}',
