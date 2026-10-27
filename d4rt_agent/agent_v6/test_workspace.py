@@ -250,3 +250,37 @@ def test_unknown_time_reports_never_register_unseen_images():
     assert len(ws._shown) == 2
     with pytest.raises(TimeUnavailable, match="already shown"):
         ws.frame_index("shown frame C")
+
+
+def test_question_reset_discards_shown_labels_but_retains_clip_observations():
+    ws, _, calls, _ = fixture_workspace(fps=None, instances=1)
+    track = ws.track_record('car')
+    ws.frames()
+    ws.mark_shown(15)
+    assert ws.frame_index('shown frame E') == 15
+    ws.begin_question()
+    with pytest.raises(TimeUnavailable, match='Show frames'):
+        ws.time_labels()
+    with pytest.raises(TimeUnavailable, match='already shown'):
+        ws.frame_index('shown frame A')
+    assert ws.mark_shown(5) == 'shown frame A'
+    assert ws.frame_index('shown frame A') == 5
+    with pytest.raises(TimeUnavailable, match='already shown'):
+        ws.frame_index('shown frame E')
+    assert ws.time_labels([0, 15, 30]) == ['shown frame A'] * 3
+    assert ws.track_record('car') is track and len(calls) == 1
+
+
+def test_internal_grounding_probes_do_not_spend_the_agents_rename_attempt():
+    ws, g, _, responses = fixture_workspace()
+    responses.append(replace(g, **{
+        key: getattr(g, key)[:0] for key in ('obj_ids', 'masks', 'probs', 'boxes', 'area_frac', 'border')
+    }))
+    for name in ('world', 'sky', 'road', 'skier'):
+        assert not ws.ground(name).entities
+    assert ws.grounding_misses == 0
+    with pytest.raises(EntityUnavailable, match='Suggest an alternative name'):
+        ws.resolve('skier')
+    with pytest.raises(EntityUnavailable, match='not proof that it is absent'):
+        ws.resolve('person on skis')
+    assert ws.grounding_misses == 2

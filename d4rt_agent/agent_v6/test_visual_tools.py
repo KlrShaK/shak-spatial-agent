@@ -1,6 +1,7 @@
 """Small CPU fixtures for mask reports and isolated local video conversations."""
 
 from contextlib import nullcontext
+from dataclasses import replace
 from pathlib import Path
 from types import SimpleNamespace
 import json
@@ -54,6 +55,28 @@ class Qwen:
     def generate(self, messages, **kwargs):
         self.calls.append((messages, kwargs))
         return self.answer
+
+
+def test_inventory_misses_do_not_advance_explicit_entity_retry_messages():
+    workspace, _ = visual_workspace()
+    grounder = workspace._grounder
+
+    def empty(clip, name, anchor):
+        grounding = grounder(clip, name, anchor)
+        return replace(grounding, **{
+            key: getattr(grounding, key)[:0]
+            for key in ('obj_ids', 'masks', 'probs', 'boxes', 'area_frac', 'border')
+        })
+
+    workspace._grounder = empty
+    report = detect_all_entities(workspace, Qwen('{"entities":["road","sky","skier"]}'),
+                                 'Where is the skier?', {'A': 'left'}, 'An outdoor scene.')
+    assert report.status == 'unavailable' and workspace.grounding_misses == 0
+    first = get_segmentation_mask(workspace, ['skier'])
+    assert 'Suggest an alternative name' in first.reason
+    second = get_segmentation_mask(workspace, ['person on skis'])
+    assert 'not proof that it is absent' in second.reason
+    assert workspace.grounding_misses == 2
 
 
 def test_mask_table_has_spans_size_reversal_edges_and_shared_labels():

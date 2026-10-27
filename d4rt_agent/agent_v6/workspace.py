@@ -152,6 +152,8 @@ class Workspace:
         for name in tuple(self._selected):
             self.invalidate(name)
         self._selected.clear()
+        self._shown.clear()
+        self._frame_labels.clear()
         self.pending_candidates = None
         self.grounding_misses = 0
 
@@ -248,8 +250,6 @@ class Workspace:
         self._labels.update((entity.label, entity) for entity in entities)
         group = EntityGroup(name, grounding, entities, self.revisions[name])
         self._groups[name] = group
-        if not entities:
-            self.grounding_misses += 1
         return group
 
     def reground(self, name: str, *, phrase: str | None = None,
@@ -298,13 +298,18 @@ class Workspace:
     def entities(self, category: str) -> tuple[Entity, ...]:
         return self.ground(category).entities
 
-    def missing_message(self, name: str) -> str:
+    def missing_message(self, name: str, *, count_miss: bool = True) -> str:
+        # Only a failed entity request reported to the main agent advances the
+        # rename/visual-check sequence. Host inventory probes do not spend it.
+        if not count_miss:
+            return f"No segmented instance of {normalise_name(name)}. This is not proof that it is absent."
+        self.grounding_misses += 1
         if self.grounding_misses <= 1:
             return (f"No object found with the name {normalise_name(name)}. "
                     "Suggest an alternative name: singular, short, descriptive words.")
         return "Still not found. This is not proof that it is absent: check with get_frames or ask_video."
 
-    def resolve(self, name: str) -> Entity:
+    def resolve(self, name: str, *, count_miss: bool = True) -> Entity:
         name = normalise_name(name)
         if name == "camera":
             return Entity("camera", "camera", is_camera=True)
@@ -316,7 +321,7 @@ class Workspace:
             raise EntityUnavailable(f"The label {name} is unavailable; inspect {match[1]} again.")
         group = self.ground(name)
         if not group.entities:
-            raise EntityUnavailable(self.missing_message(name))
+            raise EntityUnavailable(self.missing_message(name, count_miss=count_miss))
         if len(group.entities) == 1:
             return group.entities[0]
         if name in self._selected:

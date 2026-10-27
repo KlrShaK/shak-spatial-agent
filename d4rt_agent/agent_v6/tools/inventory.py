@@ -69,21 +69,21 @@ def _size_profile(workspace, area, present, pixels):
     return "; ".join(profiles), raw
 
 
-def _observations(workspace, entities):
+def _observations(workspace, entities, *, count_misses=True):
     observations, missing = [], []
     seen = set()
     for name in entities:
         canonical = workspace.canonical_name(name)
         if re.fullmatch(r'.+ \d+', canonical):
             # Resolve numbered labels before SAM; stale labels cannot become nouns.
-            resolved = workspace.resolve(canonical)
+            resolved = workspace.resolve(canonical, count_miss=count_misses)
             canonical = resolved.label
         group = workspace.ground(canonical)
         requested = workspace.canonical_name(name)
         selected = [entity for entity in group.entities if entity.label == requested]
         selected = selected or group.entities
         if not selected:
-            missing.append(workspace.missing_message(name))
+            missing.append(workspace.missing_message(name, count_miss=count_misses))
         for entity in selected:
             if entity.label in seen:
                 continue
@@ -201,7 +201,7 @@ def detect_all_entities(workspace, qwen, question, options, caption):
         raise WorkspaceError("The inventory viewer did not return a list of short entity names.") from error
     nouns = list(dict.fromkeys(workspace.canonical_name(noun) for noun in nouns))
     nouns = [noun for noun in nouns if noun != "camera"]
-    observations, missing = _observations(workspace, nouns)
+    observations, missing = _observations(workspace, nouns, count_misses=False)
     images = _inventory_frames(workspace, observations)
     report = _mask_report(workspace, observations, missing, title="Entity inventory")
     counts = {noun: sum(entity.category == noun for entity, _ in observations) for noun in nouns}
