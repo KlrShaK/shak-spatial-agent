@@ -34,6 +34,11 @@ class VideoQwen:
         return self.qwen.processor
 
     def generate(self, messages, *, max_new_tokens=None, video_metadata=None):
+        # ProcessorMixin tokenization walks typed content blocks for every role,
+        # including text-only system, assistant and auxiliary-tool messages.
+        messages = [{**message, "content": [{"type": "text", "text": message["content"]}]
+                     if isinstance(message["content"], str) else message["content"]}
+                    for message in messages]
         if video_metadata is None:
             return self.qwen.generate(messages, max_new_tokens=max_new_tokens)
         torch = self.qwen.torch

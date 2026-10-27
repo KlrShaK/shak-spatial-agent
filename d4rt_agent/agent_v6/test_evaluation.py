@@ -66,6 +66,15 @@ def test_flip_audit_has_no_ground_truth_and_does_not_change_answer():
     assert source['letter'] == 'B'
 
 
+def test_flip_audit_sends_typed_text_blocks_to_the_unwrapped_processor():
+    class StrictQwen:
+        def generate(self, messages):
+            assert all(part['type'] == 'text' and isinstance(part['text'], str)
+                       for message in messages for part in message['content'])
+            return '{"reason_contradiction":false,"report_contradiction":false,"override_supported":false}'
+    assert flip_audit(row('q', True), StrictQwen())['status'] == 'ok'
+
+
 def test_selection_preserves_reporting_metadata_without_gold():
     source = {'dynbench': [{'qid': 'q', 'quantity_group': 'zoom', 'task': 'cameraqa',
                            'level_status': 'hypothesis', 'hypothesis_level': 'Camera reasoning',

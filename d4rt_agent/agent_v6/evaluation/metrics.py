@@ -116,8 +116,8 @@ def flip_audit(row, qwen):
     from pathlib import Path
     instruction = (Path(__file__).parents[1] / 'prompts/flip_audit.md').read_text()
     packet = audit_packet(row)
-    response = qwen.generate([{'role': 'system', 'content': instruction},
-                              {'role': 'user', 'content': json.dumps(packet)}])
+    response = qwen.generate([{'role': 'system', 'content': [{'type': 'text', 'text': instruction}]},
+                              {'role': 'user', 'content': [{'type': 'text', 'text': json.dumps(packet)}]}])
     from ..calls import parse_object
     try:
         result = parse_object(response)

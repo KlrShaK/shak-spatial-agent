@@ -221,6 +221,10 @@ def test_video_adapter_passes_metadata_budget_and_deterministic_generation(frame
             return self
 
     def process(messages, **kwargs):
+        # Same typed-content traversal used by the installed ProcessorMixin.
+        captured["visuals"] = [part for message in messages for part in message["content"]
+                               if part["type"] in ("image", "video")]
+        captured["messages"] = messages
         captured["processor"] = kwargs
         return Batch(input_ids=Batch.input_ids)
 
@@ -236,7 +240,15 @@ def test_video_adapter_passes_metadata_budget_and_deterministic_generation(frame
     )
     qwen = VideoQwen(base)
     metadata = [{"total_num_frames": 21, "fps": 10, "frames_indices": frame_indices}]
-    assert qwen.generate([], video_metadata=metadata, max_new_tokens=160) == "caption"
+    video = np.zeros((len(frame_indices), 4, 4, 3), dtype=np.uint8)
+    messages = [{"role": "system", "content": "Describe the clip."},
+                {"role": "user", "content": [{"type": "video", "video": video}]},
+                {"role": "assistant", "content": "A scene."}]
+    assert qwen.generate(messages, video_metadata=metadata, max_new_tokens=160) == "caption"
+    assert captured["messages"][0]["content"] == [{"type": "text", "text": "Describe the clip."}]
+    assert captured["messages"][2]["content"] == [{"type": "text", "text": "A scene."}]
+    assert captured["visuals"][0]["video"] is video
+    assert messages[0]["content"] == "Describe the clip."  # Caller conversation is unchanged.
     settings = captured["processor"]["videos_kwargs"]
     assert settings["video_metadata"] == metadata
     assert settings["do_sample_frames"] is False
@@ -244,6 +256,27 @@ def test_video_adapter_passes_metadata_budget_and_deterministic_generation(frame
     assert captured["generation"]["do_sample"] is False
     assert captured["generation"]["max_new_tokens"] == 160
     assert qwen.processor is base.processor
+
+
+def test_image_and_text_adapter_normalizes_auxiliary_prompts_without_mutation():
+    image = Image.new("RGB", (4, 4))
+    content = [{"type": "image", "image": image}, {"type": "text", "text": "What is shown?"}]
+    messages = [{"role": "system", "content": "Inspect the image."},
+                {"role": "user", "content": content},
+                {"role": "assistant", "content": "A car."}]
+    calls = []
+    def generate(normalized, **kwargs):
+        for message in normalized:
+            assert all(part["type"] in ("text", "image") for part in message["content"])
+        calls.append((normalized, kwargs))
+        return "answer"
+    assert VideoQwen(SimpleNamespace(generate=generate)).generate(messages, max_new_tokens=160) == "answer"
+    normalized, kwargs = calls[0]
+    assert normalized[0]["content"] == [{"type": "text", "text": "Inspect the image."}]
+    assert normalized[1]["content"] is content and normalized[1]["content"][0]["image"] is image
+    assert normalized[2]["content"] == [{"type": "text", "text": "A car."}]
+    assert kwargs == {"max_new_tokens": 160}
+    assert messages[0]["content"] == "Inspect the image."
 
 
 def test_coherent_single_pixel_size_growth_is_not_discarded_as_jitter():
