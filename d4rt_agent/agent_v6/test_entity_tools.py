@@ -246,6 +246,19 @@ def test_metric_distances_use_scale_with_named_provenance():
     assert "da3-nested" in report.render() and "metres" in report.render()
 
 
+def test_subject_window_uses_facing_at_the_window_start():
+    path = constant([0, 0, 4])
+    path[:, 2] += np.linspace(0, 3, 31)
+    ws, labels = workspace({"person": path}, headings={"person": np.linspace(0, 180, 31)})
+    report = track_entity(ws, "person", frame_of_reference="subject", window=(1, 2))
+    motion = report.raw["motions"][labels["person"]]
+    assert motion["starting_position"] == 10
+    assert motion["majority"] == "left+forward"
+    np.testing.assert_allclose(np.subtract(motion['positions'][-1], motion['positions'][0]),
+                               [-np.sqrt(3) / 2, 0, .5], atol=1e-8)
+    assert 'facing at 1.00 s' in report.render()
+
+
 def test_single_facing_observation_cannot_claim_no_turning():
     angles = np.full(31, np.nan)
     angles[15] = 90
@@ -401,6 +414,65 @@ def test_unknown_fps_does_not_report_speed_from_sample_order():
     assert motion["speed"] is None and motion["phase_speeds"] == []
     assert "Speed unavailable" in report.render()
     assert "m/s" not in report.render() and "units/s" not in report.render()
+
+
+def test_world_motion_with_camera_as_other_never_requests_a_camera_crop():
+    path = constant([0, 0, 4])
+    path[:, 0] = np.linspace(0, 3, 31)
+    ws, labels = workspace({'person': path}, headings={'person': np.zeros(31)})
+    native = ws.facing
+    requests = []
+
+    def facing(name, positions):
+        requests.append(name)
+        return native(name, positions)
+
+    ws.facing = facing
+    qwen = FakeQwen('facing away')
+    report = track_entity(ws, 'person', ['camera'], 'world', qwen=qwen)
+    assert report.status == 'ok'
+    assert set(report.raw['motions']) == {labels['person'], 'camera'}
+    assert requests == [labels['person']] and not qwen.calls
+    assert facing_rows(ws, 'camera', qwen=qwen) == []
+
+
+@pytest.mark.parametrize('use_fallback', [False, True])
+def test_subject_uses_first_resolvable_facing_when_initial_observation_fails(use_fallback):
+    path = constant([0, 0, 4])
+    path[:, 0] = np.linspace(0, 3, 31)
+    headings = np.full(31, 90.0)
+    headings[:3] = np.nan
+    ws, labels = workspace({'person': path}, headings={'person': headings})
+    qwen = FakeQwen('unknown') if use_fallback else None
+    report = track_entity(ws, 'person', frame_of_reference='subject', qwen=qwen)
+    motion = report.raw['motions'][labels['person']]
+    assert motion['frame_of_reference'] == 'subject'
+    assert motion['starting_position'] == 3
+    assert motion['majority'] == 'forward'
+    assert 'facing at 0.30 s' in report.render()
+    if qwen:
+        assert len(qwen.calls) == 1
+
+
+def test_missing_window_start_gets_fallback_even_when_later_native_facing_resolves():
+    path = constant([0, 0, 4])
+    path[:, 0] = np.linspace(0, 3, 31)
+    headings = np.full(31, 90.0)
+    headings[0], headings[10] = 0, np.nan
+    ws, labels = workspace({'person': path}, headings={'person': headings})
+    ws.scene().K[:, 0, 2], ws.scene().K[:, 1, 2] = 8.5, 15.5
+    qwen = FakeQwen('facing image-right')
+    report = track_entity(ws, 'person', frame_of_reference='subject', qwen=qwen, window=(1, 2))
+    motion = report.raw['motions'][labels['person']]
+    assert motion['frame_of_reference'] == 'subject' and motion['starting_position'] == 10
+    assert motion['majority'] == 'forward'
+    assert len(qwen.calls) == 1
+    assert report.raw['headings'][labels['person']]['positions'] == list(range(10, 21))
+    assert report.raw['headings'][labels['person']]['cumulative_turn_deg'] is None
+    assert [segment['positions'] for segment in report.raw['headings'][labels['person']]['segments']] == [[10], list(range(11, 21))]
+    assert 'facing at 1.00 s' in report.render()
+
+
 def test_speed_and_phase_distances_use_the_same_filtered_trajectory():
     rng = np.random.default_rng(6)
     path = constant([0, 0, 4], 101) + rng.uniform(-.01, .01, (101, 3))
@@ -430,3 +502,17 @@ def test_absorbed_weak_jitter_does_not_become_travel_or_speed_in_a_still_phase()
     assert motion['phases'][0]['distance'] == pytest.approx(0)
     assert motion['speed']['path_speed'] == pytest.approx(0)
     assert motion['phase_speeds'][0]['path_length'] == pytest.approx(0)
+
+
+@pytest.mark.parametrize('window,anchor', [(None, 1), ((1, 2), 11)])
+def test_group_own_frame_uses_first_resolvable_facing_in_requested_interval(window, anchor):
+    path = constant([0, 0, 4])
+    path[:, 0] = np.linspace(0, 3, 31)
+    headings = np.full(31, 90.0)
+    headings[0] = 0 if window else np.nan
+    headings[10] = np.nan
+    ws, labels = workspace({'person': path}, headings={'person': headings}, category='car')
+    report = track_multiple_entities(ws, 'car', 'own', window=window)
+    assert report.raw['counts'] == {'forward': 1}
+    assert report.raw['reference_positions'] == {labels['person']: anchor}
+    assert f'axes from facing at {anchor / 10:.2f} s' in report.render()

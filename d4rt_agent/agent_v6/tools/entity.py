@@ -178,28 +178,36 @@ def track_entity(ws, main, others=None, frame_of_reference="world", *, qwen=None
         names = list(dict.fromkeys([main, *others]))
         if frame_of_reference != "camera":
             for name in names if frame_of_reference == "world" else [main]:
-                rows = facing_rows(ws, name, qwen=qwen, positions=None if frame_of_reference == "subject" else positions)
+                if name == "camera":
+                    continue
+                rows = facing_rows(ws, name, qwen=qwen, positions=positions)
                 rows_by_name[name] = rows
                 heading = heading_report(ws, name, [row for row in rows if row["pos"] in positions])
                 headings[name] = heading.raw
                 pieces.append(heading)
         if frame_of_reference == "subject":
             track = ws.track_record(main)
-            good = np.flatnonzero(track.present & np.isfinite(track.smooth).all(1))
+            good = positions[track.present[positions] & np.isfinite(track.smooth[positions]).all(1)]
             by_position = {row["pos"]: row for row in rows_by_name[main]}
-            basis = basis_for(scene, by_position.get(int(good[0]), {})) if len(good) else None
+            anchor = next((int(pos) for pos in good
+                           if basis_for(scene, by_position.get(int(pos), {})) is not None), None)
+            basis = basis_for(scene, by_position[anchor]) if anchor is not None else None
             if basis is None:
-                own = Report.unavailable(f"{main} in its starting facing", "No resolvable front at the starting position.")
+                own = Report.unavailable(f"{main} in its starting facing", "No resolvable front in the requested interval.")
                 pieces.append(own)
                 title = f"World motion of {main}; starting-facing motion unavailable"
                 path = scene.to_level(track.smooth)
                 reading = "World motion uses the gravity-levelled starting view; forward is where the camera first looked."
             else:
-                path = (track.smooth - track.smooth[good[0]]) @ basis
-                reading = load_contract("traj_subject_own_frame")
+                path = (track.smooth - track.smooth[anchor]) @ basis
+                reference_time = labels_for(ws, [anchor])[0]
+                reading = (load_contract("traj_subject_own_frame") +
+                           f" The fixed axes use the first resolvable facing in the requested interval, at {reference_time}.")
             profile = motion_profile(ws, main, path, positions, 3 * track.noise, reading=reading)
+            if basis is not None:
+                profile.title = f"{main} in its facing at {reference_time}"
             profile.raw["frame_of_reference"] = "world" if basis is None else "subject"
-            profile.raw["starting_position"] = int(good[0]) if len(good) else None
+            profile.raw["starting_position"] = anchor
             motion[main] = profile.raw
             pieces.insert(0, profile)
             for other in others or ["camera"]:

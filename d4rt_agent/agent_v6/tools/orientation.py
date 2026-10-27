@@ -72,12 +72,14 @@ def _crop(ws, entity, position):
 
 
 def facing_rows(ws, name: str, *, qwen=None, positions=None) -> list[dict[str, Any]]:
-    """OAV2 first; if no front resolves, query three crops with greedy local Qwen.
+    """Keep OAV2 observations; try local Qwen for unresolved start/middle/end crops.
 
     Sparse fallback observations remain sparse. They are not interpolated into
     an apparently measured continuous heading trajectory.
     """
     entity = ws.resolve(name)
+    if entity.is_camera:
+        return []
     scene = ws.scene()
     track = ws.track_record(entity.label)
     positions = np.arange(scene.length) if positions is None else np.asarray(positions, dtype=int)
@@ -88,7 +90,11 @@ def facing_rows(ws, name: str, *, qwen=None, positions=None) -> list[dict[str, A
         rows = ws.facing(entity.label, positions)
     except Exception as error:  # Perception failure must not suppress available translation.
         rows = [{"pos": int(p), "usable": False, "status": str(error)} for p in positions]
-    if any(basis_for(scene, row) is not None for row in rows):
+    native = {int(row["pos"]): row for row in rows if basis_for(scene, row) is not None}
+    targets = np.linspace(positions[0], positions[-1], 3)
+    sampled = tuple(dict.fromkeys(int(positions[np.argmin(abs(positions - target))]) for target in targets))
+    sampled = tuple(pos for pos in sampled if pos not in native)
+    if not sampled:
         return rows
     if qwen is None and ws.models is not None:
         try:
@@ -97,15 +103,16 @@ def facing_rows(ws, name: str, *, qwen=None, positions=None) -> list[dict[str, A
             return rows
     if qwen is None:
         return rows
-    targets = np.linspace(positions[0], positions[-1], 3)
-    sampled = tuple(dict.fromkeys(int(positions[np.argmin(abs(positions - target))]) for target in targets))
-
     def fallback():
         prompt = (Path(__file__).parents[1] / "prompts" / "facing_fallback.md").read_text()
         result = []
         for pos in sampled:
             row = {"pos": pos, "usable": False, "source": FALLBACK_SOURCE}
-            cropped = _crop(ws, entity.label, pos)
+            try:
+                cropped = _crop(ws, entity.label, pos)
+            except Exception as error:
+                result.append({**row, "status": str(error)})
+                continue
             if cropped is None:
                 result.append({**row, "status": "no visible crop"})
                 continue
@@ -131,7 +138,8 @@ def facing_rows(ws, name: str, *, qwen=None, positions=None) -> list[dict[str, A
                            "forward_cam": forward_cam, "forward_world": world,
                            "up_world": scene.up, "forward_level": scene.to_level(world)})
         return result
-    return ws.cached(("facing_fallback", entity.label, sampled), (entity.category,), fallback)
+    recovered = ws.cached(("facing_fallback", entity.label, sampled), (entity.category,), fallback)
+    return sorted([*native.values(), *recovered], key=lambda row: row["pos"])
 
 
 def pack_rows(rows, max_rows=6):
@@ -154,7 +162,8 @@ def turn_series(scene, rows) -> dict[str, Any]:
         return {"positions": [], "turn_deg": [], "cumulative_turn_deg": None, "angular_path_deg": None, "segments": []}
     positions = np.array([int(row["pos"]) for row in usable])
     headings = np.array([geometry.heading_deg(scene.to_level(row["forward_world"])) for row in usable])
-    groups = np.split(np.arange(len(usable)), np.flatnonzero(np.diff(positions) != 1) + 1)
+    source_changes = np.array([a.get('source') != b.get('source') for a, b in zip(usable, usable[1:])], dtype=bool)
+    groups = np.split(np.arange(len(usable)), np.flatnonzero((np.diff(positions) != 1) | source_changes) + 1)
     segments = []
     for group in groups:
         turns = np.degrees(np.unwrap(np.radians(headings[group])))
@@ -204,7 +213,7 @@ def heading_report(ws, name, rows) -> Report:
     note = (f"Camera rotation is removed. Positive heading is a turn to the subject's right. Source: {source}. "
             "Turning is accumulated only within consecutive observed runs; gaps carry no measured turn.")
     if source == FALLBACK_SOURCE:
-        note += " Three coarse observations cannot resolve turns between observations."
+        note += " Coarse fallback observations cannot resolve turns across gaps or changes of facing source."
     short = f"Positive heading means turning to the subject's right; missing intervals have no measured turn. Source: {source}."
     return Report(f"{name} heading", headline, pack_rows(output), ("time", "turning", "degrees"), note, short,
                   status="partial" if series["partial"] else "ok",

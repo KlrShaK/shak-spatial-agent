@@ -25,6 +25,7 @@ def track_multiple_entities(ws, category, frame_of_reference="world", *, qwen=No
         positions = window_positions(ws, window)
         tracks = {entity.label: ws.track_record(entity.label) for entity in entities}
         counts, directions, unresolved, output = Counter(), {}, [], []
+        reference_positions = {}
         for entity in entities:
             track = tracks[entity.label]
             valid = track.present & np.isfinite(track.smooth).all(1)
@@ -43,23 +44,26 @@ def track_multiple_entities(ws, category, frame_of_reference="world", *, qwen=No
                 path = np.einsum("ti,tij->tj", points - scene.cam_t[used], scene.cam_R[used])
                 axes = CAMERA_AXES
             else:
-                rows = facing_rows(ws, entity.label, qwen=qwen)
-                anchor = int(np.flatnonzero(valid)[0])
-                row = next((row for row in rows if row["pos"] == anchor), {})
-                basis = basis_for(scene, row)
+                rows = facing_rows(ws, entity.label, qwen=qwen, positions=positions)
+                by_position = {int(row['pos']): row for row in rows}
+                anchor = next((int(pos) for pos in used
+                               if basis_for(scene, by_position.get(int(pos), {})) is not None), None)
+                basis = basis_for(scene, by_position[anchor]) if anchor is not None else None
                 if basis is None:
                     unresolved.append(entity.label)
                     output.append(("—", entity.label, "own-frame direction unavailable: no starting front"))
                     continue
-                path = (points - points[0]) @ basis
+                reference_positions[entity.label] = anchor
+                path = (points - track.smooth[anchor]) @ basis
             delta = path[-1] - path[0]
             noise = max(3 * track.noise, 0.03 * scene.scale)
             direction = _direction(delta, noise, axes)
             directions[entity.label] = direction
             counts[direction] += 1
             stamps = labels_for(ws, used[[0, -1]])
+            reference = f"; axes from facing at {labels_for(ws, [anchor])[0]}" if frame_of_reference == "own" else ""
             output.append((f"{stamps[0]}–{stamps[1]}", entity.label,
-                           f"{direction}; net {np.linalg.norm(ws.metric.convert(delta)):.2f} {ws.metric.units}"))
+                           f"{direction}; net {np.linalg.norm(ws.metric.convert(delta)):.2f} {ws.metric.units}{reference}"))
         spread, members = [], []
         for position in positions:
             present = [name for name, track in tracks.items() if track.present[position]]
@@ -137,6 +141,7 @@ def track_multiple_entities(ws, category, frame_of_reference="world", *, qwen=No
                       status="partial" if unresolved else "ok",
                       reason="Some instance directions are unavailable." if unresolved else "",
                       raw={"directions": directions, "counts": dict(counts), "unresolved": unresolved,
+                           "reference_positions": reference_positions,
                            "spread": spread, "spread_phases": spread_phases, "spread_extrema": extrema,
                            "membership": membership, "positions": positions.tolist(),
                            "window": window})
