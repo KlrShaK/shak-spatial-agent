@@ -206,6 +206,39 @@ def test_race_waits_for_claim_and_does_not_treat_a_loser_as_completion(monkeypat
     assert campaign.active_status(active)['state'] == 'NODE_FAIL'
 
 
+def test_race_wrapper_allows_only_one_worker_under_simultaneous_starts(tmp_path):
+    import os
+    from pathlib import Path
+    import shutil
+    import subprocess
+
+    repository = Path(__file__).resolve().parents[2]
+    scripts = tmp_path / 'source/scripts'
+    scripts.mkdir(parents=True)
+    shutil.copy2(repository / 'scripts/race_claim.sh', scripts / 'race_claim.sh')
+    (scripts / 'agent_v6_job.sh').write_text('printf "%s\\n" "$SLURM_JOB_ID" >> "$WORKERS"\n')
+    binary = tmp_path / 'bin'
+    binary.mkdir()
+    cancel = binary / 'scancel'
+    cancel.write_text('#!/bin/sh\nprintf "%s\\n" "$1" >> "$CANCELLATIONS"\n')
+    cancel.chmod(0o755)
+    race = tmp_path / '.race'
+    race.mkdir()
+    (race / 'attempt.jobs').write_text('1\n2\n')
+    env = dict(os.environ, V6_PLAN=str(tmp_path / 'plan.json'), V6_ATTEMPT_ID='attempt',
+               PATH=f'{binary}:{os.environ["PATH"]}', WORKERS=str(tmp_path / 'workers'),
+               CANCELLATIONS=str(tmp_path / 'cancellations'))
+    processes = [subprocess.Popen(['bash', str(repository / 'scripts/agent_v6_race_job.sh')],
+                                 env=dict(env, SLURM_JOB_ID=job), stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                 for job in ('1', '2')]
+    for process in processes:
+        output, error = process.communicate(timeout=15)
+        assert process.returncode == 0, (output, error)
+    winner = (race / 'attempt.claim/job').read_text().strip()
+    assert (tmp_path / 'workers').read_text().splitlines() == [winner]
+    assert (tmp_path / 'cancellations').read_text().splitlines() == [({'1', '2'} - {winner}).pop()]
+
+
 def test_d7_regeneration_restores_only_selected_questions_and_packs_clip_files(monkeypatch, tmp_path):
     from types import SimpleNamespace
     from dyn_dataset_exploration.decomposition import build_catalog, program
