@@ -162,3 +162,68 @@ def test_race_waits_for_claim_and_does_not_treat_a_loser_as_completion(monkeypat
     assert 'job' not in active
     monkeypatch.setattr(campaign, 'job_status', lambda job: {'state': 'NODE_FAIL'})
     assert campaign.active_status(active)['state'] == 'NODE_FAIL'
+
+
+def test_d7_regeneration_restores_only_selected_questions_and_packs_clip_files(monkeypatch, tmp_path):
+    from types import SimpleNamespace
+    from dyn_dataset_exploration.decomposition import build_catalog, program
+    from .evaluation import regenerate_d7
+
+    source = tmp_path / 'source'
+    source.mkdir()
+    entries = [dict(qid=qid, dataset='test', video=qid, clip_slug=qid,
+                    question='What happens?', options={'A': 'left', 'B': 'right'}, answer='B')
+               for qid in ('selected', 'excluded')]
+    catalog = tmp_path / 'catalog.json'
+    catalog.write_text(json.dumps({'questions': entries}))
+    selection = tmp_path / 'selection.json'
+    selection.write_text(json.dumps({'question_ids': {'dynbench': ['selected']}}))
+    baselines = tmp_path / 'baselines.json'
+    baselines.write_text(json.dumps({'frames_only': {'dynbench:all:selected': {'letter': 'A'}}}))
+    plan = dict(source=str(source), results=str(tmp_path / 'results'), dyn_root='/unused',
+                catalog=str(catalog), quick_selection=str(selection), qwen_model='fixture',
+                baselines={'dynbench': str(baselines)})
+    requested = []
+    monkeypatch.setattr(build_catalog, 'clip_record', lambda root, dataset, video: {'clip_slug': video})
+    monkeypatch.setattr(build_catalog, 'materialize_frames', lambda *args: None)
+    monkeypatch.setattr(program, 'rule_parse', lambda *args: SimpleNamespace(
+        to_dict=lambda: {'route': 'vlm_only', 'entities': []}))
+
+    def run(args, **kwargs):
+        requested.append(args)
+        if '--collect' in args:
+            out = regenerate_d7.Path(args[args.index('--collect') + 1])
+            assert json.loads((out / 'answers/selected.frames_only.json').read_text())['answer'] == 'A'
+            (out / 'solutions.json').write_text(json.dumps({'selected': {'final': 'B', 'frames_only': 'A'}}))
+
+    monkeypatch.setattr(regenerate_d7.subprocess, 'run', run)
+    rows = regenerate_d7.regenerate(plan)
+    assert set(rows) == {'dynbench:all:selected'}
+    assert rows['dynbench:all:selected']['correct']
+    assert rows['dynbench:all:selected']['frames_letter'] == 'A'
+    assert len(list((tmp_path / 'results/regenerated_d7/cache/point4d').glob('*.tar.gz'))) == 1
+    assert not any('prep_point4d' in str(args) for args in requested)
+    assert not any('ground' in args for args in requested)
+    requested.clear()
+    assert regenerate_d7.regenerate(plan) == rows
+    assert not requested
+
+
+def test_d7_scene_reuse_requires_the_same_generator_clock_and_rejects_missing_scale(tmp_path):
+    import numpy as np
+    from .evaluation.regenerate_d7 import reuse_scene
+
+    cached = tmp_path / 'cache/clips/clip/point4d'
+    cached.mkdir(parents=True)
+    clip = {'gf': {'length': 3}, 'portrait': False, 'source_hw': [48, 80]}
+    arrays = dict(gf_index=[0, 1, 2], model_hw=[294, 518], geometry_stride=4, source_hw=[48, 80])
+    np.savez(cached / 'scene.npz', **arrays)
+    (cached / 'metric.json').write_text(json.dumps({'metres_per_unit': None}))
+    out = tmp_path / 'matching'
+    provenance = reuse_scene(tmp_path / 'cache', out, 'clip', clip)
+    assert len(provenance) == 1 and provenance[0]['source'].endswith('scene.npz')
+    assert (out / 'clips/clip/point4d/scene.npz').is_file()
+    assert not (out / 'clips/clip/point4d/metric.json').exists()
+    np.savez(cached / 'scene.npz', **{**arrays, 'gf_index': [0, 2]})
+    assert reuse_scene(tmp_path / 'cache', tmp_path / 'mismatch', 'clip', clip) == []
+    assert not (tmp_path / 'mismatch').exists()
