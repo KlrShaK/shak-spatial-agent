@@ -9,7 +9,7 @@ from d4rt_agent.agent_v5.measure import (
 )
 from d4rt_agent.agent_v5.program import Measurement
 from d4rt_agent.sam_orientany_d4rt_test.traj3d_buckets import (
-    angle_noise_deg, displacement_noise,
+    angle_noise_deg, displacement_noise, rank_components,
 )
 from ..reports import Report, load_contract, segment_motion, time_label
 from ..workspace import WorkspaceError
@@ -114,8 +114,9 @@ def _description(phases, noise, angle_noise):
     first = phases[0]
     parts = []
     if first["translation"] != "still":
+        net = np.sum([p["displacement"] for p in phases], axis=0)
         parts.append(f"MOVES {first['translation'].upper()} "
-                     f"({sum(p['moved'] for p in phases):.3f}; noise {noise:.3f})")
+                     f"(moved {sum(p['moved'] for p in phases):.3f}; net {rank_components(net)}; noise {noise:.3f})")
     for i, (name, _, _) in enumerate(_ROTATIONS):
         direction = first["turn_labels"].get(name)
         if direction and direction != "still":
@@ -166,7 +167,9 @@ def track_camera(workspace, *, window=None):
                 sense = "CLOCKWISE" if x < 0 else "COUNTER-CLOCKWISE"
                 headline += f" {sense} orbit signature at {phase['span']}: opposing lateral translation and pan."
         path = sum(p.distance for p in translation if p.label != "still")
-        net = float(np.linalg.norm(positions[-1] - positions[0]))
+        net_components = positions[-1] - positions[0]
+        net = float(np.linalg.norm(net_components))
+        headline += f" Net translation over the interval: {rank_components(net_components)} {metric.units} (noise {noise:.3f})."
         tempo = "Tempo unavailable: frame rate is unknown."
         if times is not None:
             duration = float(times[-1] - times[0])
@@ -191,7 +194,8 @@ def track_camera(workspace, *, window=None):
             headline += f", rotation {jitter['rotation_deg']:.2f}° (pan, tilt and roll included)."
         rows = []
         for phase in phases:
-            rows.append((phase["span"], phase["translation"], f"{phase['moved']:.3f}", *[
+            rows.append((phase["span"], phase["translation"],
+                         f"moved {phase['moved']:.3f}; net {rank_components(phase['displacement'])}", *[
                 f"{value:+.1f}°" if np.isfinite(value) else "unavailable" for value in phase["rotation_deg"]]))
         missing = [name for name, _, _ in _ROTATIONS if name not in rotations]
         if missing and majority == "still":
@@ -202,7 +206,7 @@ def track_camera(workspace, *, window=None):
         notes += " Brief weak phases may be absorbed; strong brief excursions are retained."
         if times is not None and scene.fps is not None and scene.fps <= 8:
             notes += " Sparse frame sampling can understate shake."
-        return Report(title, headline, rows=_pack(rows), columns=("time", "translation", "moved", "pan", "tilt", "roll"),
+        return Report(title, headline, rows=_pack(rows), columns=("time", "translation", "moved / net components", "pan", "tilt", "roll"),
                       reading_full=notes,
                       reading_short="Left translation + right pan gives clockwise orbit; opposite signs give counter-clockwise. " + _unit_note(workspace),
                       status="partial" if missing else "ok", reason="Unmeasurable rotation: " + ", ".join(missing) if missing else "",
@@ -210,6 +214,7 @@ def track_camera(workspace, *, window=None):
                            "phases": phases, "majority": majority, "translation_phases": [asdict(p) for p in translation],
                            "rotation_deg": angles.tolist(), "rotation_noise_deg": angle_noise,
                            "translation_noise": noise, "path_distance": path, "net_displacement": net,
+                           "net_components": net_components.tolist(),
                            "jitter": jitter, "units": metric.units, "metric_source": metric.source})
     except (ValueError, FloatingPointError, np.linalg.LinAlgError) as error:
         return Report.unavailable(title, str(error))

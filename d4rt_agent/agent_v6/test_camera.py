@@ -200,3 +200,24 @@ def test_revisit_rejects_nonpositive_focal_lengths(endpoint,axis):
     ws = workspace(frames=11)
     ws.scene().K[endpoint,axis,axis] = 0
     assert check_scene_revisit(ws).status == 'unavailable'
+
+
+@pytest.mark.parametrize('delta,components', [
+    ((1.2, -.3, 2), '2.000 forward, 1.200 right, 0.300 up'),
+    ((-2, .3, 1.2), '2.000 left, 1.200 forward, 0.300 down'),
+])
+def test_camera_headline_and_phase_table_include_ranked_net_components(delta, components):
+    ws = workspace(frames=21, camera_t=lambda t: np.asarray(delta) * t / 20)
+    report = track_camera(ws)
+    assert components in report.headline
+    assert f'Net translation over the interval: {components}' in report.headline
+    assert components in report.rows[0][2]
+    np.testing.assert_allclose(report.raw['net_components'], delta)
+
+
+def test_camera_out_and_back_keeps_phase_components_with_zero_net_translation():
+    ws = workspace(frames=41, camera_t=lambda t: (min(t, 40 - t) / 10, 0, 0))
+    report = track_camera(ws)
+    assert '2.000 right' in report.rows[0][2]
+    assert '2.000 left' in report.rows[1][2]
+    assert 'Net translation over the interval: 0.000 right, 0.000 down, 0.000 forward' in report.headline
