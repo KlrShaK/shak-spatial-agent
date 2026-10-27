@@ -264,7 +264,7 @@ Tests: GPU-free pytest in d4rt_agent/agent_v6/test_*.py covering <the milestone'
 line>. Quick GPU-free tests may run on the login node; anything reading datasets or
 caches goes through sbatch scripts/run_cpu_task.slurm.
 
-Rules: follow CLAUDE.md and CONTRIBUTING.md (commits "[type]agent-v6: …", about 150–200
+Rules: follow AGENTS.md, CLAUDE.md and CONTRIBUTING.md (commits "[type]agent-v6: …", about 150–200
 lines each, code separate from docs, no agent attribution). Local Qwen3-VL-8B only. No GPU
 jobs. If the design is ambiguous or contradicts the code, stop and ask; never change a
 numbered decision silently. Record implementation choices under "Implementation notes" in
